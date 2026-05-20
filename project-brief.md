@@ -31,13 +31,13 @@ An AI agent can call `tfscli`, read work item content, and use it meaningfully i
 - **Platform:** primary target is Windows (most on-prem TFS environments). Cross-compilation to Linux/macOS is a bonus enabled by Go, not a priority.
 - **API coverage in MVP:** Work Items → Get Work Item (single ID). Get Work Items Batch (multiple IDs) if supported by the target API version. Fields selectable via `--fields` parameter; all fields returned by default.
 - **Target API version:** Azure DevOps Server (latest, REST API 7.2). API version is configurable (default in config, overridable per call) to support older TFS installations.
-- **Authentication:** PAT only. Stored in `~/.tfscli/config.json`, overridable via `TFSCLI_PAT` environment variable. No SSPI, NTLM, or interactive login.
+- **Authentication:** PAT only. Stored in `~/.tfscli/config.json`, overridable via `TFSCLI_PAT` environment variable. No SSPI, NTLM, or interactive login. Note: PAT is stored in plaintext — this is a conscious trade-off for v1 simplicity. For shared or CI machines, `TFSCLI_PAT` via environment is recommended. OS keychain / DPAPI integration is a candidate for future versions.
 - **Output:** Markdown by default. JSON as optional flag in future versions.
 - **Distribution:** open source on GitHub, pre-built binaries in releases.
 
 ## Non-Goals
 
-- **Write operations.** v1 is strictly read-only. Write operations are a future consideration, gated by PAT scopes.
+- **Write operations.** v1 is strictly read-only. Write operations are a future consideration, gated by PAT scopes. JSON output (`--json`) is a prerequisite for write support, since markdown conversion is lossy and not round-trippable to HTML.
 - **MCP server mode.** tfscli is a CLI utility, not an MCP server. If MCP integration is needed, it can be wrapped externally.
 - **Cloud Azure DevOps Services support.** Target is on-premises TFS / Azure DevOps Server. Cloud may work incidentally but is not tested or guaranteed.
 - **Custom query syntax.** No invented query language. WIQL support (when added) will pass queries directly to the API.
@@ -47,7 +47,7 @@ An AI agent can call `tfscli`, read work item content, and use it meaningfully i
 ## Design Principles
 
 - **Follow TFS API structure.** Command hierarchy mirrors API domains. Parameter names match API parameter names where possible. If TFS API has a batch endpoint — tfscli exposes batch. If it doesn't — tfscli doesn't invent one.
-- **Predictable error output.** Errors go to stderr with a machine-readable category and human-readable message. Exit code is non-zero. Format: `Error [category]: message (HTTP status)`.
+- **Predictable error output.** Errors go to stderr with a machine-readable category and human-readable message. Exit code is non-zero. Format: `Error [category]: message (HTTP status)`. Error categories are a stable contract: existing categories are never removed or renamed; new categories may be added in future versions.
 - **Minimal configuration.** Config file stores server URL, collection, PAT, optional default project and API version. Environment variables override config values. No other configuration needed.
 - **Clean output for AI consumption.** HTML in work item fields is converted to markdown. Metadata noise (URLs, internal IDs, revision details) is minimized in default output.
 
@@ -85,6 +85,8 @@ tfscli workitem get -p MyProject 12345 --fields System.Title,System.State,System
 Project flag `-p` is required unless default project is set in config or `TFSCLI_PROJECT`.
 
 ## Error Format
+
+Categories (`auth`, `not_found`, `forbidden`, `server`, `config`, `network`) are a stable contract — see Design Principles.
 
 ```
 Error [auth]: PAT is invalid or expired (HTTP 401)
