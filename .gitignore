@@ -1,0 +1,18 @@
+# Binaries
+/tfscli
+/tfscli.exe
+/bin/
+/dist/
+
+# Test and coverage artifacts
+*.test
+*.out
+coverage.html
+
+# Local config with credentials — never commit
+config.json
+
+# IDE
+.idea/
+.vs/
+.vscode/

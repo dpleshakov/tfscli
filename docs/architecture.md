@@ -244,3 +244,23 @@ type WorkItem struct {
 - **New API domain** (repos, builds, wiql): add a new domain module and register a cobra subcommand. No edits to `apiclient`, `config`, or `tfserr`.
 - **`--json` output**: introduce a `Renderer` interface in the cli layer; add a `JSONRenderer` that consumes `*WorkItem` directly. The markdown printer becomes the other implementation. Local refactor confined to the cli layer.
 - **TFS-specific HTML quirks** (mentions, attachment links, Word paste leftovers): add rules in `htmlmd` plus golden tests on real samples. Tracked in `2026-05-20-tasks-html-quirks.md`.
+
+---
+
+## Project Structure
+
+Go module path: `github.com/dpleshakov/tfscli`.
+
+### Layout principle
+
+Standard Go CLI layout: a single binary entry point under `cmd/`, all implementation under `internal/`. Package boundaries are exactly the module boundaries from the Architecture section — one Go package per module (cli, config, apiclient, workitem, htmlmd, tfserr, log) — so the dependency rules stated there are visible in import lists and enforced by the compiler rather than by convention. Everything lives under `internal/` because tfscli is a CLI tool, not a library: a zero public API surface keeps full freedom to refactor between releases.
+
+### Top-level directories
+
+| Directory | Purpose |
+|---|---|
+| `cmd/` | Binary entry points, one subdirectory per binary. v1 has a single binary, `tfscli`; its `main` only wires modules together and delegates to the cli package. |
+| `internal/` | All implementation packages, one per architecture module. Tests sit next to the code (`_test.go`); fixtures live in per-package `testdata/` directories. |
+| `docs/` | Design documents (`project-brief.md`, `architecture.md`), tasks files, tech-debt register. Not part of the shipped binary. |
+
+Deliberately absent: `pkg/` (nothing is exported), `vendor/` (dependencies resolve through the module proxy), a separate `test/` tree (Go convention keeps tests beside the code they test).

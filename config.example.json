@@ -1,0 +1,7 @@
+{
+  "url": "https://tfs.company.com:8080/tfs",
+  "collection": "DefaultCollection",
+  "pat": "YOUR_PAT_HERE",
+  "project": "MyProject",
+  "apiVersion": "7.2"
+}

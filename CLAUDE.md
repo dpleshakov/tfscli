@@ -10,7 +10,7 @@ Note: tasks files created before the move to skills (e.g. `docs/2026-05-20-tasks
 
 ## Project state
 
-This is a **pre-code** project. The repository currently contains only design and process documents — no `go.mod`, no source files, no build scripts. If you're being asked to implement something, the first step is almost certainly to scaffold the Go module per the structure defined in `architecture.md` (the "Project Structure" section, once it exists, or by following the architecture decisions already documented).
+The repository is a **scaffolded skeleton**: the Go module (`github.com/dpleshakov/tfscli`) is initialized with one package per architecture module (see the "Project Structure" section of `docs/architecture.md`), but no functionality is implemented yet — packages contain only doc comments, and `cli.Run()` is a stub. Implementation work goes through tasks files per the `tasks` skill.
 
 Three documents drive everything:
 
@@ -49,7 +49,10 @@ tfscli workitem get -p MyProject 12345 --fields System.Title,System.State,System
 
 ## Build / test commands
 
-No build or test commands exist yet — the Go module hasn't been initialized. Once it is, the conventional commands will be `go build ./...`, `go test ./...`, `go test -run TestName ./path/to/pkg` for a single test, and `GOOS=windows GOARCH=amd64 go build` for cross-compilation. Don't document these in this file until they actually work in the repo.
+- Build: `go build ./...`
+- Test: `go test ./...`; single test: `go test -run TestName ./path/to/pkg`
+- Vet / format check: `go vet ./...`, `gofmt -l .`
+- Cross-compilation: `GOOS=windows GOARCH=amd64 go build ./cmd/tfscli`
 
 ## Tooling note
 
