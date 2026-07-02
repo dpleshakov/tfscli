@@ -2,20 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Process: read the matching document first — mandatory
+## Process
 
-The project follows a deliberate, strict workflow. The authoritative process descriptions live in `docs/`. **Before doing the work, open and read the document that matches the current task.** Skipping this step breaks the process and corrupts the repository's working model — tasks files get the wrong shape, the changelog accumulates entries that don't belong, tech debt goes uncaptured, and review tasks lose their checklist. Do not rely on this CLAUDE.md as a substitute; it intentionally does not duplicate the process content.
+The project follows a deliberate, strict workflow defined by process skills: `project-start` (brief, tech stack, architecture, repo skeleton), `tasks` (task breakdown and execution), `tech-debt` (deferred compromises), and `changelog` (CHANGELOG.md entries and releases). If these skills are available, they are authoritative — invoke the matching one before doing the work; this CLAUDE.md intentionally does not duplicate their content. If they are not available in the current environment, ask the user how to proceed instead of improvising the process from memory.
 
-Decide which file to read by the current task:
-
-| If the current task is… | Read |
-|---|---|
-| Setting up a brand-new project: brief, tech stack, architecture, or initial repo skeleton | `docs/process-project-start-en.md` |
-| Anything inside a feature: task breakdown, implementing a Regular/Smoke/Review/Docs task, archiving a tasks file | `docs/process-feature-en.md` |
-| Recording a deliberate compromise, updating `tech-debt.md`, or working in a way that touches tech-debt items | `docs/process-maintenance-en.md` |
-| Adding or editing an entry in `CHANGELOG.md`, or preparing a release | `docs/process-changelog-guide-en.md` |
-
-If more than one row applies, read all of them. If none clearly applies, ask the user which process the task falls under before proceeding.
+Note: tasks files created before the move to skills (e.g. `docs/2026-05-20-tasks-html-quirks.md`) follow an older format with task types and emoji statuses; keep their existing format when updating them.
 
 ## Project state
 
@@ -25,7 +16,7 @@ Three documents drive everything:
 
 - `project-brief.md` — product scope, constraints, non-goals, error/config/command contracts. **Read this before proposing any user-facing change.**
 - `architecture.md` — tech stack with rationale and rejected alternatives. **Read this before adding a dependency or swapping a library.**
-- `docs/process-*.md` — the development workflow (see below).
+- Process skills — the development workflow (see "Process" above).
 
 ## Non-negotiable product constraints
 

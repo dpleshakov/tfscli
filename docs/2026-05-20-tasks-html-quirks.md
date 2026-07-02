@@ -9,7 +9,7 @@ No new API contracts. Scope is limited to the `htmlmd` module and golden tests a
 
 ### Note on task types
 
-Per `docs/process-feature-en.md`, a tasks file normally contains all four task types (Regular, Smoke, Review, Docs). This file deliberately omits the Smoke type: there is no running code to smoke-test — the feature is fixtures (`testdata/`) plus golden tests plus library-plugin rules. TASK-01 already requires a live-TFS round-trip to harvest the fixtures, which is the only end-to-end interaction the feature can produce; the golden tests in TASK-02 are the verification mechanism instead of a smoke check.
+This file predates the move of the process into the global `tasks` skill and keeps the older format: task types (Regular, Smoke, Review, Docs) and emoji statuses. Under that format a tasks file normally contains all four task types. This file deliberately omits the Smoke type: there is no running code to smoke-test — the feature is fixtures (`testdata/`) plus golden tests plus library-plugin rules. TASK-01 already requires a live-TFS round-trip to harvest the fixtures, which is the only end-to-end interaction the feature can produce; the golden tests in TASK-02 are the verification mechanism instead of a smoke check.
 
 ---
 
@@ -38,5 +38,5 @@ Per `docs/process-feature-en.md`, a tasks file normally contains all four task t
 
 ### TASK-05 `docs`
 **Type:** Docs
-**Description:** Update `README.md` and `CHANGELOG.md` with a one-line user-facing note that HTML rendering now handles the relevant TFS patterns (mentions, attachments, Word paste, work-item refs — whichever were addressed). No technical detail in `CHANGELOG.md`; see `docs/process-changelog-guide-en.md`.
+**Description:** Update `README.md` and `CHANGELOG.md` with a one-line user-facing note that HTML rendering now handles the relevant TFS patterns (mentions, attachments, Word paste, work-item refs — whichever were addressed). No technical detail in `CHANGELOG.md`; see the `changelog` skill.
 **Status:** ⬜ Pending
