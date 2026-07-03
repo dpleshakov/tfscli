@@ -30,7 +30,7 @@ Decisions recorded for this scope:
 ### TASK-02 `log`
 **Description:** Implement the `log` package: `Logger` interface with `LogRequest(method, url string, status int, dur time.Duration)` and `Warn(msg string)`; a `noop` implementation (default) and a `stderr` implementation (selected later by `--verbose` / `TFSCLI_VERBOSE=1`).
 **Definition of done:** Tests verify the stderr logger writes method, URL, status, and duration — and nothing else; the noop logger writes nothing; `go test ./internal/log` passes.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-03 `config`
 **Description:** Implement the `config` package: load `~/.tfscli/config.json`, overlay environment variables (`TFSCLI_URL`, `TFSCLI_COLLECTION`, `TFSCLI_PAT`, `TFSCLI_PROJECT`, `TFSCLI_API_VERSION`), overlay explicitly-set flag values, validate required fields (`URL`, `Collection`, `PAT` always; `Project` must come from flag, env, or config). `Config` also holds `APIVersion` (default `7.2`), `InsecureSkipVerify`, `CABundle`. Malformed JSON and missing required fields fail with category `config`; a missing config file is reported as `config file not found at ~/.tfscli/config.json`. Update the `config` error example in `project-brief.md` to match (drop the `config init` reference).
