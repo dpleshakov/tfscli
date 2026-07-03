@@ -25,7 +25,7 @@ Decisions recorded for this scope:
 ### TASK-01 `tfserr`
 **Description:** Implement the `tfserr` package: typed error `Error{Category, Message, HTTPStatus, Cause}` with the six stable categories from the brief (`auth`, `not_found`, `forbidden`, `server`, `config`, `network`); `Print(err, w)` writing `Error [category]: message (HTTP status)` (status part omitted when there is no HTTP status); `ExitCode(err)` returning a non-zero code (v1: 1 for every category).
 **Definition of done:** Unit tests cover the output format for every category, both with and without an HTTP status; `go test ./internal/tfserr` passes.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-02 `log`
 **Description:** Implement the `log` package: `Logger` interface with `LogRequest(method, url string, status int, dur time.Duration)` and `Warn(msg string)`; a `noop` implementation (default) and a `stderr` implementation (selected later by `--verbose` / `TFSCLI_VERBOSE=1`).
