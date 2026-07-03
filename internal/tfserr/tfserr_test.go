@@ -75,6 +75,14 @@ func TestPrintUntypedError(t *testing.T) {
 	}
 }
 
+func TestPrintNil(t *testing.T) {
+	var sb strings.Builder
+	Print(nil, &sb)
+	if got := sb.String(); got != "" {
+		t.Errorf("Print(nil) = %q, want empty", got)
+	}
+}
+
 func TestErrorMessage(t *testing.T) {
 	withStatus := &Error{Category: Auth, Message: "PAT is invalid", HTTPStatus: 401}
 	if got, want := withStatus.Error(), "[auth] PAT is invalid (HTTP 401)"; got != want {

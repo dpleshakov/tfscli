@@ -40,8 +40,11 @@ func (e *Error) Unwrap() error { return e.Cause }
 // Print writes err to w in the contract format
 // "Error [category]: message (HTTP status)", omitting the status part when
 // the error carries no HTTP status. Errors that are not (and do not wrap) an
-// *Error are printed as "Error: message".
+// *Error are printed as "Error: message". A nil err writes nothing.
 func Print(err error, w io.Writer) {
+	if err == nil {
+		return
+	}
 	var te *Error
 	if errors.As(err, &te) {
 		if te.HTTPStatus != 0 {
