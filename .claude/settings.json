@@ -8,7 +8,15 @@
       "Bash(go doc:*)",
       "Bash(go list:*)",
       "Bash(go version:*)",
-      "Bash(go env:*)"
+      "Bash(go env:*)",
+      "PowerShell(go build:*)",
+      "PowerShell(go test:*)",
+      "PowerShell(go vet:*)",
+      "PowerShell(gofmt:*)",
+      "PowerShell(go doc:*)",
+      "PowerShell(go list:*)",
+      "PowerShell(go version:*)",
+      "PowerShell(go env:*)"
     ]
   }
 }
