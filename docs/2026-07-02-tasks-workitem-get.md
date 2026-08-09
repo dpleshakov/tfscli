@@ -75,7 +75,7 @@ Decisions recorded for this scope:
 ### TASK-07 `cli-wiring`
 **Description:** Implement the `cli` package and wire `cmd/tfscli/main.go`: cobra root command with persistent flags (`--verbose`, config overrides including `--api-version`); `workitem get` subcommand with `-p`/`--project`, `--fields`, and a positive-integer check on the id argument; markdown printer iterating `WorkItem.Fields` — HTML fields through `htmlmd.Convert`, identity and datetime fields through small dedicated formatters, plain fields as is — writing to stdout; on any error `tfserr.Print(err, os.Stderr)` and exit with `tfserr.ExitCode(err)`. `main` only wires modules together and delegates to `cli.Run()`.
 **Definition of done:** `go build ./...` produces a working binary; an integration test drives the command against an `httptest.Server` and verifies stdout content, stderr error format, and exit behaviour for success, `not_found`, and `auth` cases; `go test ./...`, `go vet ./...`, and `gofmt -l .` are clean.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-08 `live-smoke`
 **Description:** Run the built binary against a real on-prem TFS / Azure DevOps Server instance: a successful `workitem get`, a run with `--fields`, a nonexistent id (expect `not_found`), and an invalid PAT (expect `auth`). This is the trigger event for `2026-05-20-tasks-html-quirks.md`.
