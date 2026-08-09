@@ -24,6 +24,10 @@ Decisions recorded for this scope:
   variables and flags alone must be enough to run. `config file not found at
   <path>` is reported only when a required field is in fact missing and the file
   is absent — then it is the most useful thing to say.
+- **`api-version` is added by `apiclient`, not by domain modules.** It applies to
+  every endpoint uniformly and `apiclient` already holds the `Config`; keeping it
+  there also lets `workitem.Get` keep the signature recorded in
+  `architecture.md`, which has no place to pass an API version.
 - **`config.Load` does not validate `Project`.** It is required per command, not
   per program; `Config.RequireProject()` is called by the commands that need it
   (TASK-07). `Load` takes the config path and a struct of explicitly-set flag
@@ -49,7 +53,7 @@ Decisions recorded for this scope:
 ### TASK-04 `apiclient`
 **Description:** Implement the `apiclient` package wrapping `net/http`: build URLs from `Config.URL + Collection + path`; set `Authorization: Basic base64(":<PAT>")` on every request; configure TLS from `CABundle` (appended to the system root pool) and `InsecureSkipVerify`; log every request exactly once via a `RoundTripper` that is the single call site of `LogRequest`; classify non-2xx responses and transport failures into `*tfserr.Error` categories (401 → `auth`, 403 → `forbidden`, 404 → `not_found`, 5xx → `server`, connection errors → `network`). Implement `Get(ctx, path, query)` only.
 **Definition of done:** Tests against `httptest.Server` verify the Authorization header, the classification of 401/403/404/5xx responses, and that an unreachable server yields category `network`; `go test ./internal/apiclient` passes.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-05 `htmlmd`
 **Description:** Implement the `htmlmd` package: a thin wrapper over `github.com/JohannesKaufmann/html-to-markdown/v2` exposing `Convert(html string) (string, error)`, library defaults only. Add the dependency to `go.mod`.
@@ -57,7 +61,7 @@ Decisions recorded for this scope:
 **Status:** Pending
 
 ### TASK-06 `workitem`
-**Description:** Implement the `workitem` package: `WorkItem`, `Field`, `FieldKind` types per `architecture.md`; the allowlist of HTML fields (`System.Description`, `Microsoft.VSTS.TCM.ReproSteps`, `Microsoft.VSTS.TCM.SystemInfo`, `Microsoft.VSTS.Common.AcceptanceCriteria`); known identity and datetime fields; `Get(ctx, client, project, id, fields)` building the path `/{project}/_apis/wit/workitems/{id}` with `fields` and `api-version` query parameters, unmarshalling the response, and tagging each field with its `FieldKind`. Returns raw values — no markdown conversion here.
+**Description:** Implement the `workitem` package: `WorkItem`, `Field`, `FieldKind` types per `architecture.md`; the allowlist of HTML fields (`System.Description`, `Microsoft.VSTS.TCM.ReproSteps`, `Microsoft.VSTS.TCM.SystemInfo`, `Microsoft.VSTS.Common.AcceptanceCriteria`); known identity and datetime fields; `Get(ctx, client, project, id, fields)` building the path `/{project}/_apis/wit/workitems/{id}` with the `fields` query parameter (`api-version` is added by `apiclient` — see Context), unmarshalling the response, and tagging each field with its `FieldKind`. Returns raw values — no markdown conversion here.
 **Definition of done:** Tests with a fake `APIClient` run against a realistic TFS response JSON fixture in `testdata/` and verify field kinds and values; `go test ./internal/workitem` passes.
 **Status:** Pending
 
