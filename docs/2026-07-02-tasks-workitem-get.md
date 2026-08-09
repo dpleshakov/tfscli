@@ -28,6 +28,13 @@ Decisions recorded for this scope:
   every endpoint uniformly and `apiclient` already holds the `Config`; keeping it
   there also lets `workitem.Get` keep the signature recorded in
   `architecture.md`, which has no place to pass an API version.
+- **Only HTML fields are recognised by name.** TASK-06 was written as "the HTML
+  allowlist plus known identity and datetime fields", but identity and datetime
+  values are recognisable from the response itself — an object carrying
+  `displayName`, a string that parses as RFC 3339 — while an HTML field looks
+  like any other string and has to be listed. Detecting the other two by shape
+  also covers the custom identity and date fields that on-prem TFS process
+  templates add, which no list shipped with the binary could enumerate.
 - **`config.Load` does not validate `Project`.** It is required per command, not
   per program; `Config.RequireProject()` is called by the commands that need it
   (TASK-07). `Load` takes the config path and a struct of explicitly-set flag
@@ -63,7 +70,7 @@ Decisions recorded for this scope:
 ### TASK-06 `workitem`
 **Description:** Implement the `workitem` package: `WorkItem`, `Field`, `FieldKind` types per `architecture.md`; the allowlist of HTML fields (`System.Description`, `Microsoft.VSTS.TCM.ReproSteps`, `Microsoft.VSTS.TCM.SystemInfo`, `Microsoft.VSTS.Common.AcceptanceCriteria`); known identity and datetime fields; `Get(ctx, client, project, id, fields)` building the path `/{project}/_apis/wit/workitems/{id}` with the `fields` query parameter (`api-version` is added by `apiclient` — see Context), unmarshalling the response, and tagging each field with its `FieldKind`. Returns raw values — no markdown conversion here.
 **Definition of done:** Tests with a fake `APIClient` run against a realistic TFS response JSON fixture in `testdata/` and verify field kinds and values; `go test ./internal/workitem` passes.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-07 `cli-wiring`
 **Description:** Implement the `cli` package and wire `cmd/tfscli/main.go`: cobra root command with persistent flags (`--verbose`, config overrides including `--api-version`); `workitem get` subcommand with `-p`/`--project`, `--fields`, and a positive-integer check on the id argument; markdown printer iterating `WorkItem.Fields` — HTML fields through `htmlmd.Convert`, identity and datetime fields through small dedicated formatters, plain fields as is — writing to stdout; on any error `tfserr.Print(err, os.Stderr)` and exit with `tfserr.ExitCode(err)`. `main` only wires modules together and delegates to `cli.Run()`.
