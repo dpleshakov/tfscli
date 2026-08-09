@@ -1,6 +1,6 @@
 # 2026-07-02-tasks-workitem-get.md
 
-**Status:** Active
+**Status:** Archived
 
 ## Context
 
@@ -80,7 +80,7 @@ Decisions recorded for this scope:
 ### TASK-08 `live-smoke`
 **Description:** Run the built binary against a real on-prem TFS / Azure DevOps Server instance: a successful `workitem get`, a run with `--fields`, a nonexistent id (expect `not_found`), and an invalid PAT (expect `auth`). This is the trigger event for `2026-05-20-tasks-html-quirks.md`.
 **Definition of done:** A short report of the four runs (command, expected vs. actual outcome) is appended below this task's DoD in this file; any discrepancies are either fixed or recorded as new tasks / tech debt.
-**Status:** Pending
+**Status:** Skipped — no TFS instance is available to run against; problems found on first real use will be fixed as they surface, and `2026-05-20-tasks-html-quirks.md` is triggered then rather than here.
 
 ### TASK-09 `docs`
 **Description:** Write `README.md` (what tfscli is, installation, configuration file and environment variables, `workitem get` usage examples, error format) and add the CHANGELOG entry via the `changelog` skill.
