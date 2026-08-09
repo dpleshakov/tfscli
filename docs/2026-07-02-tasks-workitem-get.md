@@ -85,4 +85,4 @@ Decisions recorded for this scope:
 ### TASK-09 `docs`
 **Description:** Write `README.md` (what tfscli is, installation, configuration file and environment variables, `workitem get` usage examples, error format) and add the CHANGELOG entry via the `changelog` skill.
 **Definition of done:** `README.md` and `CHANGELOG.md` are updated and consistent with the implemented behaviour.
-**Status:** Pending
+**Status:** Done
