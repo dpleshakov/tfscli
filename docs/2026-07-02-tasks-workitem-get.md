@@ -19,6 +19,15 @@ Decisions recorded for this scope:
   updated in TASK-03. The `config init` command waits for its own tasks file.
 - **HTML quirks are out of scope.** `htmlmd` uses library defaults only. TASK-08
   (first live TFS connection) is the trigger for `2026-05-20-tasks-html-quirks.md`.
+- **A missing config file is not an error by itself.** The brief recommends
+  `TFSCLI_PAT` via the environment on shared and CI machines, so environment
+  variables and flags alone must be enough to run. `config file not found at
+  <path>` is reported only when a required field is in fact missing and the file
+  is absent — then it is the most useful thing to say.
+- **`config.Load` does not validate `Project`.** It is required per command, not
+  per program; `Config.RequireProject()` is called by the commands that need it
+  (TASK-07). `Load` takes the config path and a struct of explicitly-set flag
+  values, so the package stays free of a cobra dependency.
 
 ---
 
@@ -35,7 +44,7 @@ Decisions recorded for this scope:
 ### TASK-03 `config`
 **Description:** Implement the `config` package: load `~/.tfscli/config.json`, overlay environment variables (`TFSCLI_URL`, `TFSCLI_COLLECTION`, `TFSCLI_PAT`, `TFSCLI_PROJECT`, `TFSCLI_API_VERSION`), overlay explicitly-set flag values, validate required fields (`URL`, `Collection`, `PAT` always; `Project` must come from flag, env, or config). `Config` also holds `APIVersion` (default `7.2`), `InsecureSkipVerify`, `CABundle`. Malformed JSON and missing required fields fail with category `config`; a missing config file is reported as `config file not found at ~/.tfscli/config.json`. Update the `config` error example in `project-brief.md` to match (drop the `config init` reference).
 **Definition of done:** Tests cover the precedence chain flag > env > file > built-in default, and each validation failure; the brief example is updated; `go test ./internal/config` passes.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-04 `apiclient`
 **Description:** Implement the `apiclient` package wrapping `net/http`: build URLs from `Config.URL + Collection + path`; set `Authorization: Basic base64(":<PAT>")` on every request; configure TLS from `CABundle` (appended to the system root pool) and `InsecureSkipVerify`; log every request exactly once via a `RoundTripper` that is the single call site of `LogRequest`; classify non-2xx responses and transport failures into `*tfserr.Error` categories (401 → `auth`, 403 → `forbidden`, 404 → `not_found`, 5xx → `server`, connection errors → `network`). Implement `Get(ctx, path, query)` only.

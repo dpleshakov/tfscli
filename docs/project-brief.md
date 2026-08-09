@@ -93,7 +93,7 @@ Error [auth]: PAT is invalid or expired (HTTP 401)
 Error [not_found]: work item 99999 not found in project MyProject (HTTP 404)
 Error [forbidden]: no access to project MyProject (HTTP 403)
 Error [server]: TFS returned HTTP 500
-Error [config]: config file not found, run tfscli config init
+Error [config]: config file not found at ~/.tfscli/config.json
 Error [network]: cannot reach https://tfs.company.com:8080
 ```
 
