@@ -1,0 +1,52 @@
+version: 2
+
+project_name: tfscli
+
+before:
+  hooks:
+    # The release notes come from CHANGELOG.md, which is the single source of
+    # truth for what a release contains. A snapshot has no version of its own,
+    # so it takes the unreleased section.
+    - make release-notes VERSION={{ if .IsSnapshot }}Unreleased{{ else }}{{ .Version }}{{ end }}
+
+builds:
+  - id: tfscli
+    main: ./cmd/tfscli
+    binary: tfscli
+    # The dependencies are pure Go and cross-compilation needs no C toolchain;
+    # pinning this keeps the build independent of the runner environment.
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -X main.version={{ .Version }} -X main.commit={{ .Commit }}
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - id: tfscli
+    name_template: "tfscli-{{ .Version }}-{{ .Os }}-{{ .Arch }}"
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - README.md
+      - CHANGELOG.md
+      - config.example.json
+
+checksum:
+  name_template: "checksums.txt"
+
+release:
+  github:
+    owner: dpleshakov
+    name: tfscli
+  name_template: "tfscli v{{ .Version }}"
+  # Every release is reviewed and published by hand.
+  draft: true

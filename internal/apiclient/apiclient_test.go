@@ -258,7 +258,7 @@ func TestGetUnreachableServer(t *testing.T) {
 	}
 }
 
-func TestGetCancelledContext(t *testing.T) {
+func TestGetCanceledContext(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	t.Cleanup(srv.Close)
 
@@ -269,7 +269,7 @@ func TestGetCancelledContext(t *testing.T) {
 	_, err := client.Get(ctx, "/MyProject/_apis/wit/workitems/123", nil)
 
 	te := assertTFSError(t, err, tfserr.Network)
-	if !strings.Contains(te.Message, "cancelled") {
+	if !strings.Contains(te.Message, "canceled") {
 		t.Errorf("message = %q, want it to mention cancellation", te.Message)
 	}
 	if !errors.Is(err, context.Canceled) {
@@ -329,7 +329,7 @@ func TestNewRejectsBadURL(t *testing.T) {
 				PAT:        testPAT,
 				APIVersion: "7.2",
 			}, log.Noop())
-			assertTFSError(t, err, tfserr.Config)
+			_ = assertTFSError(t, err, tfserr.Config)
 		})
 	}
 }
@@ -390,7 +390,7 @@ func TestNewRejectsBadCABundle(t *testing.T) {
 				APIVersion: "7.2",
 				CABundle:   tt.bundle,
 			}, log.Noop())
-			assertTFSError(t, err, tfserr.Config)
+			_ = assertTFSError(t, err, tfserr.Config)
 		})
 	}
 }

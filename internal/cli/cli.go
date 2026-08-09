@@ -18,20 +18,28 @@ import (
 	"github.com/dpleshakov/tfscli/internal/tfserr"
 )
 
-// Run executes the root command and returns the process exit code.
-func Run() int {
-	return run(os.Args[1:], os.Stdout, os.Stderr)
+// Run executes the root command and returns the process exit code. The version
+// and commit are stamped into the binary at build time and reported by
+// --version.
+func Run(version, commit string) int {
+	return run(build{version: version, commit: commit}, os.Args[1:], os.Stdout, os.Stderr)
+}
+
+// build is the version stamp linked into the binary.
+type build struct {
+	version string
+	commit  string
 }
 
 // run is Run with the process environment passed in, so that tests can drive
 // the whole command tree and read what it wrote.
-func run(args []string, stdout, stderr io.Writer) int {
-	// Ctrl-C cancels the request in flight; apiclient reports the cancelled
+func run(b build, args []string, stdout, stderr io.Writer) int {
+	// Ctrl-C cancels the request in flight; apiclient reports the canceled
 	// round trip as category network instead of a Go panic trace.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	root := newRoot(stdout, stderr)
+	root := newRoot(b, stdout, stderr)
 	root.SetArgs(args)
 
 	if err := root.ExecuteContext(ctx); err != nil {
@@ -54,7 +62,7 @@ type globals struct {
 	apiVersion string
 }
 
-func newRoot(stdout, stderr io.Writer) *cobra.Command {
+func newRoot(b build, stdout, stderr io.Writer) *cobra.Command {
 	g := &globals{stdout: stdout, stderr: stderr}
 
 	root := &cobra.Command{
@@ -67,7 +75,12 @@ func newRoot(stdout, stderr io.Writer) *cobra.Command {
 			"precedence (flag wins).",
 		SilenceUsage:  true,
 		SilenceErrors: true,
+		// A non-empty Version makes cobra add --version on its own. The
+		// shorthand is left off: -v belongs to no flag here, and reserving it
+		// for the version would collide with --verbose next to it.
+		Version: b.version + " (" + b.commit + ")",
 	}
+	root.SetVersionTemplate("tfscli {{.Version}}\n")
 	// Errors are printed by run in the contract format; cobra must not write
 	// its own message or dump the usage text on top of it.
 	root.SetOut(stdout)

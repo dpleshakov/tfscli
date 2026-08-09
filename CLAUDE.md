@@ -10,7 +10,7 @@ Note: tasks files created before the move to skills (e.g. `docs/2026-05-20-tasks
 
 ## Project state
 
-The repository is a **scaffolded skeleton**: the Go module (`github.com/dpleshakov/tfscli`) is initialized with one package per architecture module (see the "Project Structure" section of `docs/architecture.md`), but no functionality is implemented yet — packages contain only doc comments, and `cli.Run()` is a stub. Implementation work goes through tasks files per the `tasks` skill.
+The MVP is implemented: `tfscli workitem get` works end to end, and the module has one package per architecture module (see the "Project Structure" section of `docs/architecture.md`). What has not happened yet is a run against a live TFS instance, and the repository has no GitHub remote — see the "Status" and "Known limitations" sections of `README.md`. Further work goes through tasks files per the `tasks` skill.
 
 Three documents drive everything:
 
@@ -49,10 +49,18 @@ tfscli workitem get -p MyProject 12345 --fields System.Title,System.State,System
 
 ## Build / test commands
 
-- Build: `go build ./...`
-- Test: `go test ./...`; single test: `go test -run TestName ./path/to/pkg`
-- Vet / format check: `go vet ./...`, `gofmt -l .`
-- Cross-compilation: `GOOS=windows GOARCH=amd64 go build ./cmd/tfscli`
+Everything the project verifies runs through the `Makefile`, and CI runs `make check` verbatim — so a green `make check` locally is the whole gate.
+
+- `make build` — `go vet ./...`, `go test ./...`, `go build ./cmd/tfscli`
+- `make lint` — `go mod tidy` and `golangci-lint run`
+- `make test` — coverage of `internal/...`, failing below 85%
+- `make check` — `build`, `lint`, `test`, then asserts `go.mod` / `go.sum` are unchanged
+- `make release` — local snapshot release into `dist/`, publishing nothing
+- `make clean` — removes the binary, `coverage.out`, `docs/release-notes.md`, and `dist/`
+
+Outside the Makefile: a single test is `go test -run TestName ./path/to/pkg`, and cross-compilation is `GOOS=windows GOARCH=amd64 go build ./cmd/tfscli`.
+
+`lint` and `release` need `golangci-lint` v2 (v2.12 or newer — earlier versions bundle a staticcheck that panics on the Go 1.26 standard library) and `goreleaser` v2 on `PATH`. Recipes never assume a Unix shell: file removal and the coverage and release-notes checks live in Go programs under `tools/`, tagged `//go:build ignore` so that `go build ./...`, `go vet ./...`, and `go test ./...` do not see them.
 
 ## Tooling note
 

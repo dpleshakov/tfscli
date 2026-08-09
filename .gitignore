@@ -9,6 +9,9 @@
 *.out
 coverage.html
 
+# Generated from CHANGELOG.md by `make release-notes`
+/docs/release-notes.md
+
 # Local config with credentials — never commit
 config.json
 

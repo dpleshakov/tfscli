@@ -1,4 +1,45 @@
 version: "2"
 
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      # Imports from this module form their own group, after the third-party one.
+      local-prefixes:
+        - github.com/dpleshakov/tfscli
+
 linters:
   default: standard
+  enable:
+    # The standard set, named explicitly so that the list is the whole truth.
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+    # Style and correctness beyond the standard set.
+    - revive
+    - gosec
+    - gocritic
+    - misspell
+    - whitespace
+  settings:
+    misspell:
+      locale: US
+    revive:
+      rules:
+        - name: exported
+          # Exported identifiers need a doc comment; methods on unexported
+          # receivers are held to the same standard, since they are the bulk
+          # of this codebase.
+          arguments:
+            - checkPrivateReceivers
+  exclusions:
+    rules:
+      # Tests deliberately use hard-coded credentials, weak setups, and blunt
+      # constructs that gosec and gocritic flag in production code.
+      - path: _test\.go
+        linters:
+          - gosec
+          - gocritic

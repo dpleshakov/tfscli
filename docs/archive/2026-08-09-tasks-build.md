@@ -1,6 +1,6 @@
 # 2026-08-09-tasks-build.md
 
-**Status:** Active
+**Status:** Archived
 
 ## Context
 
@@ -44,6 +44,12 @@ Decisions recorded for this scope:
 Local prerequisites: `goreleaser` v2 and `golangci-lint` v2. GNU Make is already
 available.
 
+Deviation recorded during execution: `golangci-lint` is pinned to **v2.12**, not the
+v2.10 named in TASK-07. v2.10 bundles staticcheck 0.7.0, which panics while analysing
+the Go 1.26 standard library (`buildir: interface conversion: interface {} is nil, not
+*ctrlflow.CFGs`) and takes the whole run down with it. v2.12 analyses the same code
+cleanly.
+
 ---
 
 ### TASK-01 `version-stamping`
@@ -56,6 +62,7 @@ output reads `tfscli 0.1.0 (abc1234)`. Cobra adds the `--version` flag itself on
 to it.
 **Definition of done:** A test in `internal/cli` asserts that `--version` prints
 `tfscli dev (unknown)` and exits 0; `go build ./...` and `go test ./...` are clean.
+**Status:** Done
 
 ### TASK-02 `build-helpers`
 **Description:** Create a `tools/` directory holding three programs, each under
@@ -68,6 +75,7 @@ the next `## [` heading and writes it to `docs/release-notes.md`, failing with a
 non-zero exit code when the section is absent.
 **Definition of done:** Each program does what it claims when invoked as
 `go run tools/<name>.go`; `go build ./...` and `go vet ./...` do not see them.
+**Status:** Done
 
 ### TASK-03 `makefile`
 **Description:** Write a `Makefile` organised into Build, Test, Release, and Clean
@@ -86,6 +94,7 @@ docs/release-notes.md --release-footer docs/release-footer.md`; `clean` removes
 `.claude/settings.json`.
 **Definition of done:** `make build`, `make test`, and `make clean` succeed on Windows
 without any external Unix utilities, and `make check` passes end to end.
+**Status:** Done
 
 ### TASK-04 `linters`
 **Description:** Extend `.golangci.yml`, which currently enables only the standard set.
@@ -98,6 +107,7 @@ fix everything the new linters report in the existing code. Suppressions are per
 only, written as `//nolint:<linter> // <reason>`.
 **Definition of done:** `golangci-lint run` is clean without weakening the configuration
 to accommodate individual findings; `go test ./...` still passes.
+**Status:** Done
 
 ### TASK-05 `license`
 **Description:** Add an MIT `LICENSE` file at the repository root, copyright 2026 Dmitry
@@ -105,6 +115,7 @@ Pleshakov. It is needed both in its own right, since the repository is intended 
 open source, and as a file the release archives include.
 **Definition of done:** `LICENSE` exists at the root with the correct year and copyright
 holder.
+**Status:** Done
 
 ### TASK-06 `goreleaser`
 **Description:** Write `.goreleaser.yaml` with `version: 2` and `project_name: tfscli`.
@@ -121,6 +132,7 @@ binary. The release section sets owner `dpleshakov`, name `tfscli`, the title
 published. Add `docs/release-footer.md`, a single line linking to the configuration
 section of the README, appended to every release body.
 **Definition of done:** `goreleaser check` passes.
+**Status:** Done
 
 ### TASK-07 `github-workflows`
 **Description:** Create `.github/workflows/ci.yml` and `.github/workflows/release.yml`.
@@ -138,6 +150,7 @@ docs/release-footer.md`, passing `GITHUB_TOKEN` from `secrets.GITHUB_TOKEN`.
 **Definition of done:** Both files are valid YAML; the Go version, the branch name, and
 the main package path agree with `go.mod` and the repository; the steps have been
 checked by hand against the Makefile targets they invoke.
+**Status:** Done
 
 ### TASK-08 `release-dry-run`
 **Description:** Run `make check` and then `make release` locally. Verify that `dist/`
@@ -150,6 +163,45 @@ working tree is clean.
 **Definition of done:** The results of the run — the contents of `dist/` and the
 `--version` output — are appended below this definition of done in this file; any
 discrepancy is either fixed or recorded as a new task or as tech debt.
+**Status:** Done
+
+**Results.** `make check` passes end to end: vet, tests, build, `go mod tidy`,
+`golangci-lint run` with no findings, coverage 93.9% against the 85% threshold, and no
+change to `go.mod` or `go.sum`. `make release` produces six archives and a checksums
+file:
+
+```
+tfscli-0.1.0-SNAPSHOT-c8badd1-linux-amd64.tar.gz
+tfscli-0.1.0-SNAPSHOT-c8badd1-linux-arm64.tar.gz
+tfscli-0.1.0-SNAPSHOT-c8badd1-darwin-amd64.tar.gz
+tfscli-0.1.0-SNAPSHOT-c8badd1-darwin-arm64.tar.gz
+tfscli-0.1.0-SNAPSHOT-c8badd1-windows-amd64.zip
+tfscli-0.1.0-SNAPSHOT-c8badd1-windows-arm64.zip
+checksums.txt
+```
+
+Each archive carries `LICENSE`, `README.md`, `CHANGELOG.md`, and
+`config.example.json` next to the binary. Unpacking the windows/amd64 archive and
+running the binary gives:
+
+```
+tfscli 0.1.0-SNAPSHOT-c8badd1 (c8badd17ef5661c36e9e59273fa24b42fa72c5aa)
+```
+
+`docs/release-notes.md` holds the `[Unreleased]` section of `CHANGELOG.md`. After
+`make clean` the working tree carries no build artifacts.
+
+**Discrepancy found and understood: goreleaser needs a git remote.** Run in this
+repository as it stands, `make release` names every archive
+`tfscli-0.0.0-SNAPSHOT-none` and stamps the binary `0.0.0-SNAPSHOT-none (none)`. The
+cause is not the missing tag but the missing remote: `git ls-remote --get-url` fails,
+and goreleaser answers a snapshot build by discarding the whole git context — commit,
+branch, and tag alike — in favour of placeholders. The numbers quoted above therefore
+come from a throwaway clone in a scratch directory, whose `origin` points back at this
+repository and which carries a local `v0.1.0` tag; the configuration under test was
+identical. This resolves itself the moment the GitHub repository exists and `origin` is
+configured, which is exactly what the "publishing is out of scope" decision defers, so
+it is recorded here rather than opened as tech debt.
 
 ### TASK-09 `docs`
 **Description:** Rewrite the Installation section of `README.md` to lead with
@@ -163,3 +215,4 @@ describes the packages as doc comments and `cli.Run()` as a stub.
 **Definition of done:** `README.md`, `CHANGELOG.md`, and `CLAUDE.md` describe the actual
 state of the project, and no command quoted in the documentation disagrees with the
 Makefile.
+**Status:** Done

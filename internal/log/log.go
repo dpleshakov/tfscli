@@ -20,8 +20,10 @@ func Noop() Logger { return noop{} }
 
 type noop struct{}
 
+// LogRequest discards the event.
 func (noop) LogRequest(method, url string, status int, dur time.Duration) {}
 
+// Warn discards the message.
 func (noop) Warn(msg string) {}
 
 // New returns a Logger writing one line per event to w. The CLI passes
@@ -32,10 +34,13 @@ type writerLogger struct {
 	w io.Writer
 }
 
+// LogRequest writes one line describing a finished round trip. A write that
+// fails is ignored: diagnostics must never displace the command's own result.
 func (l *writerLogger) LogRequest(method, url string, status int, dur time.Duration) {
-	fmt.Fprintf(l.w, "%s %s %d %s\n", method, url, status, dur)
+	_, _ = fmt.Fprintf(l.w, "%s %s %d %s\n", method, url, status, dur)
 }
 
+// Warn writes one line describing a condition worth reporting but not fatal.
 func (l *writerLogger) Warn(msg string) {
-	fmt.Fprintf(l.w, "[warn] %s\n", msg)
+	_, _ = fmt.Fprintf(l.w, "[warn] %s\n", msg)
 }

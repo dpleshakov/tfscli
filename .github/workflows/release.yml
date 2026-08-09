@@ -1,0 +1,30 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  # goreleaser creates the GitHub release and uploads the archives to it.
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # goreleaser derives the version and the changelog from the full
+          # history and the tags, which a shallow clone does not carry.
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: '~> v2'
+          args: release --clean --release-notes docs/release-notes.md --release-footer docs/release-footer.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

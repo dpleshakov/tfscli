@@ -1,2 +1,4 @@
 * text=auto
 *.go text eol=lf
+# Recipes are handed to a shell line by line; a trailing CR would travel with them.
+Makefile text eol=lf

@@ -100,7 +100,7 @@ func (c *Config) RequireProject() error {
 // loadFile reads and parses the config file. It reports whether the file
 // exists; an absent file yields an empty config and no error.
 func loadFile(path string) (*Config, bool, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // the path is the caller's own config file, by design
 	if errors.Is(err, fs.ErrNotExist) {
 		return &Config{}, false, nil
 	}

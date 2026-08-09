@@ -23,7 +23,33 @@ Not present in v1: write operations (out of scope) and JSON output (`--json`, pl
 
 ## Installation
 
-Build from source with Go 1.26 or newer:
+### Pre-built binaries
+
+Download an archive from the [releases page](https://github.com/dpleshakov/tfscli/releases), unpack it, and put `tfscli` somewhere on your `PATH`. Each release carries six archives, named `tfscli-<version>-<os>-<arch>`:
+
+| Platform | amd64 | arm64 |
+|---|---|---|
+| Linux | `linux-amd64.tar.gz` | `linux-arm64.tar.gz` |
+| Windows | `windows-amd64.zip` | `windows-arm64.zip` |
+| macOS | `darwin-amd64.tar.gz` | `darwin-arm64.tar.gz` |
+
+Every archive holds the binary together with `LICENSE`, `README.md`, `CHANGELOG.md`, and `config.example.json`. SHA-256 sums for all six are in `checksums.txt`, attached to the same release.
+
+Verify a download before using it:
+
+```
+sha256sum --check --ignore-missing checksums.txt
+```
+
+Check what you installed:
+
+```
+tfscli --version
+```
+
+### From source
+
+Requires Go 1.26 or newer:
 
 ```
 go build -o tfscli ./cmd/tfscli
@@ -34,6 +60,8 @@ Cross-compilation follows the usual Go pattern:
 ```
 GOOS=windows GOARCH=amd64 go build -o tfscli.exe ./cmd/tfscli
 ```
+
+A binary built this way reports its version as `dev (unknown)`: the real values are stamped in by the release build.
 
 ## Configuration
 
@@ -89,6 +117,8 @@ PAT only. SSPI, NTLM, and interactive login are out of scope. The token is sent 
 ```
 tfscli <resource> <action> [flags] [arguments]
 ```
+
+`tfscli --version` prints the version and the commit it was built from; `tfscli --help`, and `--help` on any command, lists the flags.
 
 ### `workitem get`
 
@@ -152,7 +182,7 @@ The `(HTTP status)` part is omitted for errors that did not come from an HTTP re
 | `not_found` | The work item, project, or collection does not exist (HTTP 404). |
 | `server` | TFS failed or returned an unparseable response (HTTP 5xx). |
 | `config` | Missing or invalid configuration, a bad argument, or a request TFS rejected. |
-| `network` | The server could not be reached, or the request timed out or was cancelled. |
+| `network` | The server could not be reached, or the request timed out or was canceled. |
 
 Examples:
 
@@ -172,11 +202,19 @@ Error [network]: cannot reach https://tfs.company.com:8080
 
 ## Development
 
-```
-go build ./...
-go test ./...
-go vet ./...
-gofmt -l .
-```
+Everything runs through the `Makefile`:
+
+| Target | What it does | When to run it |
+|---|---|---|
+| `make build` | `go vet`, `go test`, then builds the binary into the repository root | While working on the code |
+| `make lint` | `go mod tidy` and `golangci-lint run` | Before committing |
+| `make test` | Measures coverage of `internal/...` and fails below 85% | While working on tests |
+| `make check` | `build`, `lint`, `test`, and asserts `go.mod` / `go.sum` did not change | Before pushing — CI runs exactly this |
+| `make release` | Builds a local snapshot release into `dist/` without publishing anything | To see what a release would contain |
+| `make clean` | Removes the binary, `coverage.out`, `docs/release-notes.md`, and `dist/` | Any time |
+
+`lint` and `release` need [`golangci-lint`](https://golangci-lint.run) v2 and [`goreleaser`](https://goreleaser.com) v2 on `PATH`; the other targets need only Go.
+
+Release notes are generated from `CHANGELOG.md` rather than written twice — `make release-notes VERSION=<version>` extracts one section into `docs/release-notes.md`, which the release build attaches to the GitHub release. Pushing a `vX.Y.Z` tag builds and drafts the release.
 
 External dependencies are deliberately limited to `cobra` and `html-to-markdown/v2`; HTTP, JSON, and config parsing use the standard library.

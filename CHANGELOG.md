@@ -9,6 +9,7 @@
 - `caBundle` and `insecureSkipVerify` in the config file allow connecting to a server whose certificate is issued by an internal CA.
 - `--verbose` (or `TFSCLI_VERBOSE=1`) logs every request to stderr with its method, URL, status, and duration.
 - Errors are reported on stderr as `Error [category]: message (HTTP status)` with a non-zero exit code, using the categories `auth`, `not_found`, `forbidden`, `server`, `config`, and `network`.
+- `--version` prints the version and the commit the binary was built from.
 
 ### Fixed
 ### Changed

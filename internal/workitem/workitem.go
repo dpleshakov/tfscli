@@ -24,6 +24,9 @@ type APIClient interface {
 // FieldKind tells the printer how to render a field value.
 type FieldKind string
 
+// The kinds a field value can take: FieldPlain prints as it arrived,
+// FieldHTML goes through the markdown conversion, FieldIdentity is a person,
+// and FieldDateTime is a timestamp printed in a normalized form.
 const (
 	FieldPlain    FieldKind = "plain"
 	FieldHTML     FieldKind = "html"
@@ -133,7 +136,7 @@ func decodeFields(raw json.RawMessage) ([]Field, error) {
 }
 
 // classify assigns a kind by looking at the field name for HTML and at the
-// value itself for the rest: identity fields are recognised by their shape and
+// value itself for the rest: identity fields are recognized by their shape and
 // dates by being parseable, so custom fields are covered without listing them.
 func classify(name string, raw json.RawMessage) Field {
 	if identity, ok := asIdentity(raw); ok {
@@ -142,7 +145,7 @@ func classify(name string, raw json.RawMessage) Field {
 
 	text, isString := asString(raw)
 	if !isString {
-		// Numbers, booleans, arrays and unrecognised objects print as the
+		// Numbers, booleans, arrays and unrecognized objects print as the
 		// server wrote them.
 		return Field{Name: name, Kind: FieldPlain, Value: string(raw)}
 	}

@@ -108,7 +108,9 @@ func (c *Client) Get(ctx context.Context, path string, query url.Values) ([]byte
 	if err != nil {
 		return nil, transportError(u, err)
 	}
-	defer resp.Body.Close()
+	// The body is read in full below; a failure to close it afterwards says
+	// nothing about the result and has nowhere useful to go.
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -134,6 +136,8 @@ type loggingTransport struct {
 	logger log.Logger
 }
 
+// RoundTrip logs the request and its outcome, and returns what the base
+// transport returned.
 func (t *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	start := time.Now()
 	resp, err := t.base.RoundTrip(req)
@@ -156,7 +160,7 @@ func newTLSConfig(cfg *config.Config) (*tls.Config, error) {
 		MinVersion: tls.VersionTLS12,
 		// Set from the config file only, so that disabling verification is
 		// always a written-down decision.
-		InsecureSkipVerify: cfg.InsecureSkipVerify,
+		InsecureSkipVerify: cfg.InsecureSkipVerify, //nolint:gosec // documented opt-in for servers behind an internal CA
 	}
 	if cfg.CABundle == "" {
 		return tlsConfig, nil
@@ -203,7 +207,7 @@ func transportError(u *url.URL, err error) error {
 	case errors.Is(err, context.Canceled):
 		return &tfserr.Error{
 			Category: tfserr.Network,
-			Message:  fmt.Sprintf("request to %s was cancelled", server),
+			Message:  fmt.Sprintf("request to %s was canceled", server),
 			Cause:    err,
 		}
 	default:

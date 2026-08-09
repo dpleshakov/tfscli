@@ -55,11 +55,14 @@ func newServer(t *testing.T, status int, body string) *server {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(s.status)
-		fmt.Fprint(w, s.body)
+		_, _ = fmt.Fprint(w, s.body)
 	}))
 	t.Cleanup(s.Close)
 	return s
 }
+
+// testBuild is the stamp an unstamped `go build` leaves behind.
+var testBuild = build{version: "dev", commit: "unknown"}
 
 // execute runs the command tree the way main does and returns what the process
 // would have written and exited with.
@@ -68,7 +71,7 @@ func execute(t *testing.T, args ...string) (stdout, stderr string, code int) {
 	isolate(t)
 
 	var out, errOut bytes.Buffer
-	code = run(args, &out, &errOut)
+	code = run(testBuild, args, &out, &errOut)
 	return out.String(), errOut.String(), code
 }
 
@@ -173,7 +176,7 @@ func TestWorkItemGetProjectFromEnvironment(t *testing.T) {
 	t.Setenv("TFSCLI_PROJECT", "EnvProject")
 
 	var out, errOut bytes.Buffer
-	code := run([]string{
+	code := run(testBuild, []string{
 		"workitem", "get",
 		"--url", s.URL, "--collection", "DefaultCollection", "--pat", "secret-token",
 		"12345",
@@ -379,6 +382,20 @@ func TestVerboseLogsTheRequestToStderr(t *testing.T) {
 	}
 	if !strings.HasPrefix(stdout, "# Work item 12345") {
 		t.Errorf("stdout = %q, want the work item on stdout", stdout)
+	}
+}
+
+func TestVersionFlagPrintsTheBuildStamp(t *testing.T) {
+	stdout, stderr, code := execute(t, "--version")
+
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0 (stderr: %s)", code, stderr)
+	}
+	if stderr != "" {
+		t.Errorf("stderr = %q, want nothing", stderr)
+	}
+	if want := "tfscli dev (unknown)\n"; stdout != want {
+		t.Errorf("stdout = %q, want %q", stdout, want)
 	}
 }
 
