@@ -55,9 +55,10 @@ var (
 	_ Logger = New(io.Discard)
 )
 
-func TestNoopWritesNothing(t *testing.T) {
-	// The noop logger holds no writer, so it cannot produce output by
-	// construction; the calls must simply not panic.
+func TestNoopDoesNotPanic(t *testing.T) {
+	// The noop logger holds no writer, so it writes nothing by construction;
+	// there is no output to observe. This test only guards that the calls are
+	// safe to make.
 	l := Noop()
 
 	l.LogRequest("GET", "https://tfs.company.com/coll/_apis/a", 200, time.Second)
