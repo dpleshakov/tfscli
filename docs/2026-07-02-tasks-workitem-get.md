@@ -58,7 +58,7 @@ Decisions recorded for this scope:
 ### TASK-05 `htmlmd`
 **Description:** Implement the `htmlmd` package: a thin wrapper over `github.com/JohannesKaufmann/html-to-markdown/v2` exposing `Convert(html string) (string, error)`, library defaults only. Add the dependency to `go.mod`.
 **Definition of done:** Smoke tests convert representative snippets (bold, list, link) to expected markdown; `go test ./internal/htmlmd` passes.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-06 `workitem`
 **Description:** Implement the `workitem` package: `WorkItem`, `Field`, `FieldKind` types per `architecture.md`; the allowlist of HTML fields (`System.Description`, `Microsoft.VSTS.TCM.ReproSteps`, `Microsoft.VSTS.TCM.SystemInfo`, `Microsoft.VSTS.Common.AcceptanceCriteria`); known identity and datetime fields; `Get(ctx, client, project, id, fields)` building the path `/{project}/_apis/wit/workitems/{id}` with the `fields` query parameter (`api-version` is added by `apiclient` — see Context), unmarshalling the response, and tagging each field with its `FieldKind`. Returns raw values — no markdown conversion here.

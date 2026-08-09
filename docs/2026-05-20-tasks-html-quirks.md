@@ -27,7 +27,7 @@ This file predates the move of the process into the global `tasks` skill and kee
 
 ### TASK-03 `identify-and-fix-noise`
 **Type:** Regular
-**Description:** Inspect the golden outputs from TASK-02. Classify noise: mentions rendering as `[@name](#)`, attachment links pointing to authenticated URLs, Word-paste leftovers (`<o:p>`, `MsoNormal`, mso-* attributes), work-item references rendering as long URLs. For each chosen class, add a rule via the library's plugin API. Update golden expectations in the same commit. Out of scope: anything that requires additional TFS API calls (e.g. fetching attachment filenames from the attachments endpoint) — that becomes a separate feature.
+**Description:** Inspect the golden outputs from TASK-02. Classify noise: mentions rendering as `[@name](#)`, attachment links pointing to authenticated URLs, Word-paste leftovers (`<o:p>`, `MsoNormal`, mso-* attributes), work-item references rendering as long URLs. Known before the samples arrive: the library's default rule set has no table support, so `<table>` markup collapses to its concatenated cell text — enabling `plugin/table` belongs to this task. For each chosen class, add a rule via the library's plugin API. Update golden expectations in the same commit. Out of scope: anything that requires additional TFS API calls (e.g. fetching attachment filenames from the attachments endpoint) — that becomes a separate feature.
 **Definition of done:** the list of noise classes addressed is recorded both in the commit message and in this tasks file (append a short bullet list under this DoD when the task completes); each rule has a corresponding golden diff demonstrating its effect.
 **Status:** ⬜ Pending
 
