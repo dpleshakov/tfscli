@@ -202,19 +202,6 @@ Error [network]: cannot reach https://tfs.company.com:8080
 
 ## Development
 
-Everything runs through the `Makefile`:
+Everything the project verifies runs through the `Makefile`, and CI runs `make check` verbatim, so a green `make check` locally is the whole gate. External dependencies are deliberately limited to `cobra` and `html-to-markdown/v2`; HTTP, JSON, and config parsing use the standard library.
 
-| Target | What it does | When to run it |
-|---|---|---|
-| `make build` | `go vet`, `go test`, then builds the binary into the repository root | While working on the code |
-| `make lint` | `go mod tidy` and `golangci-lint run` | Before committing |
-| `make test` | Measures coverage of `internal/...` and fails below 85% | While working on tests |
-| `make check` | `build`, `lint`, `test`, and asserts `go.mod` / `go.sum` did not change | Before pushing — CI runs exactly this |
-| `make release` | Builds a local snapshot release into `dist/` without publishing anything | To see what a release would contain |
-| `make clean` | Removes the binary, `coverage.out`, `docs/release-notes.md`, and `dist/` | Any time |
-
-`lint` and `release` need [`golangci-lint`](https://golangci-lint.run) v2 and [`goreleaser`](https://goreleaser.com) v2 on `PATH`; the other targets need only Go.
-
-Release notes are generated from `CHANGELOG.md` rather than written twice — `make release-notes VERSION=<version>` extracts one section into `docs/release-notes.md`, which the release build attaches to the GitHub release. Pushing a `vX.Y.Z` tag builds and drafts the release.
-
-External dependencies are deliberately limited to `cobra` and `html-to-markdown/v2`; HTTP, JSON, and config parsing use the standard library.
+[CONTRIBUTING.md](CONTRIBUTING.md) is the developer handbook: required tooling, the make targets, the lint and coverage rules, the process the repository follows, and the release procedure.

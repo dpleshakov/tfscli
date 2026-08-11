@@ -1,12 +1,12 @@
 name: CI
 
 # Pull requests are the normal path, but the project is worked on solo and may
-# have none, so pushes to master are checked as well.
+# have none, so pushes to main are checked as well.
 on:
   pull_request:
-    branches: [master]
+    branches: [main]
   push:
-    branches: [master]
+    branches: [main]
 
 permissions:
   contents: read

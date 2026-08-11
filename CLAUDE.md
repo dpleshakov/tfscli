@@ -10,7 +10,7 @@ Note: tasks files created before the move to skills (e.g. `docs/2026-05-20-tasks
 
 ## Project state
 
-The MVP is implemented: `tfscli workitem get` works end to end, and the module has one package per architecture module (see the "Project Structure" section of `docs/architecture.md`). What has not happened yet is a run against a live TFS instance, and the repository has no GitHub remote — see the "Status" and "Known limitations" sections of `README.md`. Further work goes through tasks files per the `tasks` skill.
+The MVP is implemented: `tfscli workitem get` works end to end, and the module has one package per architecture module (see the "Project Structure" section of `docs/architecture.md`). What has not happened yet is a run against a live TFS instance, and no release has been tagged — see the "Status" and "Known limitations" sections of `README.md`. Further work goes through tasks files per the `tasks` skill.
 
 Three documents drive everything:
 
@@ -49,18 +49,11 @@ tfscli workitem get -p MyProject 12345 --fields System.Title,System.State,System
 
 ## Build / test commands
 
-Everything the project verifies runs through the `Makefile`, and CI runs `make check` verbatim — so a green `make check` locally is the whole gate.
+Everything the project verifies runs through the `Makefile` — `build`, `lint`, `test`, `check`, `release-notes`, `release`, `clean` — and CI runs `make check` verbatim, so a green `make check` locally is the whole gate. A single test is `go test -run TestName ./path/to/pkg`.
 
-- `make build` — `go vet ./...`, `go test ./...`, `go build ./cmd/tfscli`
-- `make lint` — `go mod tidy` and `golangci-lint run`
-- `make test` — coverage of `internal/...`, failing below 85%
-- `make check` — `build`, `lint`, `test`, then asserts `go.mod` / `go.sum` are unchanged
-- `make release` — local snapshot release into `dist/`, publishing nothing
-- `make clean` — removes the binary, `coverage.out`, `docs/release-notes.md`, and `dist/`
+Recipes never assume a Unix shell: file removal and the coverage and release-notes checks live in Go programs under `tools/`, tagged `//go:build ignore` so that `go build ./...`, `go vet ./...`, and `go test ./...` do not see them.
 
-Outside the Makefile: a single test is `go test -run TestName ./path/to/pkg`, and cross-compilation is `GOOS=windows GOARCH=amd64 go build ./cmd/tfscli`.
-
-`lint` and `release` need `golangci-lint` v2 (v2.12 or newer — earlier versions bundle a staticcheck that panics on the Go 1.26 standard library) and `goreleaser` v2 on `PATH`. Recipes never assume a Unix shell: file removal and the coverage and release-notes checks live in Go programs under `tools/`, tagged `//go:build ignore` so that `go build ./...`, `go vet ./...`, and `go test ./...` do not see them.
+`CONTRIBUTING.md` has the rest — required tool versions, what each target does, the lint and coverage rules, and the release procedure. **Read it before touching the build, the workflows, or a release.**
 
 ## Tooling note
 
