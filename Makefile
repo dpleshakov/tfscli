@@ -7,15 +7,16 @@
 # tagged `//go:build ignore` and therefore invisible to go build, go vet, and
 # go test.
 #
-# Prerequisites: Go, and — for `lint` and `release` — golangci-lint v2 and
-# goreleaser v2 on PATH.
+# Prerequisites: Go, and — for `lint` and the release targets — golangci-lint
+# v2 and goreleaser v2 on PATH.
 
-# The changelog section release notes are taken from. `make release` builds a
-# snapshot and therefore defaults to the section of the unreleased changes; a
-# real release overrides it, e.g. `make release-notes VERSION=0.1.0`.
+# The changelog section `make release-notes` reads. The goreleaser before-hook
+# always passes it explicitly — Unreleased for a snapshot, the tag for a real
+# release — so this default only serves the target run by hand, e.g.
+# `make release-notes VERSION=0.1.0`.
 VERSION ?= Unreleased
 
-.PHONY: build lint test check release-notes release clean
+.PHONY: build lint test check release-notes release release-publish clean
 
 # ---------------------------------------------------------------------------
 # Build
@@ -57,16 +58,28 @@ check: build lint test
 # Release
 # ---------------------------------------------------------------------------
 
+# The body of a GitHub release: the changelog section for the version being
+# released, then the footer. Both release targets pass it, so that a snapshot
+# shows exactly what a real release would publish.
+RELEASE_BODY = --release-notes docs/release-notes.md --release-footer docs/release-footer.md
+
 # Extract the release notes for VERSION from CHANGELOG.md. Called by the
-# goreleaser before-hook; rarely worth running by hand.
+# goreleaser before-hook, and by the release workflow to read back the section
+# it has just written.
 release-notes:
 	go run tools/release-notes.go $(VERSION)
 
 # Build a local snapshot release into dist/ — archives and checksums for every
 # target platform — without tagging or publishing anything. Run it to see what
 # a real release would contain.
-release: release-notes
-	goreleaser release --snapshot --clean --release-notes docs/release-notes.md --release-footer docs/release-footer.md
+release:
+	goreleaser release --snapshot --clean $(RELEASE_BODY)
+
+# Publish the release for the current tag as a draft on GitHub. This is what
+# .github/workflows/release.yml runs; it needs a tag and a GITHUB_TOKEN, and
+# there is no reason to run it by hand.
+release-publish:
+	goreleaser release --clean $(RELEASE_BODY)
 
 # ---------------------------------------------------------------------------
 # Clean

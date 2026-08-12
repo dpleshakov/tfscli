@@ -1,17 +1,43 @@
 name: Release
 
+# The only way to cut a release. Everything a release needs — a green check, a
+# changelog section, the commit, the tag, the archives — happens here, in an
+# order that cannot be got wrong, so that the version number is the only thing
+# left to get right.
 on:
-  push:
-    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release, without the leading v — for example 0.1.0'
+        required: true
+        type: string
+
+# Two releases at once would race for main and for the tag.
+concurrency:
+  group: release
 
 permissions:
-  # goreleaser creates the GitHub release and uploads the archives to it.
+  # The job pushes the release commit and the tag, and goreleaser creates the
+  # GitHub release and uploads the archives to it.
   contents: write
+
+env:
+  # The input reaches the steps through the environment and never through
+  # `${{ }}` inside a run body, where it would be pasted into the shell line.
+  VERSION: ${{ inputs.version }}
 
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
+      # The dispatch dialog offers every branch, and pushing another one's
+      # content to main would be silent.
+      - name: Refuse to release from a branch other than main
+        if: github.ref_name != 'main'
+        run: |
+          echo 'A release is cut from main.' >&2
+          exit 1
+
       - uses: actions/checkout@v6
         with:
           # goreleaser derives the version and the changelog from the full
@@ -22,9 +48,46 @@ jobs:
         with:
           go-version: '1.26'
 
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.12
+          install-mode: binary
+          install-only: true
+
+      # Nothing else verifies the commit that is about to be tagged. Running it
+      # first also means a red check leaves the repository untouched.
+      - run: make check
+
+      - name: Turn the unreleased section into a released one
+        run: go run tools/release-section.go "$VERSION"
+
+      # Read the section back with the tool that will produce the release body,
+      # and print it: a section goreleaser could not use fails here, before the
+      # tag exists, rather than halfway through publishing.
+      - name: Check the release notes
+        run: |
+          make release-notes VERSION="$VERSION"
+          cat docs/release-notes.md
+
+      # A push made with GITHUB_TOKEN does not start another workflow, so the
+      # release commit will not set off a redundant CI run.
+      - name: Commit, tag, and push
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -am "Release $VERSION"
+          git tag "v$VERSION"
+          git push origin HEAD:main
+          git push origin "v$VERSION"
+
+      # As in ci.yml, the action only installs the tool and the Makefile
+      # decides how it runs, so that a snapshot built by hand and the release
+      # published here cannot drift apart.
       - uses: goreleaser/goreleaser-action@v6
         with:
           version: '~> v2'
-          args: release --clean --release-notes docs/release-notes.md --release-footer docs/release-footer.md
+          install-only: true
+
+      - run: make release-publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

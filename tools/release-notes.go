@@ -77,7 +77,13 @@ func extract(changelog, version string) (string, error) {
 		body = body[:next[0]]
 	}
 
+	// A section followed by another one ends with the "---" that separates the
+	// two, which belongs to neither and would render as a rule above the
+	// release footer.
 	body = strings.TrimSpace(body)
+	if rest, found := strings.CutSuffix(body, "---"); found {
+		body = strings.TrimSpace(rest)
+	}
 	if body == "" {
 		return "", fmt.Errorf("section [%s] of the changelog is empty", version)
 	}

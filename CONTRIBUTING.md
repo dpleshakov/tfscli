@@ -12,6 +12,7 @@ The developer handbook for this repository. `README.md` documents the tool for i
 | `make check` | `build`, `lint`, `test`, then fails if the `go mod tidy` inside `lint` changed `go.mod` or `go.sum` | Before pushing — CI runs exactly this |
 | `make release-notes VERSION=X.Y.Z` | Extracts that changelog section into the gitignored `docs/release-notes.md` | To preview release notes |
 | `make release` | Builds a local snapshot release into `dist/`, publishing nothing | To see what a release would contain |
+| `make release-publish` | The same archives, uploaded to a draft GitHub release for the current tag | Never by hand — the release workflow runs it |
 | `make clean` | Removes the binary, `coverage.out`, `docs/release-notes.md`, and `dist/` | Any time |
 
 `make check` is the whole gate: `.github/workflows/ci.yml` installs the linter, runs
@@ -125,55 +126,55 @@ In two places, neither of them a source file:
 - **the section heading** `## [X.Y.Z] — YYYY-MM-DD` in `CHANGELOG.md`, from which
   `tools/release-notes.go` extracts the release notes.
 
-The two have to agree, and nothing else carries a version number. `version` and `commit`
-in `cmd/tfscli/main.go` are targets for `-ldflags -X` and are never edited by hand; a
+Both are written by `.github/workflows/release.yml` from the version typed into it, so
+they cannot disagree. Nothing else carries a version number: `version` and `commit` in
+`cmd/tfscli/main.go` are targets for `-ldflags -X` and are never edited by hand, and a
 binary built without them reports `dev (unknown)`.
 
 ### Steps
 
-1. Everything going into the release is on `main` and `make check` is green — the release
-   workflow does not run it.
-2. In `CHANGELOG.md`, rename `## [Unreleased]` to `## [X.Y.Z] — YYYY-MM-DD` (em dash),
-   delete the subsections that stayed empty, and add a fresh `## [Unreleased]` above it
-   with the four empty subsections, separated from the released section by `---`.
-3. Optional: `make release-notes VERSION=X.Y.Z` writes the extracted section to the
-   gitignored `docs/release-notes.md`; `make release` goes further and builds the complete
-   set of archives into `dist/`, publishing nothing.
-4. **Commit the changelog change before tagging** — the workflow reads `CHANGELOG.md` as
-   of the tagged commit.
-5. Tag and push:
+1. Everything going into the release is on `main` and recorded under `## [Unreleased]` in
+   `CHANGELOG.md`.
+2. **Actions → Release → Run workflow**, from `main`, with the version — `0.1.0`, without
+   the leading `v`.
+3. When the job is green, open the releases page, read the notes, confirm the seven assets
+   are there, and press **Publish**. Nothing is public until then.
 
-   ```
-   git tag vX.Y.Z
-   git push origin main --tags
-   ```
+There is no other entry point: the workflow runs on `workflow_dispatch` alone, and pushing
+a tag by hand does nothing.
 
-   The tag push is the only trigger. `.github/workflows/release.yml` listens on
-   `push: tags: ['v*']` and has no manual entry point.
-6. The workflow runs goreleaser against the tagged commit, whose before-hook regenerates
-   the release notes from that commit's `CHANGELOG.md`. The result is six archives — linux,
-   windows, darwin × amd64, arm64 — plus `checksums.txt`, attached to a release titled
-   `tfscli vX.Y.Z` whose body is the changelog section followed by `docs/release-footer.md`.
-   What goes into each archive is `.goreleaser.yaml`.
-7. **The release is created as a draft** (`draft: true` in `.goreleaser.yaml`). Nothing is
-   public until a human opens the releases page, reads the notes, confirms the seven assets
-   are there, and presses Publish.
+What the job does, in order: `make check` on the commit it is about to tag; then
+`tools/release-section.go`, which renames `[Unreleased]` to `[X.Y.Z] — YYYY-MM-DD`, drops
+the subsections that stayed empty, and starts a fresh `[Unreleased]` above it; then
+`make release-notes`, which reads that section back with the tool that will produce the
+release body and prints it to the log; then the commit `Release X.Y.Z`, the tag, and the
+push; then goreleaser. The result is six archives — linux, windows, darwin × amd64, arm64
+— plus `checksums.txt`, attached to a draft release titled `tfscli vX.Y.Z` whose body is
+the changelog section followed by `docs/release-footer.md`. What goes into each archive is
+`.goreleaser.yaml`; that the release is a draft is `draft: true` there.
+
+To see what a release would contain without making one, `make release` builds the same
+archives into `dist/` and publishes nothing.
 
 ### When it goes wrong
 
-- **The tag has no matching changelog section** — the most common failure, and a loud one.
-  `tools/release-notes.go` exits with an error, so the before-hook fails and the job dies
-  before the first binary is built. A section that exists but is empty fails the same way.
-- **The changelog rename was not committed before tagging.** The tag points at a commit
-  whose changelog still reads `[Unreleased]`, which is the previous failure again.
-- **A commit that does not build got tagged.** The release job never runs `make check`;
-  the correctness of the tagged commit is on whoever tags it.
-- **Undoing a tag.** Delete the draft release on GitHub, then:
+Everything that can be checked is checked before the push, and a failure there leaves the
+repository exactly as it was — fix it on `main` and run the workflow again:
 
-  ```
-  git push origin --delete vX.Y.Z
-  git tag -d vX.Y.Z
-  ```
+- `make check` is red on the commit being released;
+- the version is not of the form `X.Y.Z`, or the changelog already has a section for it;
+- `[Unreleased]` has no entries, so there is nothing to release.
 
-  Fix the problem, commit, and tag again. A release that has already been published is not
-  withdrawn this way — issue the next patch version instead.
+After the push the failure to expect is a release body that is wrong rather than
+unusable — the wrong entries under `[Unreleased]`, say. The release is a draft, so delete
+it on GitHub and undo the rest:
+
+```
+git push origin --delete vX.Y.Z
+git tag -d vX.Y.Z
+git revert <the Release X.Y.Z commit>
+```
+
+The revert restores `[Unreleased]`, so the workflow can be run again with the same
+version. A release that has already been published is not withdrawn this way — issue the
+next patch version instead.
