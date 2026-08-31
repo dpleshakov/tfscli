@@ -10,7 +10,7 @@ The developer handbook for this repository. `README.md` documents the tool for i
 | `make lint` | `go mod tidy` and `golangci-lint run` | Before committing |
 | `make test` | Measures coverage of `internal/...` and fails below 85% | While working on tests |
 | `make check` | `build`, `lint`, `test`, then fails if the `go mod tidy` inside `lint` changed `go.mod` or `go.sum` | Before pushing — CI runs exactly this |
-| `make release-notes VERSION=X.Y.Z` | Extracts that changelog section into the gitignored `docs/release-notes.md` | To preview release notes |
+| `make release-notes VERSION=X.Y.Z` | Writes that changelog section, then the footer, into the gitignored `docs/release-notes.md` | To preview the release body |
 | `make release` | Builds a local snapshot release into `dist/`, publishing nothing | To see what a release would contain |
 | `make release-publish` | The same archives, uploaded to a draft GitHub release for the current tag | Never by hand — the release workflow runs it |
 | `make clean` | Removes the binary, `coverage.out`, `docs/release-notes.md`, and `dist/` | Any time |
@@ -146,15 +146,23 @@ a tag by hand does nothing.
 What the job does, in order: `make check` on the commit it is about to tag; then
 `tools/release-section.go`, which renames `[Unreleased]` to `[X.Y.Z] — YYYY-MM-DD`, drops
 the subsections that stayed empty, and starts a fresh `[Unreleased]` above it; then
-`make release-notes`, which reads that section back with the tool that will produce the
-release body and prints it to the log; then the commit `Release X.Y.Z`, the tag, and the
-push; then goreleaser. The result is six archives — linux, windows, darwin × amd64, arm64
-— plus `checksums.txt`, attached to a draft release titled `tfscli vX.Y.Z` whose body is
-the changelog section followed by `docs/release-footer.md`. What goes into each archive is
+`make release-notes`, which assembles the release body — that section followed by
+`docs/release-footer.md` — and prints it to the log; then the commit `Release X.Y.Z`, the
+tag, and the push; then goreleaser. The result is six archives — linux, windows, darwin
+× amd64, arm64 — plus `checksums.txt`, attached to a draft release titled `tfscli vX.Y.Z`
+whose body is that same file, passed as `--release-notes`. What goes into each archive is
 `.goreleaser.yaml`; that the release is a draft is `draft: true` there.
 
+The footer is part of the file and not a goreleaser flag on purpose. `--release-footer`
+and `--release-header` decorate the changelog goreleaser generates from the commit log,
+and `--release-notes` switches that generation off; passed together, the footer is dropped
+without a warning. Anything else that belongs at the end of every release page goes into
+`docs/release-footer.md`, never into a flag.
+
 To see what a release would contain without making one, `make release` builds the same
-archives into `dist/` and publishes nothing.
+archives into `dist/` and publishes nothing. The release body is not part of that preview:
+goreleaser skips the changelog step entirely for a snapshot. To see the body, run
+`make release-notes VERSION=X.Y.Z` and read `docs/release-notes.md`.
 
 ### When it goes wrong
 

@@ -58,28 +58,29 @@ check: build lint test
 # Release
 # ---------------------------------------------------------------------------
 
-# The body of a GitHub release: the changelog section for the version being
-# released, then the footer. Both release targets pass it, so that a snapshot
-# shows exactly what a real release would publish.
-RELEASE_BODY = --release-notes docs/release-notes.md --release-footer docs/release-footer.md
-
-# Extract the release notes for VERSION from CHANGELOG.md. Called by the
-# goreleaser before-hook, and by the release workflow to read back the section
-# it has just written.
+# Write the body of the release for VERSION to docs/release-notes.md: the
+# changelog section for that version, then docs/release-footer.md. Called by
+# the goreleaser before-hook, and by the release workflow to read back what it
+# has just written.
 release-notes:
 	go run tools/release-notes.go $(VERSION)
 
 # Build a local snapshot release into dist/ — archives and checksums for every
 # target platform — without tagging or publishing anything. Run it to see what
-# a real release would contain.
+# a real release would contain. Not the release body: goreleaser skips the
+# whole changelog step for a snapshot, so passing --release-notes here would
+# only look like a check that never runs.
 release:
-	goreleaser release --snapshot --clean $(RELEASE_BODY)
+	goreleaser release --snapshot --clean
 
 # Publish the release for the current tag as a draft on GitHub. This is what
 # .github/workflows/release.yml runs; it needs a tag and a GITHUB_TOKEN, and
-# there is no reason to run it by hand.
+# there is no reason to run it by hand. --release-notes is the entire body:
+# it turns off goreleaser's own changelog generation, and with it the
+# --release-header and --release-footer flags, which is why the footer is part
+# of the file rather than a flag of its own.
 release-publish:
-	goreleaser release --clean $(RELEASE_BODY)
+	goreleaser release --clean --release-notes docs/release-notes.md
 
 # ---------------------------------------------------------------------------
 # Clean
