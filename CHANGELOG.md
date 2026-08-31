@@ -3,6 +3,15 @@
 ## [Unreleased]
 
 ### Added
+### Fixed
+### Changed
+### Removed
+
+---
+
+## [0.0.1] — 2026-08-31
+
+### Added
 - `tfscli workitem get -p <project> <id>` prints a single work item as markdown, converting HTML fields such as Description and Repro Steps.
 - `--fields` limits the request to the named fields and prints them in the order they were asked for.
 - Configuration is read from `~/.tfscli/config.json`, `TFSCLI_*` environment variables, and command-line flags, in that order of precedence.
@@ -10,7 +19,3 @@
 - `--verbose` (or `TFSCLI_VERBOSE=1`) logs every request to stderr with its method, URL, status, and duration.
 - Errors are reported on stderr as `Error [category]: message (HTTP status)` with a non-zero exit code, using the categories `auth`, `not_found`, `forbidden`, `server`, `config`, and `network`.
 - `--version` prints the version and the commit the binary was built from.
-
-### Fixed
-### Changed
-### Removed
