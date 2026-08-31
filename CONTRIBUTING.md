@@ -35,9 +35,14 @@ GOOS=windows GOARCH=amd64 go build ./cmd/tfscli
 
 - **Go 1.26 or newer** — matches the `go` directive in `go.mod` and the version both
   workflows install.
-- **[`golangci-lint`](https://golangci-lint.run) v2.12 or newer**, for `make lint` —
-  earlier v2 releases bundle staticcheck 0.7.0, which panics while analysing the Go 1.26
-  standard library (`buildir: interface conversion`). CI pins v2.12 for the same reason.
+- **[`golangci-lint`](https://golangci-lint.run) v2.13 or newer**, for `make lint`, built
+  with a Go no older than the one it runs against — the linter type-checks the standard
+  library with the `go/types` compiled into it, so a v2.12 binary built with Go 1.26 fails
+  on the Go 1.27 sources of `math/rand/v2` (`method must have no type parameters`), and
+  pre-v2.12 releases bundle a staticcheck that panics on the Go 1.26 standard library
+  (`buildir: interface conversion`). A release binary is built with the Go current at the
+  time it was cut; `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2`
+  builds it with the Go you have. CI pins v2.13 against Go 1.26.
 - **[`goreleaser`](https://goreleaser.com) v2**, for `make release`.
 
 Every other target needs Go alone.

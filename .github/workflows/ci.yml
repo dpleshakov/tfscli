@@ -26,7 +26,7 @@ jobs:
       # so that `make check` behaves the same here and on a developer machine.
       - uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.12
+          version: v2.13
           install-mode: binary
           install-only: true
 
