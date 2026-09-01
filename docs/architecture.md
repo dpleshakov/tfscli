@@ -262,5 +262,6 @@ Standard Go CLI layout: a single binary entry point under `cmd/`, all implementa
 | `cmd/` | Binary entry points, one subdirectory per binary. v1 has a single binary, `tfscli`; its `main` only wires modules together and delegates to the cli package. |
 | `internal/` | All implementation packages, one per architecture module. Tests sit next to the code (`_test.go`); fixtures live in per-package `testdata/` directories. |
 | `docs/` | Design documents (`project-brief.md`, `architecture.md`), tasks files, tech-debt register. Not part of the shipped binary. |
+| `skills/` | The agent skill shipped beside the binary, `skills/tfscli/SKILL.md`, in the Agent Skills format. Copied into the archive by goreleaser and installed by copying the directory into an agent's skills path. |
 
 Deliberately absent: `pkg/` (nothing is exported), `vendor/` (dependencies resolve through the module proxy), a separate `test/` tree (Go convention keeps tests beside the code they test).

@@ -38,5 +38,5 @@ This file predates the move of the process into the global `tasks` skill and kee
 
 ### TASK-05 `docs`
 **Type:** Docs
-**Description:** Update `README.md` and `CHANGELOG.md` with a one-line user-facing note that HTML rendering now handles the relevant TFS patterns (mentions, attachments, Word paste, work-item refs — whichever were addressed). No technical detail in `CHANGELOG.md`; see the `changelog` skill.
+**Description:** Update `README.md`, `CHANGELOG.md`, and the "Known limitations" section of `skills/tfscli/SKILL.md` with a one-line user-facing note that HTML rendering now handles the relevant TFS patterns (mentions, attachments, Word paste, work-item refs — whichever were addressed). `README.md` and `SKILL.md` both carry the limitation and must stop claiming it together. No technical detail in `CHANGELOG.md`; see the `changelog` skill.
 **Status:** ⬜ Pending

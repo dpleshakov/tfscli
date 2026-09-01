@@ -39,6 +39,10 @@ archives:
       - README.md
       - CHANGELOG.md
       - config.example.json
+      # The agent skill ships with the binary so that an AI agent that unpacks
+      # the archive can be told how to use tfscli without a second download.
+      # The directory is kept whole: it is copied as-is into a skills path.
+      - skills
 
 checksum:
   name_template: "checksums.txt"

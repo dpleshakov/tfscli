@@ -33,7 +33,7 @@ Download an archive from the [releases page](https://github.com/dpleshakov/tfscl
 | Windows | `windows-amd64.zip` | `windows-arm64.zip` |
 | macOS | `darwin-amd64.tar.gz` | `darwin-arm64.tar.gz` |
 
-Every archive holds the binary together with `LICENSE`, `README.md`, `CHANGELOG.md`, and `config.example.json`. SHA-256 sums for all six are in `checksums.txt`, attached to the same release.
+Every archive holds the binary together with `LICENSE`, `README.md`, `CHANGELOG.md`, `config.example.json`, and the agent skill in `skills/tfscli/SKILL.md`. SHA-256 sums for all six archives are in `checksums.txt`, attached to the same release.
 
 Verify a download before using it:
 
@@ -62,6 +62,45 @@ GOOS=windows GOARCH=amd64 go build -o tfscli.exe ./cmd/tfscli
 ```
 
 A binary built this way reports its version as `dev (unknown)`: the real values are stamped in by the release build.
+
+## Use with an AI agent
+
+tfscli is built for AI coding agents first, and every archive carries an agent
+skill beside the binary: `skills/tfscli/SKILL.md`, in the Agent Skills format.
+It tells an agent when the tool applies, how the output is shaped, what each
+error category calls for, and where the boundaries are — none of which `--help`
+conveys.
+
+Install it by copying the directory. Create the destination first: copying
+into a path that does not exist yet leaves `SKILL.md` one level too high,
+where no agent looks for it.
+
+```sh
+mkdir -p ~/.claude/skills && cp -r skills/tfscli ~/.claude/skills/
+```
+
+```powershell
+New-Item -ItemType Directory -Force $HOME\.claude\skills | Out-Null
+Copy-Item -Recurse skills\tfscli $HOME\.claude\skills\
+```
+
+That one location serves both agents: opencode has first-party skill support and
+searches `~/.claude/skills/` among its own paths. Other locations work as well,
+if the skill should be scoped to a single project or kept out of the Claude
+directory:
+
+| Agent | Project | Global |
+|---|---|---|
+| Claude Code | `.claude/skills/tfscli/` | `~/.claude/skills/tfscli/` |
+| opencode | `.opencode/skills/tfscli/`, `.claude/skills/tfscli/`, `.agents/skills/tfscli/` | `~/.config/opencode/skills/tfscli/`, `~/.claude/skills/tfscli/`, `~/.agents/skills/tfscli/` |
+
+In opencode, loading a skill is subject to `permission.skill` in
+`opencode.json` — `allow`, `ask`, or `deny` — and the mechanism can be switched
+off altogether with `tools.skill: false`. If the skill is never offered, check
+those settings first.
+
+An agent without skill support can be pointed at the same file directly: it is
+plain markdown under a short YAML header.
 
 ## Configuration
 

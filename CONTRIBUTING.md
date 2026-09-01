@@ -140,9 +140,13 @@ binary built without them reports `dev (unknown)`.
 
 1. Everything going into the release is on `main` and recorded under `## [Unreleased]` in
    `CHANGELOG.md`.
-2. **Actions → Release → Run workflow**, from `main`, with the version — `0.1.0`, without
+2. `skills/tfscli/SKILL.md` still describes the tool as it now is: the command tree and
+   the flags in `internal/cli`, the error categories in `internal/tfserr`, and the
+   environment variables in `internal/config`. Nothing verifies this, and the file ships
+   inside every archive as what an AI agent reads instead of `--help`.
+3. **Actions → Release → Run workflow**, from `main`, with the version — `0.1.0`, without
    the leading `v`.
-3. When the job is green, open the releases page, read the notes, confirm the seven assets
+4. When the job is green, open the releases page, read the notes, confirm the seven assets
    are there, and press **Publish**. Nothing is public until then.
 
 There is no other entry point: the workflow runs on `workflow_dispatch` alone, and pushing

@@ -3,6 +3,8 @@
 ## [Unreleased]
 
 ### Added
+- Every release archive now carries an agent skill in `skills/tfscli/SKILL.md`, which teaches an AI agent — Claude Code or opencode — when and how to call tfscli.
+
 ### Fixed
 ### Changed
 ### Removed
