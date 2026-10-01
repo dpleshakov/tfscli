@@ -1,6 +1,6 @@
 # 2026-10-01-tasks-remove-pat-flag.md
 
-**Status:** Active
+**Status:** Archived
 
 ## Context
 
@@ -36,4 +36,4 @@ precedence item in `CLAUDE.md`. Record the change in `CHANGELOG.md` through the
 flag error. Tests cover the PAT coming from the environment and from the config
 file. Outside `docs/archive/` and `CHANGELOG.md`, `--pat` no longer appears in
 the repository. `make check` passes.
-**Status:** Pending
+**Status:** Skipped — superseded by 2026-10-01-tasks-auth-login.md
