@@ -1,6 +1,6 @@
 # 2026-09-01-tasks-agent-skill.md
 
-**Status:** Active
+**Status:** Archived
 
 ## Context
 
@@ -88,4 +88,4 @@ prescribes.
 by both Claude Code and opencode.
 **Definition of done:** In both agents the skill is advertised and opens on a
 request about a TFS work item.
-**Status:** Pending
+**Status:** Skipped — not run against a live agent; discovery problems will be handled as new work if they surface
