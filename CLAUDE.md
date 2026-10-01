@@ -10,7 +10,7 @@ Note: tasks files created before the move to skills (e.g. `docs/2026-05-20-tasks
 
 ## Project state
 
-The MVP is implemented: `tfscli workitem get` works end to end, and the module has one package per architecture module (see the "Project Structure" section of `docs/architecture.md`). What has not happened yet is a run against a live TFS instance, and no release has been tagged — see the "Status" and "Known limitations" sections of `README.md`. Further work goes through tasks files per the `tasks` skill.
+The MVP is implemented: `tfscli workitem get` works end to end, and the module has one package per architecture module (see the "Project Structure" section of `docs/architecture.md`). Release 0.0.1 is tagged; what has not happened yet is a run against a live TFS instance — see the "Status" and "Known limitations" sections of `README.md`. Further work goes through tasks files per the `tasks` skill.
 
 Three documents drive everything:
 

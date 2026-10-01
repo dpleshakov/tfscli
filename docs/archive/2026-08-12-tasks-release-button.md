@@ -53,7 +53,7 @@ therefore ends with the separator that belongs to the boundary, which would rend
 stray horizontal rule directly above the footer.
 **Definition of done:** Extracting a section that is followed by another one yields the
 entries without the trailing separator; extracting the last section is unchanged.
-**Status:** In progress
+**Status:** Done
 
 ### TASK-03 `makefile-release-publish`
 **Description:** Add a `release-publish` target that runs goreleaser for real, and factor
