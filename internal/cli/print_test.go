@@ -15,8 +15,8 @@ func TestPrintWorkItemRendersEachKind(t *testing.T) {
 		Fields: []workitem.Field{
 			{Name: "System.WorkItemType", Kind: workitem.FieldPlain, Value: "Bug"},
 			{Name: "System.AssignedTo", Kind: workitem.FieldIdentity, Value: workitem.Identity{
-				DisplayName: "Anna Ivanova",
-				UniqueName:  `COMPANY\a.ivanova`,
+				DisplayName: "Jane Doe",
+				UniqueName:  `COMPANY\j.doe`,
 			}},
 			{Name: "System.CreatedDate", Kind: workitem.FieldDateTime, Value: "2026-06-14T09:12:33.117Z"},
 			{Name: "Microsoft.VSTS.Scheduling.RemainingWork", Kind: workitem.FieldPlain, Value: "4.5"},
@@ -29,7 +29,7 @@ func TestPrintWorkItemRendersEachKind(t *testing.T) {
 		"# Work item 12345 (rev 7)",
 		"",
 		"System.WorkItemType: Bug",
-		`System.AssignedTo: Anna Ivanova <COMPANY\a.ivanova>`,
+		`System.AssignedTo: Jane Doe <COMPANY\j.doe>`,
 		"System.CreatedDate: 2026-06-14T09:12:33Z",
 		"Microsoft.VSTS.Scheduling.RemainingWork: 4.5",
 		"",
@@ -142,19 +142,19 @@ func TestFormatIdentity(t *testing.T) {
 	}{
 		{
 			name:     "both parts",
-			identity: workitem.Identity{DisplayName: "Anna Ivanova", UniqueName: `COMPANY\a.ivanova`},
-			want:     `Anna Ivanova <COMPANY\a.ivanova>`,
+			identity: workitem.Identity{DisplayName: "Jane Doe", UniqueName: `COMPANY\j.doe`},
+			want:     `Jane Doe <COMPANY\j.doe>`,
 		},
 		{
 			name:     "display name only",
-			identity: workitem.Identity{DisplayName: "Anna Ivanova"},
-			want:     "Anna Ivanova",
+			identity: workitem.Identity{DisplayName: "Jane Doe"},
+			want:     "Jane Doe",
 		},
 		{
 			// Some on-prem identities carry only the account name.
 			name:     "unique name only",
-			identity: workitem.Identity{UniqueName: `COMPANY\a.ivanova`},
-			want:     `COMPANY\a.ivanova`,
+			identity: workitem.Identity{UniqueName: `COMPANY\j.doe`},
+			want:     `COMPANY\j.doe`,
 		},
 	}
 

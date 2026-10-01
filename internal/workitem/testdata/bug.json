@@ -9,28 +9,28 @@
     "System.State": "Active",
     "System.Reason": "New",
     "System.AssignedTo": {
-      "displayName": "Anna Ivanova",
+      "displayName": "Jane Doe",
       "url": "https://tfs.company.com:8080/DefaultCollection/_apis/Identities/2f1a8c3e-0b9d-4f77-9a1c-6d5e4b3a2109",
       "id": "2f1a8c3e-0b9d-4f77-9a1c-6d5e4b3a2109",
-      "uniqueName": "COMPANY\\a.ivanova",
+      "uniqueName": "COMPANY\\j.doe",
       "imageUrl": "https://tfs.company.com:8080/DefaultCollection/_api/_common/identityImage?id=2f1a8c3e-0b9d-4f77-9a1c-6d5e4b3a2109",
       "descriptor": "win.Uy0xLTUtMjEtMTIzNDU2Nzg5MC0xMjM0NTY3ODkwLTEyMzQ1Njc4OTAtMTAwMQ"
     },
     "System.CreatedDate": "2026-06-14T09:12:33.117Z",
     "System.CreatedBy": {
-      "displayName": "Pavel Sidorov",
+      "displayName": "John Smith",
       "url": "https://tfs.company.com:8080/DefaultCollection/_apis/Identities/8c7b6a59-4d3e-2f1a-9b8c-7d6e5f4a3b21",
       "id": "8c7b6a59-4d3e-2f1a-9b8c-7d6e5f4a3b21",
-      "uniqueName": "COMPANY\\p.sidorov",
+      "uniqueName": "COMPANY\\j.smith",
       "imageUrl": "https://tfs.company.com:8080/DefaultCollection/_api/_common/identityImage?id=8c7b6a59-4d3e-2f1a-9b8c-7d6e5f4a3b21",
       "descriptor": "win.Uy0xLTUtMjEtMTIzNDU2Nzg5MC0xMjM0NTY3ODkwLTEyMzQ1Njc4OTAtMTAwMg"
     },
     "System.ChangedDate": "2026-07-01T15:48:02Z",
     "System.ChangedBy": {
-      "displayName": "Anna Ivanova",
+      "displayName": "Jane Doe",
       "url": "https://tfs.company.com:8080/DefaultCollection/_apis/Identities/2f1a8c3e-0b9d-4f77-9a1c-6d5e4b3a2109",
       "id": "2f1a8c3e-0b9d-4f77-9a1c-6d5e4b3a2109",
-      "uniqueName": "COMPANY\\a.ivanova",
+      "uniqueName": "COMPANY\\j.doe",
       "imageUrl": "https://tfs.company.com:8080/DefaultCollection/_api/_common/identityImage?id=2f1a8c3e-0b9d-4f77-9a1c-6d5e4b3a2109",
       "descriptor": "win.Uy0xLTUtMjEtMTIzNDU2Nzg5MC0xMjM0NTY3ODkwLTEyMzQ1Njc4OTAtMTAwMQ"
     },

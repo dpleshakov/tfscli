@@ -39,7 +39,7 @@ func (t typist) ReadSecret() (string, error) { return t.secret, nil }
 const connectionDataResponse = `{
   "authenticatedUser": {
     "id": "6f9e4c2a-1b3d-4e5f-8a7b-9c0d1e2f3a4b",
-    "providerDisplayName": "Anna Ivanova"
+    "providerDisplayName": "Jane Doe"
   },
   "instanceId": "0f8a1c2e-3b4d-5e6f-7a8b-9c0d1e2f3a4b"
 }`
@@ -69,7 +69,7 @@ func TestAuthLoginStoresTheCredential(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0 (stderr: %s)", code, stderr)
 	}
-	if want := "Logged in to " + s.URL + " as Anna Ivanova\n"; stdout != want {
+	if want := "Logged in to " + s.URL + " as Jane Doe\n"; stdout != want {
 		t.Errorf("stdout = %q, want %q", stdout, want)
 	}
 	if !strings.Contains(stderr, "Server URL") || !strings.Contains(stderr, "Personal access token") {

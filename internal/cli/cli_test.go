@@ -24,8 +24,8 @@ const workItemResponse = `{
     "System.Title": "Payment confirmation email is not sent for partial refunds",
     "System.State": "Active",
     "System.AssignedTo": {
-      "displayName": "Anna Ivanova",
-      "uniqueName": "COMPANY\\a.ivanova",
+      "displayName": "Jane Doe",
+      "uniqueName": "COMPANY\\j.doe",
       "imageUrl": "https://tfs.company.com:8080/DefaultCollection/_api/_common/identityImage?id=2f1a8c3e"
     },
     "System.CreatedDate": "2026-06-14T09:12:33.117Z",
@@ -133,7 +133,7 @@ func TestWorkItemGetPrintsMarkdown(t *testing.T) {
 		"System.WorkItemType: Bug",
 		"System.Title: Payment confirmation email is not sent for partial refunds",
 		"System.State: Active",
-		`System.AssignedTo: Anna Ivanova <COMPANY\a.ivanova>`,
+		`System.AssignedTo: Jane Doe <COMPANY\j.doe>`,
 		"System.CreatedDate: 2026-06-14T09:12:33Z",
 		"",
 		"## System.Description",

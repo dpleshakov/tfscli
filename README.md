@@ -111,7 +111,7 @@ The server URL and the personal access token are stored together, and the token 
 $ tfscli auth login
 Server URL (e.g. https://tfs.company.com:8080/tfs): https://tfs.company.com:8080/tfs
 Personal access token:
-Logged in to https://tfs.company.com:8080/tfs as Anna Ivanova
+Logged in to https://tfs.company.com:8080/tfs as Jane Doe
 ```
 
 The token is typed with echo turned off, and the pair is checked against the server (`_apis/connectionData`) before anything is written. A rejected token is reported in the usual error format and leaves nothing behind. The URL is stored with a lower-case scheme and host and without a trailing slash. The command takes no flags and needs an interactive terminal; it reads `caBundle`, `insecureSkipVerify`, and `apiVersion` from the config file when there is one, so a server behind an internal CA can be reached during login too. On Windows under Git Bash (mintty), stdin is not a console; run the command from Windows Terminal, PowerShell, or `cmd`, or prefix it with `winpty`.
@@ -199,7 +199,7 @@ Short values are printed as `Name: value` lines; prose and multi-line values bec
 # Work item 12345 (rev 7)
 
 System.WorkItemType: Bug
-System.AssignedTo: Anna Ivanova <COMPANY\a.ivanova>
+System.AssignedTo: Jane Doe <COMPANY\j.doe>
 System.CreatedDate: 2026-06-14T09:12:33Z
 
 ## System.Description

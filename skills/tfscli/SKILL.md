@@ -142,7 +142,7 @@ TFS and are converted to markdown: `System.Description`,
 # Work item 12345 (rev 7)
 
 System.WorkItemType: Bug
-System.AssignedTo: Anna Ivanova <COMPANY\a.ivanova>
+System.AssignedTo: Jane Doe <COMPANY\j.doe>
 System.CreatedDate: 2026-06-14T09:12:33Z
 Microsoft.VSTS.Scheduling.RemainingWork: 4.5
 

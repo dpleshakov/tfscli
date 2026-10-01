@@ -123,7 +123,7 @@ func TestGetTagsFieldKinds(t *testing.T) {
 		{
 			name:  "System.AssignedTo",
 			kind:  FieldIdentity,
-			value: Identity{DisplayName: "Anna Ivanova", UniqueName: "COMPANY\\a.ivanova"},
+			value: Identity{DisplayName: "Jane Doe", UniqueName: "COMPANY\\j.doe"},
 		},
 		{
 			// Fractional seconds and a plain Z offset are both RFC 3339.
