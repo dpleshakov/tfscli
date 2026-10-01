@@ -71,19 +71,21 @@ The brief is the source of truth for the constraints below, which are repeated h
 catch a violation without opening it. A feature request does not override them on its own;
 if a change would break one, raise it before implementing.
 
-- PAT authentication only; no SSPI, NTLM, or interactive login.
+- PAT authentication only; no SSPI or NTLM. The PAT is entered interactively by
+  `tfscli auth login` and never accepted as a command argument.
 - Read-only in v1; write operations additionally depend on JSON output landing first.
 - Markdown is the default output format.
 - The command hierarchy and parameter names mirror the TFS REST API; a deviation needs an
   explicit usability justification, and no query syntax or batch endpoint is invented.
-- Stateless: no daemon, no background process, no on-disk state beyond the config file.
+- Stateless: no daemon, no background process, no on-disk state beyond the config file and the credential written by `auth login`.
 - The error categories `auth`, `not_found`, `forbidden`, `server`, `config`, and `network`
   are a contract. New ones may be added; existing ones are never renamed or removed.
-- Configuration precedence is flag, environment variable, config file, built-in default.
+- Configuration precedence is flag, environment variable, config file, built-in default. The server URL and PAT stay outside it: they come only from `auth.json` or `TFSCLI_AUTH`, together.
 
-**Dependencies.** Two direct dependencies — `cobra` and `html-to-markdown/v2` — are the
-intended total. HTTP is `net/http`; JSON and configuration parsing are `encoding/json`. A
-third dependency is a decision recorded in `docs/architecture.md`, not a `go get`.
+**Dependencies.** Three direct dependencies — `cobra`, `html-to-markdown/v2`, and
+`golang.org/x/term` — are the intended total. HTTP is `net/http`; JSON and configuration
+parsing are `encoding/json`. A fourth dependency is a decision recorded in
+`docs/architecture.md`, not a `go get`.
 
 ## Process
 

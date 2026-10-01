@@ -13,9 +13,8 @@ import (
 // envNames lists every variable the package reads, so that tests can start
 // from a known-empty environment regardless of the developer's own settings.
 var envNames = []string{
-	"TFSCLI_URL",
+	"TFSCLI_AUTH",
 	"TFSCLI_COLLECTION",
-	"TFSCLI_PAT",
 	"TFSCLI_PROJECT",
 	"TFSCLI_API_VERSION",
 }
@@ -27,31 +26,43 @@ func clearEnv(t *testing.T) {
 	}
 }
 
-// writeConfig writes body to a config file inside a fresh temp directory and
-// returns its path.
-func writeConfig(t *testing.T, body string) string {
+// writeFile writes body to a file with the given name inside a fresh temp
+// directory and returns its path.
+func writeFile(t *testing.T, name, body string) string {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), "config.json")
+	path := filepath.Join(t.TempDir(), name)
 	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
-		t.Fatalf("writing config file: %v", err)
+		t.Fatalf("writing %s: %v", name, err)
 	}
 	return path
 }
 
-// missingConfig returns a path inside a fresh temp directory where no file
-// exists.
-func missingConfig(t *testing.T) string {
+// writeConfig writes body to a config file and returns its path.
+func writeConfig(t *testing.T, body string) string {
 	t.Helper()
-	return filepath.Join(t.TempDir(), "config.json")
+	return writeFile(t, "config.json", body)
+}
+
+// writeAuth writes body to an auth file and returns its path.
+func writeAuth(t *testing.T, body string) string {
+	t.Helper()
+	return writeFile(t, "auth.json", body)
+}
+
+// missingFile returns a path inside a fresh temp directory where no file
+// exists.
+func missingFile(t *testing.T, name string) string {
+	t.Helper()
+	return filepath.Join(t.TempDir(), name)
 }
 
 const fullConfig = `{
-  "url": "https://file.example.com/tfs",
   "collection": "FileCollection",
-  "pat": "file-pat",
   "project": "FileProject",
   "apiVersion": "6.0"
 }`
+
+const fileAuth = `{"url": "https://file.example.com/tfs", "pat": "file-pat"}`
 
 func TestLoadPrecedence(t *testing.T) {
 	tests := []struct {
@@ -66,8 +77,8 @@ func TestLoadPrecedence(t *testing.T) {
 			file: fullConfig,
 			want: Config{
 				URL:        "https://file.example.com/tfs",
-				Collection: "FileCollection",
 				PAT:        "file-pat",
+				Collection: "FileCollection",
 				Project:    "FileProject",
 				APIVersion: "6.0",
 			},
@@ -76,16 +87,14 @@ func TestLoadPrecedence(t *testing.T) {
 			name: "env overrides file",
 			file: fullConfig,
 			env: map[string]string{
-				"TFSCLI_URL":         "https://env.example.com/tfs",
 				"TFSCLI_COLLECTION":  "EnvCollection",
-				"TFSCLI_PAT":         "env-pat",
 				"TFSCLI_PROJECT":     "EnvProject",
 				"TFSCLI_API_VERSION": "7.0",
 			},
 			want: Config{
-				URL:        "https://env.example.com/tfs",
+				URL:        "https://file.example.com/tfs",
+				PAT:        "file-pat",
 				Collection: "EnvCollection",
-				PAT:        "env-pat",
 				Project:    "EnvProject",
 				APIVersion: "7.0",
 			},
@@ -94,34 +103,42 @@ func TestLoadPrecedence(t *testing.T) {
 			name: "flag overrides env and file",
 			file: fullConfig,
 			env: map[string]string{
-				"TFSCLI_URL":         "https://env.example.com/tfs",
 				"TFSCLI_COLLECTION":  "EnvCollection",
-				"TFSCLI_PAT":         "env-pat",
 				"TFSCLI_PROJECT":     "EnvProject",
 				"TFSCLI_API_VERSION": "7.0",
 			},
 			overrides: Overrides{
-				URL:        new("https://flag.example.com/tfs"),
 				Collection: new("FlagCollection"),
-				PAT:        new("flag-pat"),
 				Project:    new("FlagProject"),
 				APIVersion: new("7.1"),
 			},
 			want: Config{
-				URL:        "https://flag.example.com/tfs",
+				URL:        "https://file.example.com/tfs",
+				PAT:        "file-pat",
 				Collection: "FlagCollection",
-				PAT:        "flag-pat",
 				Project:    "FlagProject",
 				APIVersion: "7.1",
 			},
 		},
 		{
 			name: "api version falls back to the built-in default",
-			file: `{"url": "https://file.example.com/tfs", "collection": "FileCollection", "pat": "file-pat"}`,
+			file: `{"collection": "FileCollection"}`,
 			want: Config{
 				URL:        "https://file.example.com/tfs",
-				Collection: "FileCollection",
 				PAT:        "file-pat",
+				Collection: "FileCollection",
+				APIVersion: DefaultAPIVersion,
+			},
+		},
+		{
+			name:      "an empty api version flag falls back to the built-in default",
+			file:      fullConfig,
+			overrides: Overrides{APIVersion: new("")},
+			want: Config{
+				URL:        "https://file.example.com/tfs",
+				PAT:        "file-pat",
+				Collection: "FileCollection",
+				Project:    "FileProject",
 				APIVersion: DefaultAPIVersion,
 			},
 		},
@@ -135,23 +152,29 @@ func TestLoadPrecedence(t *testing.T) {
 			overrides: Overrides{Project: new("FlagProject")},
 			want: Config{
 				URL:        "https://file.example.com/tfs",
-				Collection: "EnvCollection",
 				PAT:        "file-pat",
+				Collection: "EnvCollection",
 				Project:    "FlagProject",
 				APIVersion: "6.0",
 			},
 		},
 		{
-			name: "environment alone is enough without a config file",
-			env: map[string]string{
-				"TFSCLI_URL":        "https://env.example.com/tfs",
-				"TFSCLI_COLLECTION": "EnvCollection",
-				"TFSCLI_PAT":        "env-pat",
-			},
+			name: "no config file is needed",
+			env:  map[string]string{"TFSCLI_COLLECTION": "EnvCollection"},
 			want: Config{
-				URL:        "https://env.example.com/tfs",
+				URL:        "https://file.example.com/tfs",
+				PAT:        "file-pat",
 				Collection: "EnvCollection",
-				PAT:        "env-pat",
+				APIVersion: DefaultAPIVersion,
+			},
+		},
+		{
+			name: "url and pat in the config file are ignored",
+			file: `{"url": "https://attacker.example", "pat": "config-pat", "collection": "FileCollection"}`,
+			want: Config{
+				URL:        "https://file.example.com/tfs",
+				PAT:        "file-pat",
+				Collection: "FileCollection",
 				APIVersion: DefaultAPIVersion,
 			},
 		},
@@ -164,12 +187,12 @@ func TestLoadPrecedence(t *testing.T) {
 				t.Setenv(name, value)
 			}
 
-			path := missingConfig(t)
+			path := missingFile(t, "config.json")
 			if tt.file != "" {
 				path = writeConfig(t, tt.file)
 			}
 
-			got, err := Load(path, tt.overrides)
+			got, err := Load(path, writeAuth(t, fileAuth), tt.overrides)
 			if err != nil {
 				t.Fatalf("Load() error = %v, want nil", err)
 			}
@@ -184,26 +207,24 @@ func TestLoadEmptyEnvDoesNotOverride(t *testing.T) {
 	clearEnv(t)
 	path := writeConfig(t, fullConfig)
 
-	got, err := Load(path, Overrides{})
+	got, err := Load(path, writeAuth(t, fileAuth), Overrides{})
 	if err != nil {
 		t.Fatalf("Load() error = %v, want nil", err)
 	}
-	if got.URL != "https://file.example.com/tfs" {
-		t.Errorf("URL = %q, want the config file value", got.URL)
+	if got.Collection != "FileCollection" {
+		t.Errorf("Collection = %q, want the config file value", got.Collection)
 	}
 }
 
 func TestLoadReadsTLSFieldsFromFile(t *testing.T) {
 	clearEnv(t)
 	path := writeConfig(t, `{
-	  "url": "https://file.example.com/tfs",
 	  "collection": "FileCollection",
-	  "pat": "file-pat",
 	  "insecureSkipVerify": true,
 	  "caBundle": "C:/certs/corp.pem"
 	}`)
 
-	got, err := Load(path, Overrides{})
+	got, err := Load(path, writeAuth(t, fileAuth), Overrides{})
 	if err != nil {
 		t.Fatalf("Load() error = %v, want nil", err)
 	}
@@ -215,54 +236,47 @@ func TestLoadReadsTLSFieldsFromFile(t *testing.T) {
 	}
 }
 
-func TestLoadMissingFile(t *testing.T) {
-	clearEnv(t)
-	path := missingConfig(t)
-
-	_, err := Load(path, Overrides{})
-	assertConfigError(t, err, "config file not found at "+path)
-}
-
 func TestLoadMalformedJSON(t *testing.T) {
 	clearEnv(t)
-	path := writeConfig(t, `{"url": "https://file.example.com/tfs",`)
+	path := writeConfig(t, `{"collection": "FileCollection",`)
 
-	_, err := Load(path, Overrides{})
-	assertConfigError(t, err, "is not valid JSON")
+	_, err := Load(path, writeAuth(t, fileAuth), Overrides{})
+	assertConfigError(t, err, "config file at "+path+" is not valid JSON")
 }
 
-func TestLoadMissingRequiredField(t *testing.T) {
-	tests := []struct {
-		name string
-		file string
-		want string
-	}{
-		{
-			name: "url",
-			file: `{"collection": "FileCollection", "pat": "file-pat"}`,
-			want: `url is not set (add "url" to the config file, set TFSCLI_URL, or pass --url)`,
-		},
-		{
-			name: "collection",
-			file: `{"url": "https://file.example.com/tfs", "pat": "file-pat"}`,
-			want: `collection is not set (add "collection" to the config file, set TFSCLI_COLLECTION, or pass --collection)`,
-		},
-		{
-			name: "pat",
-			file: `{"url": "https://file.example.com/tfs", "collection": "FileCollection"}`,
-			want: `pat is not set (add "pat" to the config file, set TFSCLI_PAT, or pass --pat)`,
-		},
-	}
+func TestLoadMissingCollection(t *testing.T) {
+	clearEnv(t)
+	path := missingFile(t, "config.json")
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			clearEnv(t)
-			path := writeConfig(t, tt.file)
+	_, err := Load(path, writeAuth(t, fileAuth), Overrides{})
+	assertConfigError(t, err,
+		`collection is not set (pass --collection, set TFSCLI_COLLECTION, or add "collection" to `+path+")")
+}
 
-			_, err := Load(path, Overrides{})
-			assertConfigError(t, err, tt.want)
-		})
+func TestLoadReportsCredentialErrorsFirst(t *testing.T) {
+	clearEnv(t)
+	authPath := missingFile(t, "auth.json")
+
+	_, err := Load(missingFile(t, "config.json"), authPath, Overrides{})
+	assertConfigError(t, err, "not logged in")
+}
+
+func TestLoadFileDefaults(t *testing.T) {
+	got, err := LoadFile(missingFile(t, "config.json"))
+	if err != nil {
+		t.Fatalf("LoadFile() error = %v, want nil", err)
 	}
+	if want := (Config{APIVersion: DefaultAPIVersion}); *got != want {
+		t.Errorf("LoadFile() = %+v, want %+v", *got, want)
+	}
+}
+
+func TestLoadFileUnreadable(t *testing.T) {
+	// A directory in place of the file cannot be read as one.
+	path := t.TempDir()
+
+	_, err := LoadFile(path)
+	assertConfigError(t, err, "cannot read config file at "+path)
 }
 
 func TestRequireProject(t *testing.T) {

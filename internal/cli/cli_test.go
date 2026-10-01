@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -65,41 +67,49 @@ func newServer(t *testing.T, status int, body string) *server {
 var testBuild = build{version: "dev", commit: "unknown"}
 
 // execute runs the command tree the way main does and returns what the process
-// would have written and exited with.
-func execute(t *testing.T, args ...string) (stdout, stderr string, code int) {
+// would have written and exited with. It runs in an isolated environment;
+// when s is not nil, TFSCLI_AUTH holds a credential for it.
+func execute(t *testing.T, s *server, args ...string) (stdout, stderr string, code int) {
 	t.Helper()
 	isolate(t)
+	if s != nil {
+		t.Setenv("TFSCLI_AUTH", authFor(s))
+	}
 
 	var out, errOut bytes.Buffer
-	code = run(testBuild, args, &out, &errOut)
+	code = run(testBuild, args, noTerminal{}, &out, &errOut)
 	return out.String(), errOut.String(), code
 }
 
+// authFor is the credential JSON for s.
+func authFor(s *server) string {
+	return `{"url": "` + s.URL + `", "pat": "secret-token"}`
+}
+
 // isolate cuts the test off from the developer's own environment: a real
-// config file, an exported XDG_CONFIG_HOME, or an exported TFSCLI_* variable
-// must not decide what the command under test sees.
+// config or auth file, an exported XDG_* directory, or an exported TFSCLI_*
+// variable must not decide what the command under test sees.
 func isolate(t *testing.T) {
 	t.Helper()
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("USERPROFILE", home)
 	t.Setenv("XDG_CONFIG_HOME", "")
+	t.Setenv("XDG_DATA_HOME", "")
 	for _, name := range []string{
-		"TFSCLI_URL", "TFSCLI_COLLECTION", "TFSCLI_PAT",
+		"TFSCLI_AUTH", "TFSCLI_COLLECTION",
 		"TFSCLI_PROJECT", "TFSCLI_API_VERSION", "TFSCLI_VERBOSE",
 	} {
 		t.Setenv(name, "")
 	}
 }
 
-// getArgs is a complete `workitem get` invocation against s, with every
-// required setting passed as a flag.
-func getArgs(s *server, extra ...string) []string {
+// getArgs is a complete `workitem get` invocation, with every required
+// setting other than the credential passed as a flag.
+func getArgs(extra ...string) []string {
 	args := []string{
 		"workitem", "get",
-		"--url", s.URL,
 		"--collection", "DefaultCollection",
-		"--pat", "secret-token",
 		"-p", "MyProject",
 	}
 	return append(append(args, extra...), "12345")
@@ -108,7 +118,7 @@ func getArgs(s *server, extra ...string) []string {
 func TestWorkItemGetPrintsMarkdown(t *testing.T) {
 	s := newServer(t, http.StatusOK, workItemResponse)
 
-	stdout, stderr, code := execute(t, getArgs(s)...)
+	stdout, stderr, code := execute(t, s, getArgs()...)
 
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0 (stderr: %s)", code, stderr)
@@ -139,7 +149,7 @@ func TestWorkItemGetPrintsMarkdown(t *testing.T) {
 func TestWorkItemGetRequest(t *testing.T) {
 	s := newServer(t, http.StatusOK, workItemResponse)
 
-	_, stderr, code := execute(t, getArgs(s, "--fields", "System.Title, System.State")...)
+	_, stderr, code := execute(t, s, getArgs("--fields", "System.Title, System.State")...)
 
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0 (stderr: %s)", code, stderr)
@@ -161,7 +171,7 @@ func TestWorkItemGetRequest(t *testing.T) {
 func TestWorkItemGetAPIVersionFlag(t *testing.T) {
 	s := newServer(t, http.StatusOK, workItemResponse)
 
-	_, stderr, code := execute(t, getArgs(s, "--api-version", "5.0")...)
+	_, stderr, code := execute(t, s, getArgs("--api-version", "5.0")...)
 
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0 (stderr: %s)", code, stderr)
@@ -174,14 +184,13 @@ func TestWorkItemGetAPIVersionFlag(t *testing.T) {
 func TestWorkItemGetProjectFromEnvironment(t *testing.T) {
 	s := newServer(t, http.StatusOK, workItemResponse)
 	isolate(t)
+	t.Setenv("TFSCLI_AUTH", authFor(s))
 	t.Setenv("TFSCLI_PROJECT", "EnvProject")
 
 	var out, errOut bytes.Buffer
 	code := run(testBuild, []string{
-		"workitem", "get",
-		"--url", s.URL, "--collection", "DefaultCollection", "--pat", "secret-token",
-		"12345",
-	}, &out, &errOut)
+		"workitem", "get", "--collection", "DefaultCollection", "12345",
+	}, noTerminal{}, &out, &errOut)
 
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0 (stderr: %s)", code, errOut.String())
@@ -228,7 +237,7 @@ func TestWorkItemGetReportsServerErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			s := newServer(t, tt.status, tt.body)
 
-			stdout, stderr, code := execute(t, getArgs(s)...)
+			stdout, stderr, code := execute(t, s, getArgs()...)
 
 			if code != 1 {
 				t.Errorf("exit code = %d, want 1", code)
@@ -248,7 +257,7 @@ func TestWorkItemGetReportsUnreachableServer(t *testing.T) {
 	s := newServer(t, http.StatusOK, workItemResponse)
 	s.Close()
 
-	_, stderr, code := execute(t, getArgs(s)...)
+	_, stderr, code := execute(t, s, getArgs()...)
 
 	if code != 1 {
 		t.Errorf("exit code = %d, want 1", code)
@@ -287,11 +296,10 @@ func TestWorkItemGetRejectsBadInputBeforeCalling(t *testing.T) {
 			s := newServer(t, http.StatusOK, workItemResponse)
 
 			args := []string{
-				"workitem", "get",
-				"--url", s.URL, "--collection", "DefaultCollection", "--pat", "secret-token",
+				"workitem", "get", "--collection", "DefaultCollection",
 				"-p", "MyProject", "--", tt.id,
 			}
-			stdout, stderr, code := execute(t, args...)
+			stdout, stderr, code := execute(t, s, args...)
 
 			if code != 1 {
 				t.Errorf("exit code = %d, want 1", code)
@@ -312,12 +320,8 @@ func TestWorkItemGetRejectsBadInputBeforeCalling(t *testing.T) {
 func TestWorkItemGetRequiresProject(t *testing.T) {
 	s := newServer(t, http.StatusOK, workItemResponse)
 
-	args := []string{
-		"workitem", "get",
-		"--url", s.URL, "--collection", "DefaultCollection", "--pat", "secret-token",
-		"12345",
-	}
-	_, stderr, code := execute(t, args...)
+	args := []string{"workitem", "get", "--collection", "DefaultCollection", "12345"}
+	_, stderr, code := execute(t, s, args...)
 
 	if code != 1 {
 		t.Errorf("exit code = %d, want 1", code)
@@ -330,15 +334,65 @@ func TestWorkItemGetRequiresProject(t *testing.T) {
 	}
 }
 
-func TestMissingConfigurationIsAConfigError(t *testing.T) {
-	// No config file in the isolated home, no environment, no flags.
-	_, stderr, code := execute(t, "workitem", "get", "-p", "MyProject", "12345")
+func TestMissingCredentialIsAConfigError(t *testing.T) {
+	// No auth file in the isolated home and no TFSCLI_AUTH.
+	_, stderr, code := execute(t, nil, getArgs()...)
 
 	if code != 1 {
 		t.Errorf("exit code = %d, want 1", code)
 	}
-	if !strings.HasPrefix(stderr, "Error [config]: config file not found at ") {
-		t.Errorf("stderr = %q, want the missing-config error", stderr)
+	if !strings.HasPrefix(stderr, "Error [config]: not logged in: ") ||
+		!strings.Contains(stderr, "tfscli auth login") {
+		t.Errorf("stderr = %q, want the not-logged-in error", stderr)
+	}
+}
+
+func TestWorkItemGetReadsTheAuthFile(t *testing.T) {
+	s := newServer(t, http.StatusOK, workItemResponse)
+	isolate(t)
+	data := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", data)
+	writeTestFile(t, filepath.Join(data, "tfscli", "auth.json"), authFor(s))
+
+	var out, errOut bytes.Buffer
+	code := run(testBuild, getArgs(), noTerminal{}, &out, &errOut)
+
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0 (stderr: %s)", code, errOut.String())
+	}
+	if want := "Basic " + base64.StdEncoding.EncodeToString([]byte(":secret-token")); s.auth != want {
+		t.Errorf("Authorization = %q, want %q", s.auth, want)
+	}
+}
+
+func TestCredentialFlagsAreGone(t *testing.T) {
+	for _, flag := range []string{"--url", "--pat"} {
+		t.Run(flag, func(t *testing.T) {
+			s := newServer(t, http.StatusOK, workItemResponse)
+
+			_, stderr, code := execute(t, s, getArgs(flag, "value")...)
+
+			if code != 1 {
+				t.Errorf("exit code = %d, want 1", code)
+			}
+			if want := "Error [config]: unknown flag: " + flag + "\n"; stderr != want {
+				t.Errorf("stderr = %q, want %q", stderr, want)
+			}
+			if s.calls != 0 {
+				t.Errorf("the server was called %d times, want no call at all", s.calls)
+			}
+		})
+	}
+}
+
+// writeTestFile writes body to path, creating the parent directories.
+func writeTestFile(t *testing.T, path, body string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatalf("creating %s: %v", filepath.Dir(path), err)
+	}
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatalf("writing %s: %v", path, err)
 	}
 }
 
@@ -355,7 +409,7 @@ func TestUsageErrorsCarryACategory(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, stderr, code := execute(t, tt.args...)
+			_, stderr, code := execute(t, nil, tt.args...)
 
 			if code != 1 {
 				t.Errorf("exit code = %d, want 1", code)
@@ -370,7 +424,7 @@ func TestUsageErrorsCarryACategory(t *testing.T) {
 func TestVerboseLogsTheRequestToStderr(t *testing.T) {
 	s := newServer(t, http.StatusOK, workItemResponse)
 
-	stdout, stderr, code := execute(t, getArgs(s, "--verbose")...)
+	stdout, stderr, code := execute(t, s, getArgs("--verbose")...)
 
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0 (stderr: %s)", code, stderr)
@@ -387,7 +441,7 @@ func TestVerboseLogsTheRequestToStderr(t *testing.T) {
 }
 
 func TestVersionFlagPrintsTheBuildStamp(t *testing.T) {
-	stdout, stderr, code := execute(t, "--version")
+	stdout, stderr, code := execute(t, nil, "--version")
 
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0 (stderr: %s)", code, stderr)
@@ -401,7 +455,7 @@ func TestVersionFlagPrintsTheBuildStamp(t *testing.T) {
 }
 
 func TestHelpGoesToStdoutWithoutError(t *testing.T) {
-	stdout, stderr, code := execute(t, "workitem", "get", "--help")
+	stdout, stderr, code := execute(t, nil, "workitem", "get", "--help")
 
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0 (stderr: %s)", code, stderr)

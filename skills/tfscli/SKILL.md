@@ -1,6 +1,6 @@
 ---
 name: tfscli
-description: Read work items from an on-premises TFS / Azure DevOps Server with the tfscli command-line tool. Use when a request refers to a TFS or Azure DevOps Server work item — a bug, task, user story, or PBI named by its numeric id — to an on-prem team project or collection, or asks for a work item's title, state, assignee, description, repro steps, or acceptance criteria. Covers configuration and its precedence, the workitem get command, the markdown output format, the error categories and the action each one calls for, and the known limitations of the HTML-to-markdown conversion.
+description: Read work items from an on-premises TFS / Azure DevOps Server with the tfscli command-line tool. Use when a request refers to a TFS or Azure DevOps Server work item — a bug, task, user story, or PBI named by its numeric id — to an on-prem team project or collection, or asks for a work item's title, state, assignee, description, repro steps, or acceptance criteria. Covers authentication, configuration and its precedence, the workitem get command, the markdown output format, the error categories and the action each one calls for, and the known limitations of the HTML-to-markdown conversion.
 ---
 
 # tfscli
@@ -26,7 +26,8 @@ name. Output is markdown on stdout; errors are one line on stderr.
 
 ## When not to use it
 
-The tool covers one command. Do not attempt anything below; none of it exists,
+Apart from `auth login`, which is the user's to run, the tool covers one
+command. Do not attempt anything below; none of it exists,
 and inventing a flag or a subcommand produces an error, not a result.
 
 - **No writes.** Nothing creates, updates, or comments on a work item. If the
@@ -51,21 +52,39 @@ It prints `tfscli <version> (<commit>)`. A binary built from source rather than
 released reports `tfscli dev (unknown)`, which is normal.
 
 Configuration is not verified until a command runs. Do not create or edit
-the config file on the user's behalf: it holds a credential, and a missing
-configuration is something to report, not to guess at.
+the config file on the user's behalf: a missing configuration is something to
+report, not to guess at.
+
+## Authentication
+
+The server URL and the PAT are stored together, and the token is only ever
+sent to the URL stored with it. They come from one of two sources:
+
+- `$XDG_DATA_HOME/tfscli/auth.json` (`~/.local/share/tfscli/auth.json` when
+  `XDG_DATA_HOME` is not set, on every OS), written by `tfscli auth login`.
+- `TFSCLI_AUTH`, holding the same JSON, `{"url": "…", "pat": "…"}`. When it is
+  set, `auth.json` is not read.
+
+There is no flag, separate environment variable, or config key for the URL or
+the token. The server is therefore fixed by the user's login; do not try to
+point tfscli at another one.
+
+`tfscli auth login` is for the user to run in their own terminal: it asks for
+the token with echo turned off and refuses to run without an interactive
+terminal. Do not run it, and do not write `auth.json` or set `TFSCLI_AUTH` on
+the user's behalf. When a command reports `not logged in`, tell the user to
+run `tfscli auth login`.
 
 ## Configuration
 
-Four sources, each overriding the ones above it: built-in defaults, the config
-file `$XDG_CONFIG_HOME/tfscli/config.json` (`~/.config/tfscli/config.json` when
-`XDG_CONFIG_HOME` is not set, on every OS), environment variables,
-command-line flags.
+The remaining settings come from four sources, each overriding the ones above
+it: built-in defaults, the config file `$XDG_CONFIG_HOME/tfscli/config.json`
+(`~/.config/tfscli/config.json` when `XDG_CONFIG_HOME` is not set, on every
+OS), environment variables, command-line flags.
 
 | Setting | Config key | Environment variable | Flag | Default | Required |
 |---|---|---|---|---|---|
-| Server URL | `url` | `TFSCLI_URL` | `--url` | — | yes |
 | Collection | `collection` | `TFSCLI_COLLECTION` | `--collection` | — | yes |
-| Personal access token | `pat` | `TFSCLI_PAT` | `--pat` | — | yes |
 | Team project | `project` | `TFSCLI_PROJECT` | `-p`, `--project` | — | per command |
 | REST API version | `apiVersion` | `TFSCLI_API_VERSION` | `--api-version` | `7.2` | no |
 | Request logging | — | `TFSCLI_VERBOSE=1` | `--verbose` | off | no |
@@ -75,7 +94,8 @@ variable and no flag: `caBundle` (path to a PEM bundle appended to the system
 root pool, for an internal CA) and `insecureSkipVerify` (disables certificate
 verification entirely).
 
-The config file is optional. Environment variables and flags alone are enough.
+The config file is optional. Environment variables and flags alone are enough,
+so `--collection` and `-p` can carry everything a call needs.
 
 ## The command
 
@@ -156,17 +176,17 @@ removed or renamed, though new ones may appear.
 
 | Category | Cause | What to do |
 |---|---|---|
-| `auth` | HTTP 401 — the PAT is invalid or expired. | Do not retry, and do not try another token. Tell the user the PAT needs to be renewed. |
+| `auth` | HTTP 401 — the PAT is invalid or expired. | Do not retry, and do not try another token. Tell the user the PAT needs to be renewed and stored again with `tfscli auth login`. |
 | `forbidden` | HTTP 403 — authenticated, but access denied. | Do not retry. The PAT lacks the scope, or the project is closed to this user. Report it. |
 | `not_found` | HTTP 404 — no such work item, project, or collection. | Check the id and the project spelling against what the user gave. Do not scan ids looking for a match. |
 | `server` | HTTP 5xx, or a response that could not be parsed. | One retry is reasonable. If it repeats, report the server as unavailable. |
-| `config` | A missing or invalid setting, a bad argument, or a request TFS rejected — a 4xx other than 401, 403, and 404, such as an unknown field name or an unsupported API version. | Fix the invocation if the fault is in it. If a setting is missing, report what is missing; do not write the config file. |
+| `config` | A missing or invalid setting, a missing or malformed credential, a bad argument, or a request TFS rejected — a 4xx other than 401, 403, and 404, such as an unknown field name or an unsupported API version. | Fix the invocation if the fault is in it. If a setting is missing, report what is missing; do not write the config file. If the user is not logged in, tell them to run `tfscli auth login`. |
 | `network` | The server could not be reached, or the request timed out or was canceled. | Do not repeat the call in a loop. Report the server as unreachable and let the user check the URL and their connection. |
 
 Representative messages:
 
 ```
-Error [config]: config file not found at C:\Users\you\.config\tfscli\config.json
+Error [config]: not logged in: no credential at C:\Users\you\.local\share\tfscli\auth.json (run "tfscli auth login", or set TFSCLI_AUTH)
 Error [config]: project is not set (pass -p, set TFSCLI_PROJECT, or add "project" to the config file)
 Error [config]: work item id "abc" is not a positive integer
 Error [auth]: PAT is invalid or expired (HTTP 401)
@@ -193,11 +213,12 @@ in mind rather than reporting a work item as empty or corrupt.
 
 ## The token
 
-The PAT is a credential. Never print it, never echo the config file, and never
-pass it on a command line as `--pat <value>`, which puts it into shell history
-and into any transcript of the session. It is supplied by the config file or by
-`TFSCLI_PAT` in the environment, and `--verbose` deliberately logs no headers,
-so a request log cannot leak it.
+The PAT is a credential. Never print it, and never pass a token as a command
+argument of any program, which puts it into shell history, the process list,
+and any transcript of the session. Never read `auth.json` or print
+`TFSCLI_AUTH`, not even to check that a login exists: run a command and read
+its error instead. tfscli itself takes the token only from those two sources,
+and `--verbose` deliberately logs no headers, so a request log cannot leak it.
 
 ## The cost of a call
 

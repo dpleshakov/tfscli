@@ -69,7 +69,7 @@ lacks a field, report a `config` error naming the source.
 from `TFSCLI_AUTH`, `TFSCLI_AUTH` taking precedence, both being absent, and
 both being malformed. `--url` and `--pat` fail as unknown flags. `make check`
 passes.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-02 `auth-login`
 **Description:** Add `tfscli auth login` as decided above: the terminal check,
@@ -84,7 +84,7 @@ a rejected token, an unreachable server, and a non-terminal stdin; after a
 successful login `auth.json` holds the normalised URL and the PAT, with mode
 `0600` on Unix. `docs/architecture.md` lists the dependency. `make check`
 passes.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-03 `docs`
 **Description:** Bring the documentation in line with the new model:
@@ -98,7 +98,7 @@ never to read `auth.json`), and `config.example.json`. Record the change in
 `TFSCLI_PAT`, or a PAT in the config file, outside `docs/archive/` and
 earlier `CHANGELOG.md` releases. Each document describes `auth login`,
 `auth.json`, and `TFSCLI_AUTH` consistently.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-04 `live-check`
 **Description:** Run `tfscli auth login` against a real Azure DevOps Server

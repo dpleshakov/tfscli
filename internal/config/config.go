@@ -15,12 +15,16 @@ import (
 // a flag specifies an API version.
 const DefaultAPIVersion = "7.2"
 
-// Config is the effective configuration after merging the config file,
-// environment variables, and command-line flags.
+// Config is the effective configuration after merging the credential, the
+// config file, environment variables, and command-line flags.
 type Config struct {
-	URL        string `json:"url"`
+	// URL and PAT come only from the credential (auth.json or TFSCLI_AUTH),
+	// never from the config file or a flag, so that the token cannot be
+	// paired with a server it was not stored for.
+	URL string `json:"-"`
+	PAT string `json:"-"`
+
 	Collection string `json:"collection"`
-	PAT        string `json:"pat"`
 	Project    string `json:"project"`
 	APIVersion string `json:"apiVersion"`
 
@@ -37,9 +41,7 @@ type Config struct {
 // not set and must not override anything; the caller fills only the flags the
 // user actually passed.
 type Overrides struct {
-	URL        *string
 	Collection *string
-	PAT        *string
 	Project    *string
 	APIVersion *string
 }
@@ -49,18 +51,18 @@ type Overrides struct {
 // ~/.config/tfscli/config.json. The XDG Base Directory rules apply on every
 // OS, Windows included: one location across platforms is deliberate.
 func DefaultPath() (string, error) {
-	dir, err := configHome()
+	dir, err := xdgDir("XDG_CONFIG_HOME", ".config")
 	if err != nil {
 		return "", err
 	}
 	return filepath.Join(dir, "tfscli", "config.json"), nil
 }
 
-// configHome returns $XDG_CONFIG_HOME, or ~/.config when the variable is
-// unset, empty, or a relative path, which the XDG specification declares
-// invalid.
-func configHome() (string, error) {
-	if dir := os.Getenv("XDG_CONFIG_HOME"); filepath.IsAbs(dir) {
+// xdgDir returns the directory named by the XDG variable env, or the
+// fallback directory under the home directory when the variable is unset,
+// empty, or a relative path, which the XDG specification declares invalid.
+func xdgDir(env string, fallback ...string) (string, error) {
+	if dir := os.Getenv(env); filepath.IsAbs(dir) {
 		return dir, nil
 	}
 	home, err := os.UserHomeDir()
@@ -71,32 +73,43 @@ func configHome() (string, error) {
 			Cause:    err,
 		}
 	}
-	return filepath.Join(home, ".config"), nil
+	return filepath.Join(append([]string{home}, fallback...)...), nil
 }
 
-// Load reads the config file at path, overlays environment variables, overlays
+// Load resolves the credential (TFSCLI_AUTH, or the auth file at authPath),
+// reads the config file at path, overlays environment variables, overlays
 // explicitly-set flag values, applies built-in defaults, and validates the
-// fields every command needs. A missing config file is not an error in itself:
-// the environment and flags may supply everything. It only surfaces — as
-// "config file not found at <path>" — when something required is in fact
-// missing, since that is then the most useful thing to tell the user.
+// fields every command needs. The config file is optional: the environment
+// and flags can supply everything it holds.
 //
 // Project is not validated here; commands that need it call RequireProject.
-func Load(path string, ov Overrides) (*Config, error) {
-	cfg, fileFound, err := loadFile(path)
+func Load(path, authPath string, ov Overrides) (*Config, error) {
+	auth, err := LoadAuth(authPath)
 	if err != nil {
 		return nil, err
 	}
 
+	cfg, err := LoadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	cfg.URL = auth.URL
+	cfg.PAT = auth.PAT
+
 	applyEnv(cfg)
 	applyOverrides(cfg, ov)
 
+	// An explicit --api-version "" falls back to the default rather than
+	// sending an empty api-version parameter.
 	if cfg.APIVersion == "" {
 		cfg.APIVersion = DefaultAPIVersion
 	}
-
-	if err := cfg.validate(path, fileFound); err != nil {
-		return nil, err
+	if cfg.Collection == "" {
+		return nil, &tfserr.Error{
+			Category: tfserr.Config,
+			Message: fmt.Sprintf("collection is not set (pass --collection, set TFSCLI_COLLECTION, or add \"collection\" to %s)",
+				path),
+		}
 	}
 	return cfg, nil
 }
@@ -113,36 +126,39 @@ func (c *Config) RequireProject() error {
 	return nil
 }
 
-// loadFile reads and parses the config file. It reports whether the file
-// exists; an absent file yields an empty config and no error.
-func loadFile(path string) (*Config, bool, error) {
+// LoadFile reads the config file at path and applies the built-in defaults,
+// without the credential, the environment, or flags. An absent file yields
+// the defaults and no error. It serves on its own the commands that run
+// before a credential exists.
+func LoadFile(path string) (*Config, error) {
+	cfg := &Config{}
 	data, err := os.ReadFile(path) //nolint:gosec // the path is the caller's own config file, by design
-	if errors.Is(err, fs.ErrNotExist) {
-		return &Config{}, false, nil
-	}
-	if err != nil {
-		return nil, false, &tfserr.Error{
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+	case err != nil:
+		return nil, &tfserr.Error{
 			Category: tfserr.Config,
 			Message:  fmt.Sprintf("cannot read config file at %s", path),
 			Cause:    err,
 		}
-	}
-
-	var cfg Config
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return nil, false, &tfserr.Error{
-			Category: tfserr.Config,
-			Message:  fmt.Sprintf("config file at %s is not valid JSON", path),
-			Cause:    err,
+	default:
+		if err := json.Unmarshal(data, cfg); err != nil {
+			return nil, &tfserr.Error{
+				Category: tfserr.Config,
+				Message:  fmt.Sprintf("config file at %s is not valid JSON", path),
+				Cause:    err,
+			}
 		}
 	}
-	return &cfg, true, nil
+
+	if cfg.APIVersion == "" {
+		cfg.APIVersion = DefaultAPIVersion
+	}
+	return cfg, nil
 }
 
 func applyEnv(cfg *Config) {
-	setFromEnv(&cfg.URL, "TFSCLI_URL")
 	setFromEnv(&cfg.Collection, "TFSCLI_COLLECTION")
-	setFromEnv(&cfg.PAT, "TFSCLI_PAT")
 	setFromEnv(&cfg.Project, "TFSCLI_PROJECT")
 	setFromEnv(&cfg.APIVersion, "TFSCLI_API_VERSION")
 }
@@ -156,9 +172,7 @@ func setFromEnv(dst *string, name string) {
 }
 
 func applyOverrides(cfg *Config, ov Overrides) {
-	setFromFlag(&cfg.URL, ov.URL)
 	setFromFlag(&cfg.Collection, ov.Collection)
-	setFromFlag(&cfg.PAT, ov.PAT)
 	setFromFlag(&cfg.Project, ov.Project)
 	setFromFlag(&cfg.APIVersion, ov.APIVersion)
 }
@@ -167,35 +181,4 @@ func setFromFlag(dst *string, flag *string) {
 	if flag != nil {
 		*dst = *flag
 	}
-}
-
-func (c *Config) validate(path string, fileFound bool) error {
-	required := []struct {
-		value string
-		name  string
-		env   string
-		flag  string
-	}{
-		{c.URL, "url", "TFSCLI_URL", "--url"},
-		{c.Collection, "collection", "TFSCLI_COLLECTION", "--collection"},
-		{c.PAT, "pat", "TFSCLI_PAT", "--pat"},
-	}
-
-	for _, f := range required {
-		if f.value != "" {
-			continue
-		}
-		if !fileFound {
-			return &tfserr.Error{
-				Category: tfserr.Config,
-				Message:  fmt.Sprintf("config file not found at %s", path),
-			}
-		}
-		return &tfserr.Error{
-			Category: tfserr.Config,
-			Message: fmt.Sprintf("%s is not set (add %q to the config file, set %s, or pass %s)",
-				f.name, f.name, f.env, f.flag),
-		}
-	}
-	return nil
 }

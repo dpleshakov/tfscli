@@ -20,7 +20,7 @@
 | Rust | Comparable binary properties to Go. Rejected due to steeper learning curve and slower development speed for a project of this scope. No meaningful runtime advantage for an I/O-bound CLI. |
 
 **Known risks:**
-- Go module ecosystem is less mature than npm/NuGet for some corporate tooling. Mitigated by minimal dependency count (2 external packages total).
+- Go module ecosystem is less mature than npm/NuGet for some corporate tooling. Mitigated by minimal dependency count (3 external packages total).
 
 ---
 
@@ -59,6 +59,24 @@
 
 ---
 
+### Hidden terminal input: `golang.org/x/term`
+
+**Rationale:**
+- `tfscli auth login` reads the personal access token from the terminal with echo turned off, so the token never appears on screen, in scrollback, or in a screen recording. Turning echo off requires per-OS terminal calls (termios on Unix, console modes on Windows), which the standard library does not expose.
+- Maintained by the Go team under the `golang.org/x` umbrella, with the same review process as the standard library. The Go toolchain vendors `x/term` itself.
+- Brings one indirect dependency, `golang.org/x/sys`, from the same source.
+- Also provides `IsTerminal`, which `auth login` uses to refuse to run when stdin is not an interactive terminal.
+
+**Considered alternatives:**
+
+| Alternative | Why rejected |
+|---|---|
+| Echoed input | Leaves the token visible on screen and in terminal scrollback. |
+| Reading the token from stdin only (`echo $PAT \| tfscli auth login`) | Requires the token to be kept in yet another file or variable to pipe it in, which defeats the purpose of a separate credential store. |
+| Hand-written per-OS syscall code | Duplicates `x/term` with less testing; the syscall packages it would need are `x/sys` anyway. |
+
+---
+
 ### HTTP Client: Go standard library (`net/http`)
 
 **Rationale:**
@@ -77,7 +95,8 @@
 ### Configuration: `encoding/json` (stdlib)
 
 **Rationale:**
-- Config file is `$XDG_CONFIG_HOME/tfscli/config.json` (default `~/.config/tfscli/config.json`, on every OS) — a flat JSON object with 5 fields. Standard library `encoding/json` reads and writes it in a few lines.
+- Config file is `$XDG_CONFIG_HOME/tfscli/config.json` (default `~/.config/tfscli/config.json`, on every OS) — an optional flat JSON object with 5 fields. Standard library `encoding/json` reads and writes it in a few lines.
+- The credential file `$XDG_DATA_HOME/tfscli/auth.json` (default `~/.local/share/tfscli/auth.json`, on every OS) is a JSON object with two fields, `url` and `pat`, handled the same way.
 - Config merging (file → env → flags) is handled by cobra's flag binding + a small custom resolver. No need for viper.
 
 **Considered alternatives:**
@@ -96,11 +115,12 @@
 | Language | Go | — |
 | CLI framework | cobra | Yes (`github.com/spf13/cobra`) |
 | HTML → Markdown | html-to-markdown v2 | Yes (`github.com/JohannesKaufmann/html-to-markdown/v2`) |
+| Hidden terminal input | x/term | Yes (`golang.org/x/term`) |
 | HTTP client | `net/http` | No (stdlib) |
 | JSON parsing | `encoding/json` | No (stdlib) |
 | Config format | JSON via `encoding/json` | No (stdlib) |
 
-Total external dependencies: **2** (cobra, html-to-markdown). Minimal dependency footprint for a CLI tool.
+Total external dependencies: **3** (cobra, html-to-markdown, x/term). Minimal dependency footprint for a CLI tool.
 
 ---
 
@@ -151,7 +171,7 @@ This section describes the conceptual module structure, their responsibilities, 
 ### Modules and responsibilities
 
 - **cli** — cobra commands; persistent flags (`--verbose`, config overrides); orchestrates the chain config → apiclient → domain → printer → exit. Owns the markdown printer functions (one per resource) plus small per-kind scalar formatters for identity and datetime values used by those printers. No `Renderer` interface in v1 — printers are plain functions. When `--json` is added later, the interface and a second renderer can be introduced here without touching the domain layer.
-- **config** — loads `$XDG_CONFIG_HOME/tfscli/config.json`, applies environment overrides (`TFSCLI_*`), applies cobra flag overrides; validates that all required fields are set for the command being run. Holds `URL`, `Collection`, `PAT`, `Project`, `APIVersion`, `InsecureSkipVerify`, `CABundle`. Never logs PAT.
+- **config** — resolves the credential (`URL` and `PAT`) from `TFSCLI_AUTH` or `$XDG_DATA_HOME/tfscli/auth.json`, never from a mix of sources; loads the optional `$XDG_CONFIG_HOME/tfscli/config.json`, applies environment overrides (`TFSCLI_*`), applies cobra flag overrides; validates that all required fields are set for the command being run. Writes `auth.json` for `auth login` (mode `0600`, directory `0700`). Holds `URL`, `Collection`, `PAT`, `Project`, `APIVersion`, `InsecureSkipVerify`, `CABundle`. Never logs PAT.
 - **apiclient** — wraps `net/http`. Builds URLs from `Config.URL + Collection + path`. Sets `Authorization: Basic base64(":<PAT>")` on every request. Configures TLS using `CABundle` (appended to system root pool) and `InsecureSkipVerify`. Hooks the logger via a `RoundTripper` — that transport is the single call site of `LogRequest`, so every outgoing request is logged exactly once and no other module logs HTTP traffic. Classifies HTTP outcomes into the stable error categories defined in the brief (`auth`, `not_found`, `forbidden`, `server`, `config`, `network`).
 - **workitem** — domain logic for Work Items (initially Get). Owns the `WorkItem`/`Field` types and the allowlist of fields known to contain HTML (`System.Description`, `Microsoft.VSTS.TCM.ReproSteps`, `Microsoft.VSTS.TCM.SystemInfo`, `Microsoft.VSTS.Common.AcceptanceCriteria`, …). After unmarshalling, tags each field with its `FieldKind`. Returns raw values — does not perform markdown conversion.
 - **htmlmd** — thin wrapper over `github.com/JohannesKaufmann/html-to-markdown/v2`. One method: `Convert(html string) (string, error)`. v1 uses library defaults only; the wrapper is the extension point where TFS-specific rules will be registered once real HTML samples have been collected (see `2026-05-20-tasks-html-quirks.md`).
@@ -205,7 +225,7 @@ type WorkItem struct {
 ### Data flow: `tfscli workitem get -p MyProject 12345 --fields System.Title,System.Description`
 
 1. cobra parses the command and flags.
-2. `config.Load(flagSet)` reads the config file, overlays env vars, overlays bound flags; validates that `URL`, `Collection`, `PAT` are present and that `Project` is supplied either by `-p`, env, or config default.
+2. `config.Load` takes `URL` and `PAT` from `TFSCLI_AUTH` or `auth.json`, reads the config file if present, overlays env vars, overlays bound flags; validates that `Collection` is present and that `Project` is supplied either by `-p`, env, or config default.
 3. cli builds a `Logger` (noop or stderr depending on `--verbose`) and an `apiclient.APIClient`. The TLS config is derived from `CABundle` and `InsecureSkipVerify`. If verification is disabled, the logger emits one `[warn] TLS verification disabled` line.
 4. cli calls `workitem.Get(ctx, client, project, id, fields)`.
 5. `workitem.Get` constructs the path `/{Collection}/{Project}/_apis/wit/workitems/{id}?fields=…&api-version={APIVersion}` and calls `client.Get`.
@@ -216,11 +236,11 @@ type WorkItem struct {
 
 ### Security checklist
 
-**Trust boundary.** Untrusted input enters the program at three places: (a) HTTP responses from the TFS server, (b) the config file (notably the PAT it stores), (c) CLI args and environment variables. The domain layer (`workitem`) and printers treat parsed Go structures as already-validated; validation happens at the boundary.
+**Trust boundary.** Untrusted input enters the program at four places: (a) HTTP responses from the TFS server, (b) the config file, (c) the credential in `auth.json` or `TFSCLI_AUTH`, (d) CLI args, environment variables, and the answers typed into `auth login`. The domain layer (`workitem`) and printers treat parsed Go structures as already-validated; validation happens at the boundary.
 
 **Validation.**
 - CLI args: cobra type checking; positive-integer check on work-item id.
-- Env vars and config file: required fields enforced in `config.validate()` after the merge. Malformed JSON in the config file fails fast at load with category `config`.
+- Env vars, config file, and credential: required fields enforced in `config.Load` after the merge. Malformed JSON in the config file, `auth.json`, or `TFSCLI_AUTH` fails fast at load with category `config`; the credential URL must be `http` or `https` with a host.
 - TFS response: `encoding/json` validates shape into typed intermediate structs. HTML field values are passed only to `htmlmd` — never executed, never written to disk verbatim except as markdown in stdout, never used to build shell or filesystem paths.
 
 **What goes into logs.**
@@ -230,7 +250,8 @@ type WorkItem struct {
 - Errors to stderr: standard `Error [category]: message (HTTP status)` form. The `message` may carry sanitised text from the TFS error JSON (its own `message` field), but never headers and never PAT.
 
 **Secret propagation between modules.**
-- PAT enters at `config.Load` and is held only in `Config`.
+- PAT enters at `config.Load` (from `auth.json` or `TFSCLI_AUTH`) or at the hidden prompt of `auth login`, and is held only in `Config` and `config.Auth`. It is never accepted as a flag or a command argument.
+- The PAT is always paired with the URL stored next to it; no flag, environment variable, or config key can redirect it to another server.
 - Passed to `apiclient.New(cfg, logger)` and stored there. Used in exactly one place: setting `Authorization` on outgoing requests.
 - `workitem`, `htmlmd`, `tfserr`, and the cli printer never receive the PAT.
 

@@ -11,6 +11,7 @@ Pre-release, and **not yet run against a live TFS instance**. One command exists
 Available now:
 
 - `workitem get` — one work item as markdown, whole or narrowed by `--fields`
+- `auth login` — store the server URL and a PAT, checked against the server
 - Configuration through a file, environment variables, and flags
 - `--verbose` request logging and the full error contract
 
@@ -102,41 +103,58 @@ those settings first.
 An agent without skill support can be pointed at the same file directly: it is
 plain markdown under a short YAML header.
 
+## Authentication
+
+The server URL and the personal access token are stored together, and the token is only ever sent to the URL stored with it. Store them once per machine:
+
+```
+$ tfscli auth login
+Server URL (e.g. https://tfs.company.com:8080/tfs): https://tfs.company.com:8080/tfs
+Personal access token:
+Logged in to https://tfs.company.com:8080/tfs as Anna Ivanova
+```
+
+The token is typed with echo turned off, and the pair is checked against the server (`_apis/connectionData`) before anything is written. A rejected token is reported in the usual error format and leaves nothing behind. The URL is stored with a lower-case scheme and host and without a trailing slash. The command takes no flags and needs an interactive terminal; it reads `caBundle`, `insecureSkipVerify`, and `apiVersion` from the config file when there is one, so a server behind an internal CA can be reached during login too. On Windows under Git Bash (mintty), stdin is not a console; run the command from Windows Terminal, PowerShell, or `cmd`, or prefix it with `winpty`.
+
+The credential is written to `$XDG_DATA_HOME/tfscli/auth.json`, or `~/.local/share/tfscli/auth.json` when `XDG_DATA_HOME` is not set — the same location on every OS. The file is created with mode `0600` and its directory with `0700`; on Windows it inherits the permissions of the user profile. It holds exactly one server: running `auth login` again replaces it.
+
+Where an interactive login is impossible, as in CI, put the same JSON into `TFSCLI_AUTH`. When the variable is set, `auth.json` is not read:
+
+```
+TFSCLI_AUTH='{"url": "https://tfs.company.com:8080/tfs", "pat": "…"}'
+```
+
+The URL and the token always come from the same source. There is no flag, separate environment variable, or config key for either, so that neither a mistyped server address nor an injected one can make tfscli send the token to another host.
+
+PAT is the only authentication method. SSPI and NTLM are out of scope. The token is sent as HTTP Basic authentication with an empty user name, which is what the TFS REST API expects. It is not kept in the OS keychain: against code running as the same user a keychain adds no protection, other users are excluded by the file permissions, and a stolen disk is a matter for disk encryption.
+
 ## Configuration
 
-Configuration comes from four sources. Later sources override earlier ones:
+The remaining settings come from four sources. Later sources override earlier ones:
 
 1. Built-in defaults
 2. The config file `$XDG_CONFIG_HOME/tfscli/config.json`, or `~/.config/tfscli/config.json` when `XDG_CONFIG_HOME` is not set. The same location is used on every OS, Windows included.
 3. Environment variables
 4. Command-line flags
 
-Copy `config.example.json` to that location and fill in the values:
+The config file is optional: every setting it holds, except the TLS ones below, can be given by an environment variable or a flag instead. To use one, copy `config.example.json` to that location and fill in the values:
 
 ```json
 {
-  "url": "https://tfs.company.com:8080/tfs",
   "collection": "DefaultCollection",
-  "pat": "YOUR_PAT_HERE",
   "project": "MyProject",
   "apiVersion": "7.2"
 }
 ```
 
-The PAT is stored in plaintext — a conscious v1 trade-off. On shared and CI machines, omit `pat` from the file and pass it through `TFSCLI_PAT` instead.
-
 | Setting | Config key | Environment variable | Flag | Default | Required |
 |---|---|---|---|---|---|
-| Server URL | `url` | `TFSCLI_URL` | `--url` | — | yes |
 | Collection | `collection` | `TFSCLI_COLLECTION` | `--collection` | — | yes |
-| Personal access token | `pat` | `TFSCLI_PAT` | `--pat` | — | yes |
 | Team project | `project` | `TFSCLI_PROJECT` | `-p`, `--project` | — | per command |
 | REST API version | `apiVersion` | `TFSCLI_API_VERSION` | `--api-version` | `7.2` | no |
 | Request logging | — | `TFSCLI_VERBOSE=1` | `--verbose` | off | no |
 
 Every flag in the table is global except `-p` / `--project`, which belongs to the commands that need a project.
-
-The config file is not required: environment variables and flags alone are enough to run. Its absence is reported only when a required setting is in fact missing.
 
 ### TLS
 
@@ -146,10 +164,6 @@ Two settings are accepted in the config file only, so that relaxing TLS is alway
 |---|---|
 | `caBundle` | Path to a PEM bundle appended to the system root pool. Use this for an internal CA. |
 | `insecureSkipVerify` | Disables certificate verification entirely. Prints a warning under `--verbose`. |
-
-### Authentication
-
-PAT only. SSPI, NTLM, and interactive login are out of scope. The token is sent as HTTP Basic authentication with an empty user name, which is what the TFS REST API expects.
 
 ## Usage
 
@@ -227,7 +241,7 @@ Examples:
 
 ```
 $ tfscli workitem get -p MyProject 12345
-Error [config]: config file not found at C:\Users\you\.config\tfscli\config.json
+Error [config]: not logged in: no credential at C:\Users\you\.local\share\tfscli\auth.json (run "tfscli auth login", or set TFSCLI_AUTH)
 
 $ tfscli workitem get 12345
 Error [config]: project is not set (pass -p, set TFSCLI_PROJECT, or add "project" to the config file)
@@ -241,6 +255,6 @@ Error [network]: cannot reach https://tfs.company.com:8080
 
 ## Development
 
-Everything the project verifies runs through the `Makefile`, and CI runs `make check` verbatim, so a green `make check` locally is the whole gate. External dependencies are deliberately limited to `cobra` and `html-to-markdown/v2`; HTTP, JSON, and config parsing use the standard library.
+Everything the project verifies runs through the `Makefile`, and CI runs `make check` verbatim, so a green `make check` locally is the whole gate. External dependencies are deliberately limited to `cobra`, `html-to-markdown/v2`, and `golang.org/x/term`; HTTP, JSON, and config parsing use the standard library.
 
 [CONTRIBUTING.md](CONTRIBUTING.md) is the developer handbook: required tooling, the make targets, the lint and coverage rules, the process the repository follows, and the release procedure.

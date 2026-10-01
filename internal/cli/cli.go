@@ -22,7 +22,7 @@ import (
 // and commit are stamped into the binary at build time and reported by
 // --version.
 func Run(version, commit string) int {
-	return run(build{version: version, commit: commit}, os.Args[1:], os.Stdout, os.Stderr)
+	return run(build{version: version, commit: commit}, os.Args[1:], newStdinPrompter(), os.Stdout, os.Stderr)
 }
 
 // build is the version stamp linked into the binary.
@@ -33,13 +33,13 @@ type build struct {
 
 // run is Run with the process environment passed in, so that tests can drive
 // the whole command tree and read what it wrote.
-func run(b build, args []string, stdout, stderr io.Writer) int {
+func run(b build, args []string, stdin prompter, stdout, stderr io.Writer) int {
 	// Ctrl-C cancels the request in flight; apiclient reports the canceled
 	// round trip as category network instead of a Go panic trace.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	root := newRoot(b, stdout, stderr)
+	root := newRoot(b, stdin, stdout, stderr)
 	root.SetArgs(args)
 
 	if err := root.ExecuteContext(ctx); err != nil {
@@ -50,30 +50,32 @@ func run(b build, args []string, stdout, stderr io.Writer) int {
 }
 
 // globals holds the state shared by every command: the values of the
-// persistent flags and the streams to write to.
+// persistent flags and the standard streams.
 type globals struct {
+	stdin  prompter
 	stdout io.Writer
 	stderr io.Writer
 
 	verbose    bool
-	url        string
 	collection string
-	pat        string
 	apiVersion string
 }
 
-func newRoot(b build, stdout, stderr io.Writer) *cobra.Command {
-	g := &globals{stdout: stdout, stderr: stderr}
+func newRoot(b build, stdin prompter, stdout, stderr io.Writer) *cobra.Command {
+	g := &globals{stdin: stdin, stdout: stdout, stderr: stderr}
 
 	root := &cobra.Command{
 		Use:   "tfscli",
 		Short: "Read-only access to on-premises TFS / Azure DevOps Server",
 		Long: "tfscli reads TFS / Azure DevOps Server through its REST API and prints the\n" +
 			"result as markdown. It is stateless: every call hits the server.\n\n" +
-			"Configuration is read from $XDG_CONFIG_HOME/tfscli/config.json (by default\n" +
-			"~/.config/tfscli/config.json) and can be overridden by the TFSCLI_*\n" +
-			"environment variables and by the flags below, in that order of precedence\n" +
-			"(flag wins).",
+			"The server URL and the personal access token are stored together by\n" +
+			"\"tfscli auth login\" in $XDG_DATA_HOME/tfscli/auth.json (by default\n" +
+			"~/.local/share/tfscli/auth.json), or supplied as the same JSON in TFSCLI_AUTH.\n\n" +
+			"The other settings are read from $XDG_CONFIG_HOME/tfscli/config.json (by\n" +
+			"default ~/.config/tfscli/config.json), which is optional, and can be\n" +
+			"overridden by the TFSCLI_* environment variables and by the flags below, in\n" +
+			"that order of precedence (flag wins).",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		// A non-empty Version makes cobra add --version on its own. The
@@ -89,11 +91,10 @@ func newRoot(b build, stdout, stderr io.Writer) *cobra.Command {
 
 	f := root.PersistentFlags()
 	f.BoolVar(&g.verbose, "verbose", false, "log every request to stderr (also TFSCLI_VERBOSE=1)")
-	f.StringVar(&g.url, "url", "", "server URL, e.g. https://tfs.company.com:8080/tfs (TFSCLI_URL)")
 	f.StringVar(&g.collection, "collection", "", "collection name (TFSCLI_COLLECTION)")
-	f.StringVar(&g.pat, "pat", "", "personal access token (TFSCLI_PAT)")
 	f.StringVar(&g.apiVersion, "api-version", "", "REST API version (TFSCLI_API_VERSION, default "+config.DefaultAPIVersion+")")
 
+	root.AddCommand(newAuthCmd(g))
 	root.AddCommand(newWorkItemCmd(g))
 	return root
 }
@@ -104,14 +105,8 @@ func newRoot(b build, stdout, stderr io.Writer) *cobra.Command {
 func (g *globals) overrides(cmd *cobra.Command) config.Overrides {
 	var ov config.Overrides
 	flags := cmd.Flags()
-	if flags.Changed("url") {
-		ov.URL = &g.url
-	}
 	if flags.Changed("collection") {
 		ov.Collection = &g.collection
-	}
-	if flags.Changed("pat") {
-		ov.PAT = &g.pat
 	}
 	if flags.Changed("api-version") {
 		ov.APIVersion = &g.apiVersion
@@ -125,7 +120,11 @@ func (g *globals) connect(ov config.Overrides) (*config.Config, *apiclient.Clien
 	if err != nil {
 		return nil, nil, err
 	}
-	cfg, err := config.Load(path, ov)
+	authPath, err := config.DefaultAuthPath()
+	if err != nil {
+		return nil, nil, err
+	}
+	cfg, err := config.Load(path, authPath, ov)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -22,15 +22,15 @@ Three documents drive everything:
 
 These come from `project-brief.md` and override casual feature requests. If a change would violate one of these, surface it before implementing.
 
-- **PAT auth only.** No SSPI, NTLM, or interactive login. PAT lives in `~/.config/tfscli/config.json` (plaintext, conscious v1 trade-off) and can be overridden by `TFSCLI_PAT`.
+- **PAT auth only.** No SSPI or NTLM. The server URL and PAT are stored together and always come from one source: `$XDG_DATA_HOME/tfscli/auth.json` (default `~/.local/share/tfscli/auth.json`, mode `0600`, written only by the interactive `tfscli auth login`) or `TFSCLI_AUTH` holding the same JSON, which takes precedence. No flag, separate env var, or config key may supply the URL or the token. No OS keychain unless an organisation requires one.
 - **Read-only in v1.** Write operations are explicitly out of scope. They additionally depend on JSON output landing first, because markdown is lossy.
 - **Markdown is the default output.** HTML fields (Description, ReproSteps, etc.) are converted via `github.com/JohannesKaufmann/html-to-markdown/v2`. JSON output is a planned `--json` flag, not present in v1.
 - **Mirror TFS REST API structure.** Command hierarchy, parameter names, and behaviour follow the API. Any deviation needs explicit usability justification — don't invent new abstractions (no custom query syntax, no synthetic batch endpoints, no caching).
 - **Stateless.** No daemon, no background process, no on-disk cache. Every call hits the server.
 - **Stable error contract.** Error categories (`auth`, `not_found`, `forbidden`, `server`, `config`, `network`) are a contract: existing categories are never removed or renamed. New ones may be added. Format: `Error [category]: message (HTTP status)` to stderr, non-zero exit.
-- **Config precedence:** CLI flag > env var (`TFSCLI_URL`, `TFSCLI_COLLECTION`, `TFSCLI_PAT`, `TFSCLI_PROJECT`, `TFSCLI_API_VERSION`) > config file > built-in default.
+- **Config precedence:** CLI flag > env var (`TFSCLI_COLLECTION`, `TFSCLI_PROJECT`, `TFSCLI_API_VERSION`) > config file (optional) > built-in default. The credential is outside this chain (see above).
 - **Target is on-prem Azure DevOps Server (REST API 7.2 default, configurable).** Cloud Azure DevOps Services may work incidentally but is not tested or supported.
-- **Minimal dependencies.** Total external deps are intentionally two: `cobra` and `html-to-markdown/v2`. HTTP via `net/http`, JSON via `encoding/json`, config via `encoding/json`. Don't pull in `viper`, `resty`, retry libraries, or YAML/TOML parsers without a strong reason and explicit discussion.
+- **Minimal dependencies.** Total external deps are intentionally three: `cobra`, `html-to-markdown/v2`, and `golang.org/x/term` (hidden PAT input for `auth login`). HTTP via `net/http`, JSON via `encoding/json`, config via `encoding/json`. Don't pull in `viper`, `resty`, retry libraries, or YAML/TOML parsers without a strong reason and explicit discussion.
 
 ## Command shape
 
