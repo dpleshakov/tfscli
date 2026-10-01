@@ -1,6 +1,6 @@
 # 2026-10-01-tasks-auth-login.md
 
-**Status:** Active
+**Status:** Archived
 
 ## Context
 
@@ -108,4 +108,4 @@ the stored credential.
 verification request, or the verification request is replaced and the change
 recorded. Login with a valid PAT succeeds, with an invalid PAT fails with
 `auth`, and `workitem get` works afterwards.
-**Status:** Pending
+**Status:** Skipped — the live check is done separately; any fixes it calls for go into a new tasks file
