@@ -77,7 +77,7 @@
 ### Configuration: `encoding/json` (stdlib)
 
 **Rationale:**
-- Config file is `~/.tfscli/config.json` — a flat JSON object with 5 fields. Standard library `encoding/json` reads and writes it in a few lines.
+- Config file is `$XDG_CONFIG_HOME/tfscli/config.json` (default `~/.config/tfscli/config.json`, on every OS) — a flat JSON object with 5 fields. Standard library `encoding/json` reads and writes it in a few lines.
 - Config merging (file → env → flags) is handled by cobra's flag binding + a small custom resolver. No need for viper.
 
 **Considered alternatives:**
@@ -151,7 +151,7 @@ This section describes the conceptual module structure, their responsibilities, 
 ### Modules and responsibilities
 
 - **cli** — cobra commands; persistent flags (`--verbose`, config overrides); orchestrates the chain config → apiclient → domain → printer → exit. Owns the markdown printer functions (one per resource) plus small per-kind scalar formatters for identity and datetime values used by those printers. No `Renderer` interface in v1 — printers are plain functions. When `--json` is added later, the interface and a second renderer can be introduced here without touching the domain layer.
-- **config** — loads `~/.tfscli/config.json`, applies environment overrides (`TFSCLI_*`), applies cobra flag overrides; validates that all required fields are set for the command being run. Holds `URL`, `Collection`, `PAT`, `Project`, `APIVersion`, `InsecureSkipVerify`, `CABundle`. Never logs PAT.
+- **config** — loads `$XDG_CONFIG_HOME/tfscli/config.json`, applies environment overrides (`TFSCLI_*`), applies cobra flag overrides; validates that all required fields are set for the command being run. Holds `URL`, `Collection`, `PAT`, `Project`, `APIVersion`, `InsecureSkipVerify`, `CABundle`. Never logs PAT.
 - **apiclient** — wraps `net/http`. Builds URLs from `Config.URL + Collection + path`. Sets `Authorization: Basic base64(":<PAT>")` on every request. Configures TLS using `CABundle` (appended to system root pool) and `InsecureSkipVerify`. Hooks the logger via a `RoundTripper` — that transport is the single call site of `LogRequest`, so every outgoing request is logged exactly once and no other module logs HTTP traffic. Classifies HTTP outcomes into the stable error categories defined in the brief (`auth`, `not_found`, `forbidden`, `server`, `config`, `network`).
 - **workitem** — domain logic for Work Items (initially Get). Owns the `WorkItem`/`Field` types and the allowlist of fields known to contain HTML (`System.Description`, `Microsoft.VSTS.TCM.ReproSteps`, `Microsoft.VSTS.TCM.SystemInfo`, `Microsoft.VSTS.Common.AcceptanceCriteria`, …). After unmarshalling, tags each field with its `FieldKind`. Returns raw values — does not perform markdown conversion.
 - **htmlmd** — thin wrapper over `github.com/JohannesKaufmann/html-to-markdown/v2`. One method: `Convert(html string) (string, error)`. v1 uses library defaults only; the wrapper is the extension point where TFS-specific rules will be registered once real HTML samples have been collected (see `2026-05-20-tasks-html-quirks.md`).

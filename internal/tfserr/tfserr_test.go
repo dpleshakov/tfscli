@@ -42,7 +42,7 @@ func TestPrintWithoutHTTPStatus(t *testing.T) {
 		{NotFound, "work item 99999 not found", "Error [not_found]: work item 99999 not found\n"},
 		{Forbidden, "no access to project MyProject", "Error [forbidden]: no access to project MyProject\n"},
 		{Server, "TFS returned an invalid response", "Error [server]: TFS returned an invalid response\n"},
-		{Config, "config file not found at ~/.tfscli/config.json", "Error [config]: config file not found at ~/.tfscli/config.json\n"},
+		{Config, "config file not found at ~/.config/tfscli/config.json", "Error [config]: config file not found at ~/.config/tfscli/config.json\n"},
 		{Network, "cannot reach https://tfs.company.com:8080", "Error [network]: cannot reach https://tfs.company.com:8080\n"},
 	}
 	for _, tt := range tests {

@@ -70,9 +70,10 @@ func newRoot(b build, stdout, stderr io.Writer) *cobra.Command {
 		Short: "Read-only access to on-premises TFS / Azure DevOps Server",
 		Long: "tfscli reads TFS / Azure DevOps Server through its REST API and prints the\n" +
 			"result as markdown. It is stateless: every call hits the server.\n\n" +
-			"Configuration is read from ~/.tfscli/config.json and can be overridden by\n" +
-			"the TFSCLI_* environment variables and by the flags below, in that order of\n" +
-			"precedence (flag wins).",
+			"Configuration is read from $XDG_CONFIG_HOME/tfscli/config.json (by default\n" +
+			"~/.config/tfscli/config.json) and can be overridden by the TFSCLI_*\n" +
+			"environment variables and by the flags below, in that order of precedence\n" +
+			"(flag wins).",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		// A non-empty Version makes cobra add --version on its own. The

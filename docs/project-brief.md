@@ -31,7 +31,7 @@ An AI agent can call `tfscli`, read work item content, and use it meaningfully i
 - **Platform:** primary target is Windows (most on-prem TFS environments). Cross-compilation to Linux/macOS is a bonus enabled by Go, not a priority.
 - **API coverage in MVP:** Work Items → Get Work Item (single ID). Get Work Items Batch (multiple IDs) if supported by the target API version. Fields selectable via `--fields` parameter; all fields returned by default.
 - **Target API version:** Azure DevOps Server (latest, REST API 7.2). API version is configurable (default in config, overridable per call) to support older TFS installations.
-- **Authentication:** PAT only. Stored in `~/.tfscli/config.json`, overridable via `TFSCLI_PAT` environment variable. No SSPI, NTLM, or interactive login. Note: PAT is stored in plaintext — this is a conscious trade-off for v1 simplicity. For shared or CI machines, `TFSCLI_PAT` via environment is recommended. OS keychain / DPAPI integration is a candidate for future versions.
+- **Authentication:** PAT only. Stored in `~/.config/tfscli/config.json`, overridable via `TFSCLI_PAT` environment variable. No SSPI, NTLM, or interactive login. Note: PAT is stored in plaintext — this is a conscious trade-off for v1 simplicity. For shared or CI machines, `TFSCLI_PAT` via environment is recommended. OS keychain / DPAPI integration is a candidate for future versions.
 - **Output:** Markdown by default. JSON as optional flag in future versions.
 - **Distribution:** open source on GitHub, pre-built binaries in releases.
 
@@ -53,7 +53,7 @@ An AI agent can call `tfscli`, read work item content, and use it meaningfully i
 
 ## Configuration
 
-File: `~/.tfscli/config.json`
+File: `$XDG_CONFIG_HOME/tfscli/config.json`, defaulting to `~/.config/tfscli/config.json` when `XDG_CONFIG_HOME` is unset. The XDG Base Directory rules apply on every OS, Windows included.
 
 ```json
 {
@@ -93,7 +93,7 @@ Error [auth]: PAT is invalid or expired (HTTP 401)
 Error [not_found]: work item 99999 not found in project MyProject (HTTP 404)
 Error [forbidden]: no access to project MyProject (HTTP 403)
 Error [server]: TFS returned HTTP 500
-Error [config]: config file not found at ~/.tfscli/config.json
+Error [config]: config file not found at ~/.config/tfscli/config.json
 Error [network]: cannot reach https://tfs.company.com:8080
 ```
 

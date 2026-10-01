@@ -107,11 +107,11 @@ plain markdown under a short YAML header.
 Configuration comes from four sources. Later sources override earlier ones:
 
 1. Built-in defaults
-2. The config file `~/.tfscli/config.json`
+2. The config file `$XDG_CONFIG_HOME/tfscli/config.json`, or `~/.config/tfscli/config.json` when `XDG_CONFIG_HOME` is not set. The same location is used on every OS, Windows included.
 3. Environment variables
 4. Command-line flags
 
-Copy `config.example.json` to `~/.tfscli/config.json` and fill in the values:
+Copy `config.example.json` to that location and fill in the values:
 
 ```json
 {
@@ -227,7 +227,7 @@ Examples:
 
 ```
 $ tfscli workitem get -p MyProject 12345
-Error [config]: config file not found at C:\Users\you\.tfscli\config.json
+Error [config]: config file not found at C:\Users\you\.config\tfscli\config.json
 
 $ tfscli workitem get 12345
 Error [config]: project is not set (pass -p, set TFSCLI_PROJECT, or add "project" to the config file)

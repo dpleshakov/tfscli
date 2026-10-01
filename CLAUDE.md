@@ -22,7 +22,7 @@ Three documents drive everything:
 
 These come from `project-brief.md` and override casual feature requests. If a change would violate one of these, surface it before implementing.
 
-- **PAT auth only.** No SSPI, NTLM, or interactive login. PAT lives in `~/.tfscli/config.json` (plaintext, conscious v1 trade-off) and can be overridden by `TFSCLI_PAT`.
+- **PAT auth only.** No SSPI, NTLM, or interactive login. PAT lives in `~/.config/tfscli/config.json` (plaintext, conscious v1 trade-off) and can be overridden by `TFSCLI_PAT`.
 - **Read-only in v1.** Write operations are explicitly out of scope. They additionally depend on JSON output landing first, because markdown is lossy.
 - **Markdown is the default output.** HTML fields (Description, ReproSteps, etc.) are converted via `github.com/JohannesKaufmann/html-to-markdown/v2`. JSON output is a planned `--json` flag, not present in v1.
 - **Mirror TFS REST API structure.** Command hierarchy, parameter names, and behaviour follow the API. Any deviation needs explicit usability justification — don't invent new abstractions (no custom query syntax, no synthetic batch endpoints, no caching).

@@ -7,6 +7,8 @@
 
 ### Fixed
 ### Changed
+- The config file is now read from `$XDG_CONFIG_HOME/tfscli/config.json`, or `~/.config/tfscli/config.json` when `XDG_CONFIG_HOME` is not set, on every OS including Windows; `~/.tfscli/config.json` is no longer read.
+
 ### Removed
 
 ---

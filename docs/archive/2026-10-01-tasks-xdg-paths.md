@@ -1,6 +1,6 @@
 # 2026-10-01-tasks-xdg-paths.md
 
-**Status:** Active
+**Status:** Archived
 
 ## Context
 
@@ -36,4 +36,4 @@ through the `changelog` skill, section `Changed`.
 every OS, and tests cover both `XDG_CONFIG_HOME` set and unset. `~/.tfscli`
 no longer appears in the repository outside `docs/archive/` and `CHANGELOG.md`.
 `make check` passes.
-**Status:** Pending
+**Status:** Done

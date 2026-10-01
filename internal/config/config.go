@@ -45,8 +45,24 @@ type Overrides struct {
 }
 
 // DefaultPath returns the path of the default config file,
-// ~/.tfscli/config.json.
+// $XDG_CONFIG_HOME/tfscli/config.json, falling back to
+// ~/.config/tfscli/config.json. The XDG Base Directory rules apply on every
+// OS, Windows included: one location across platforms is deliberate.
 func DefaultPath() (string, error) {
+	dir, err := configHome()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "tfscli", "config.json"), nil
+}
+
+// configHome returns $XDG_CONFIG_HOME, or ~/.config when the variable is
+// unset, empty, or a relative path, which the XDG specification declares
+// invalid.
+func configHome() (string, error) {
+	if dir := os.Getenv("XDG_CONFIG_HOME"); filepath.IsAbs(dir) {
+		return dir, nil
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", &tfserr.Error{
@@ -55,7 +71,7 @@ func DefaultPath() (string, error) {
 			Cause:    err,
 		}
 	}
-	return filepath.Join(home, ".tfscli", "config.json"), nil
+	return filepath.Join(home, ".config"), nil
 }
 
 // Load reads the config file at path, overlays environment variables, overlays

@@ -51,13 +51,15 @@ It prints `tfscli <version> (<commit>)`. A binary built from source rather than
 released reports `tfscli dev (unknown)`, which is normal.
 
 Configuration is not verified until a command runs. Do not create or edit
-`~/.tfscli/config.json` on the user's behalf: it holds a credential, and a
-missing configuration is something to report, not to guess at.
+the config file on the user's behalf: it holds a credential, and a missing
+configuration is something to report, not to guess at.
 
 ## Configuration
 
 Four sources, each overriding the ones above it: built-in defaults, the config
-file `~/.tfscli/config.json`, environment variables, command-line flags.
+file `$XDG_CONFIG_HOME/tfscli/config.json` (`~/.config/tfscli/config.json` when
+`XDG_CONFIG_HOME` is not set, on every OS), environment variables,
+command-line flags.
 
 | Setting | Config key | Environment variable | Flag | Default | Required |
 |---|---|---|---|---|---|
@@ -164,7 +166,7 @@ removed or renamed, though new ones may appear.
 Representative messages:
 
 ```
-Error [config]: config file not found at C:\Users\you\.tfscli\config.json
+Error [config]: config file not found at C:\Users\you\.config\tfscli\config.json
 Error [config]: project is not set (pass -p, set TFSCLI_PROJECT, or add "project" to the config file)
 Error [config]: work item id "abc" is not a positive integer
 Error [auth]: PAT is invalid or expired (HTTP 401)

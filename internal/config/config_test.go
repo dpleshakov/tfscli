@@ -276,12 +276,34 @@ func TestRequireProject(t *testing.T) {
 }
 
 func TestDefaultPath(t *testing.T) {
-	path, err := DefaultPath()
-	if err != nil {
-		t.Fatalf("DefaultPath() error = %v, want nil", err)
+	xdg := t.TempDir()
+	home := t.TempDir()
+
+	tests := []struct {
+		name string
+		xdg  string
+		want string
+	}{
+		{"XDG_CONFIG_HOME set", xdg, filepath.Join(xdg, "tfscli", "config.json")},
+		{"XDG_CONFIG_HOME unset", "", filepath.Join(home, ".config", "tfscli", "config.json")},
+		{"XDG_CONFIG_HOME relative", filepath.Join("relative", "dir"), filepath.Join(home, ".config", "tfscli", "config.json")},
 	}
-	if want := filepath.Join(".tfscli", "config.json"); !strings.HasSuffix(path, want) {
-		t.Errorf("DefaultPath() = %q, want a path ending in %q", path, want)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("XDG_CONFIG_HOME", tt.xdg)
+			// os.UserHomeDir reads HOME on Unix and USERPROFILE on Windows.
+			t.Setenv("HOME", home)
+			t.Setenv("USERPROFILE", home)
+
+			path, err := DefaultPath()
+			if err != nil {
+				t.Fatalf("DefaultPath() error = %v, want nil", err)
+			}
+			if path != tt.want {
+				t.Errorf("DefaultPath() = %q, want %q", path, tt.want)
+			}
+		})
 	}
 }
 

@@ -76,13 +76,14 @@ func execute(t *testing.T, args ...string) (stdout, stderr string, code int) {
 }
 
 // isolate cuts the test off from the developer's own environment: a real
-// ~/.tfscli/config.json or an exported TFSCLI_* variable must not decide what
-// the command under test sees.
+// config file, an exported XDG_CONFIG_HOME, or an exported TFSCLI_* variable
+// must not decide what the command under test sees.
 func isolate(t *testing.T) {
 	t.Helper()
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("USERPROFILE", home)
+	t.Setenv("XDG_CONFIG_HOME", "")
 	for _, name := range []string{
 		"TFSCLI_URL", "TFSCLI_COLLECTION", "TFSCLI_PAT",
 		"TFSCLI_PROJECT", "TFSCLI_API_VERSION", "TFSCLI_VERBOSE",
