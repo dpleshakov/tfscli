@@ -1,4 +1,3 @@
-* text=auto
-*.go text eol=lf
-# Recipes are handed to a shell line by line; a trailing CR would travel with them.
-Makefile text eol=lf
+# Every text file is LF both in the index and in the working copy, on every OS.
+# Recipes, scripts, and YAML are handed to tools that would carry a stray CR along.
+* text=auto eol=lf
