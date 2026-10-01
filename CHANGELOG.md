@@ -3,7 +3,6 @@
 ## [Unreleased]
 
 ### Added
-- Every release archive now carries an agent skill in `skills/tfscli/SKILL.md`, which teaches an AI agent — Claude Code or opencode — when and how to call tfscli.
 - `tfscli auth login` asks for the server URL and a personal access token with hidden input, checks them against the server, and stores them together in `$XDG_DATA_HOME/tfscli/auth.json` (`~/.local/share/tfscli/auth.json` by default), readable by the current user only.
 - `TFSCLI_AUTH` supplies the same credential as JSON, `{"url": "…", "pat": "…"}`, where an interactive login is not possible, such as in CI.
 
@@ -14,6 +13,13 @@
 
 ### Removed
 - `--url`, `--pat`, `TFSCLI_URL`, `TFSCLI_PAT`, and the `url` and `pat` keys of the config file no longer exist; `tfscli auth login` or `TFSCLI_AUTH` replaces them.
+
+---
+
+## [0.0.2] — 2026-09-02
+
+### Added
+- Every release archive now carries an agent skill in `skills/tfscli/SKILL.md`, which teaches an AI agent — Claude Code or opencode — when and how to call tfscli.
 
 ---
 
