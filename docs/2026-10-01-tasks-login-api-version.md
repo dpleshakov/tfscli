@@ -39,7 +39,50 @@ client SDKs, and a live server where one is available.
 each with its source; anything not confirmed is marked as unverified.
 **Status:** Pending
 
-### TASK-02 `decide`
+### TASK-02 `default-version-research`
+**Description:** Establish whether tfscli needs to send `api-version` on
+every request, and what the default should be, in the light of the "Server
+compatibility is preserved" principle in `docs/project-brief.md`. The points
+and contradictions known at planning time:
+- Every request carries `api-version` (`internal/apiclient/apiclient.go`), and
+  the built-in default is `7.2` (`internal/config/config.go`). If only the
+  newest Azure DevOps Server release supports 7.2, every command fails on
+  older servers when nothing is configured. Unverified: the mapping of server
+  releases to REST API versions is not recorded anywhere in the project.
+- `docs/project-brief.md` names the configurable API version as the means to
+  support older TFS installations, yet nothing tells the user which version
+  the server supports or that the version has to be changed. An out-of-range
+  version is reported as a `config` error carrying the server's message, which
+  probably names the latest version the server supports but does not name
+  `--api-version`, `TFSCLI_API_VERSION`, or `apiVersion` as the fix.
+- An empty value is replaced by the default (`internal/config/config.go`), so
+  a request without `api-version` cannot be made even explicitly.
+- Microsoft documentation describes `api-version` as required on every
+  request. Unverified: the server rejects a request without it for some
+  methods ("No api-version was supplied ..."), while a GET request may be
+  served at the latest version. If a GET without a version works on all
+  target servers, a read-only client may not need to send one.
+- An explicit version pins the shape of the response; without one the shape
+  is determined by the server and may differ between servers. This matters
+  little for the markdown output of selected fields, but it matters for the
+  planned `--json` output, which is meant to be a stable contract.
+- The paths and the response shape used by `workitem get`, including the
+  project segment in `_apis/wit/workitems`, have not been checked against
+  any server older than the default version.
+- Alternatives to compare: no `api-version` at all; no version by default,
+  with `--api-version`, `TFSCLI_API_VERSION`, and `apiVersion` as overrides;
+  the lowest version all target servers support as the default; on an
+  out-of-range error, reading the latest supported version from the server's
+  message and either retrying with it or naming it in the error.
+Sources: Microsoft documentation, the official client SDKs, and a live server
+where one is available.
+**Definition of done:** The findings are recorded in the Context section, each
+with its source; anything not confirmed is marked as unverified. The
+alternatives are compared by server compatibility, stability of the response
+shape, and whether tfscli works with no configuration.
+**Status:** Pending
+
+### TASK-03 `decide`
 **Description:** Using the findings, decide how `auth login` handles the API
 version. Options known at planning time: send no `api-version` for the
 verification request; honour `--api-version` and `TFSCLI_API_VERSION` as other
