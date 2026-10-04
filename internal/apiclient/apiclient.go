@@ -26,6 +26,11 @@ import (
 // cannot flood stderr.
 const maxMessageRunes = 300
 
+// NotFoundMessage is the message of a 404 whose response carries no TFS
+// error message of its own. Callers that know what was requested compare
+// against it to tell the generic wording from the server's.
+const NotFoundMessage = "resource not found"
+
 // versionErrorTypeKeys are the typeKey values of TFS errors that refuse the
 // requested API version. They are known from memory, not from a live server,
 // and are kept here alone so that a live check can correct them. The name of
@@ -264,7 +269,7 @@ func categoryFor(status int) (tfserr.Category, string) {
 	case status == http.StatusForbidden:
 		return tfserr.Forbidden, "access denied by TFS"
 	case status == http.StatusNotFound:
-		return tfserr.NotFound, "resource not found"
+		return tfserr.NotFound, NotFoundMessage
 	case status >= 500:
 		return tfserr.Server, "TFS returned a server error"
 	case status >= 400:
