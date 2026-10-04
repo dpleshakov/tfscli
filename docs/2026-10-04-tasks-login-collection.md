@@ -113,7 +113,7 @@ settings).
 `docs/archive/` mentions `--collection`, `TFSCLI_COLLECTION`, or a
 `collection` config key; every description of the credential names the URL,
 the collection, and the PAT.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-06 `changelog`
 **Description:** Add entries to `CHANGELOG.md` following the `changelog`

@@ -80,7 +80,7 @@ if a change would break one, raise it before implementing.
 - Stateless: no daemon, no background process, no on-disk state beyond the config file and the credential written by `auth login`.
 - The error categories `auth`, `not_found`, `forbidden`, `server`, `config`, and `network`
   are a contract. New ones may be added; existing ones are never renamed or removed.
-- Configuration precedence is flag, environment variable, config file, built-in default. The server URL and PAT stay outside it: they come only from `auth.json` or `TFSCLI_AUTH`, together.
+- Configuration precedence is flag, environment variable, config file, built-in default. The server URL, the collection, and the PAT stay outside it: they come only from `auth.json` or `TFSCLI_AUTH`, together.
 
 **Dependencies.** Three direct dependencies — `cobra`, `html-to-markdown/v2`, and
 `golang.org/x/term` — are the intended total. HTTP is `net/http`; JSON and configuration
