@@ -235,7 +235,7 @@ func (g *globals) verify(ctx context.Context, cfg *config.Config) (string, error
 	}
 	body, err := client.Get(ctx, "_apis/connectionData", nil)
 	if err != nil {
-		return "", err
+		return "", notFoundAt(err, cfg)
 	}
 
 	var data struct {
@@ -263,4 +263,25 @@ func (g *globals) verify(ctx context.Context, cfg *config.Config) (string, error
 		return name, nil
 	}
 	return data.AuthenticatedUser.ID, nil
+}
+
+// notFoundAt rewrites a 404 from the login check so that it names the address
+// the URL and the collection made up together. A 404 cannot tell a wrong
+// server URL from a wrong collection, so the message asks to check both. A
+// message from the server is kept. Other errors pass through unchanged.
+func notFoundAt(err error, cfg *config.Config) error {
+	var te *tfserr.Error
+	if !errors.As(err, &te) || te.Category != tfserr.NotFound {
+		return err
+	}
+	message := "nothing found at " + cfg.URL + "/" + cfg.Collection
+	if te.Message != apiclient.NotFoundMessage {
+		message += ": " + te.Message
+	}
+	return &tfserr.Error{
+		Category:   tfserr.NotFound,
+		Message:    message + " (check the server URL and the collection name)",
+		HTTPStatus: te.HTTPStatus,
+		Cause:      err,
+	}
 }

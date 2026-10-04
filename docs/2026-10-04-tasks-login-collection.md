@@ -88,7 +88,7 @@ URL and the collection name, keeping the server-supplied message when the
 response carries one.
 **Definition of done:** `make check` passes; tests cover a 404 with an empty
 body and a 404 with a TFS error JSON body, asserting the full stderr line.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-04 `auth-error-wording`
 **Description:** Change the generic 401 message in `categoryFor` to "the

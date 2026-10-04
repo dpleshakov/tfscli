@@ -375,6 +375,46 @@ func TestAuthLoginFailuresWriteNothing(t *testing.T) {
 	}
 }
 
+func TestAuthLoginNotFoundNamesTheURLAndCollection(t *testing.T) {
+	const step = " (check the server URL and the collection name) (HTTP 404)\n"
+
+	tests := []struct {
+		name   string
+		body   string
+		detail string
+	}{
+		{name: "empty body"},
+		{
+			name:   "TFS error body",
+			body:   `{"$id":"1","message":"TF400898: An internal error occurred.","typeKey":"SomeException"}`,
+			detail: ": TF400898: An internal error occurred.",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := newServer(t, http.StatusNotFound, tt.body)
+
+			authPath, stdout, stderr, code := login(t, typed(s.URL+"/tfs", "DefaultColection", "secret-token"))
+
+			if code != 1 {
+				t.Errorf("exit code = %d, want 1", code)
+			}
+			// The prompts precede the error on stderr; the error is its last line.
+			want := "Error [not_found]: nothing found at " + s.URL + "/tfs/DefaultColection" + tt.detail + step
+			if !strings.HasSuffix(stderr, "\n"+want) {
+				t.Errorf("stderr = %q, want it to end with the line %q", stderr, want)
+			}
+			if stdout != "" {
+				t.Errorf("stdout = %q, want nothing", stdout)
+			}
+			if _, err := os.Stat(authPath); !errors.Is(err, fs.ErrNotExist) {
+				t.Errorf("auth file stat error = %v, want it to be absent", err)
+			}
+		})
+	}
+}
+
 func TestAuthLoginRefusesWithoutTerminalBeforePrompting(t *testing.T) {
 	_, _, stderr, _ := login(t, noTerminal{})
 
