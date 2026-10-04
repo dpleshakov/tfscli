@@ -43,7 +43,7 @@ by the existing rule, `auth login` outside the scheme. Update the command
 examples there and in `CLAUDE.md`.
 **Definition of done:** `docs/project-brief.md` and `CLAUDE.md` describe the
 new scheme and use the new command names; `make check` passes.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-02 `cli-areas`
 **Description:** In `internal/cli`, add the area command `wit` with the
