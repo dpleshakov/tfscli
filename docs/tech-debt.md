@@ -54,6 +54,40 @@ any further flaky failure in the `apiclient` tests.
 **Added:** 2026-10-04, while executing TASK-04 of
 `docs/archive/2026-10-01-tasks-login-api-version.md`
 
+#### TD-04 `url-userinfo-in-output`
+**Problem:** `config.NormalizeURL` (`internal/config/auth.go`) keeps a
+`user:password@` part of the server URL, and three messages print the URL as
+stored: the `Logged in to …` line and the notice that the collection was
+removed from the URL in `promptAuth`, and the 404 message built by
+`notFoundAt` (`internal/cli/auth.go`). A password typed into the login URL
+would therefore reach stdout or stderr. The request logging and the network
+errors in `internal/apiclient/apiclient.go` already redact it.
+**Why deferred:** the URL is typed by the user into an interactive prompt and
+is printed back only to that user's terminal; credentials in the URL serve no
+purpose with PAT authentication and are not expected in practice.
+**Trigger:** any further message or log line that prints the stored URL, or a
+report of userinfo in a server URL. The likely fix is to reject or strip
+userinfo in `NormalizeURL`, which covers every place at once.
+**Added:** 2026-10-04, in review of
+`docs/archive/2026-10-04-tasks-login-collection.md`
+
+#### TD-05 `collection-named-like-virtual-directory`
+**Problem:** `trimCollection` (`internal/cli/auth.go`) removes the last path
+segment of the server URL entered at `tfscli auth login` whenever it equals
+the collection, case ignored. On a server whose virtual directory has the
+same name as the collection, such as a collection `tfs` on
+`https://host/tfs`, the correct URL loses its segment, the login check
+reports `not_found`, and neither that message nor the notice explains how to
+keep the segment (entering it twice, or using `TFSCLI_AUTH`).
+**Why deferred:** such a naming is not known to occur on a real server, and
+the workaround exists, although it is undocumented.
+**Trigger:** a report of a server where the virtual directory and the
+collection share a name, or the next change to the login prompts. Options:
+mention in the notice how to keep the segment, or retry once with the
+untrimmed URL after a 404.
+**Added:** 2026-10-04, in review of
+`docs/archive/2026-10-04-tasks-login-collection.md`
+
 ---
 
 ### Closed
