@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -59,6 +60,27 @@ type WorkItem struct {
 	Fields []Field
 }
 
+// BatchRequest holds the parameters shared by List and Get Work Items Batch.
+// Empty Fields, AsOf, and ErrorPolicy are not sent, so the server's defaults
+// apply; AsOf and ErrorPolicy are passed through without validation.
+type BatchRequest struct {
+	IDs         []int
+	Fields      []string
+	AsOf        string
+	ErrorPolicy string
+}
+
+// Batch is the result of reading several work items. WorkItems are in the
+// order the server returned them. Missing are the requested IDs, in request
+// order and without duplicates, that the server did not return: with
+// errorPolicy=omit it answers null in place of a work item that does not exist
+// or cannot be read, and the response order is not guaranteed to match the
+// request, so the IDs are found by comparison rather than by position.
+type Batch struct {
+	WorkItems []*WorkItem
+	Missing   []int
+}
+
 // htmlFields are the fields TFS stores as HTML. There is nothing in the
 // response that marks them — the value is a JSON string like any other — so
 // the set has to be known in advance.
@@ -82,6 +104,74 @@ func Get(ctx context.Context, client APIClient, project string, id int, fields [
 		return nil, err
 	}
 	return parse(body, fields)
+}
+
+// List retrieves several work items with Work Items - List, a GET carrying the
+// IDs in the query string.
+func List(ctx context.Context, client APIClient, project string, req BatchRequest) (*Batch, error) {
+	query := url.Values{}
+	query.Set("ids", joinIDs(req.IDs))
+	if len(req.Fields) > 0 {
+		query.Set("fields", strings.Join(req.Fields, ","))
+	}
+	if req.AsOf != "" {
+		query.Set("asOf", req.AsOf)
+	}
+	if req.ErrorPolicy != "" {
+		query.Set("errorPolicy", req.ErrorPolicy)
+	}
+
+	body, err := client.Get(ctx, project+"/_apis/wit/workitems", query)
+	if err != nil {
+		return nil, err
+	}
+	return parseBatch(body, req)
+}
+
+func joinIDs(ids []int) string {
+	parts := make([]string, len(ids))
+	for i, id := range ids {
+		parts[i] = strconv.Itoa(id)
+	}
+	return strings.Join(parts, ",")
+}
+
+// parseBatch reads the {"count", "value"} envelope of a multi-item response.
+// Each element is parsed as a single work item; a null element is a work item
+// the server omitted.
+func parseBatch(body []byte, req BatchRequest) (*Batch, error) {
+	var payload struct {
+		Value *[]json.RawMessage `json:"value"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, malformed(err)
+	}
+	if payload.Value == nil {
+		return nil, malformed(fmt.Errorf("value is missing"))
+	}
+
+	batch := &Batch{}
+	returned := make(map[int]bool, len(*payload.Value))
+	for _, raw := range *payload.Value {
+		if string(raw) == "null" {
+			continue
+		}
+		wi, err := parse(raw, req.Fields)
+		if err != nil {
+			return nil, err
+		}
+		batch.WorkItems = append(batch.WorkItems, wi)
+		returned[wi.ID] = true
+	}
+
+	for _, id := range req.IDs {
+		if !returned[id] {
+			batch.Missing = append(batch.Missing, id)
+			// Marking it keeps a repeated ID from being reported twice.
+			returned[id] = true
+		}
+	}
+	return batch, nil
 }
 
 func parse(body []byte, requested []string) (*WorkItem, error) {
