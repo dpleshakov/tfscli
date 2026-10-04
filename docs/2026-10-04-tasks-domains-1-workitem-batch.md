@@ -88,7 +88,7 @@ as `workitem.List`, sharing its response parsing.
 **Definition of done:** Unit tests cover the body sent for each combination of
 parameters, omitted parameters being absent from the body rather than empty,
 and the same response cases as TASK-01; `make check` passes.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-04 `print-work-items`
 **Description:** Add a printer to `internal/cli` for the result of
