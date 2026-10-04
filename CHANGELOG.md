@@ -5,10 +5,16 @@
 ### Added
 ### Fixed
 ### Changed
+### Removed
+
+---
+
+## [0.0.4] — 2026-10-04
+
+### Changed
 - Requests no longer carry `api-version=7.2` by default: without `--api-version`, `TFSCLI_API_VERSION`, or `apiVersion`, no version is sent and the server answers at the version it chooses, so servers that do not support REST API 7.2 work without configuration.
 - `tfscli auth login` now checks the credential without an API version: `apiVersion` from the config file no longer applies to it, and `--api-version` on it is refused with a `config` error.
 - An API version refused by the server is now reported together with the setting it came from — `--api-version`, `TFSCLI_API_VERSION`, or `apiVersion` in the config file — and how to fix it.
-### Removed
 
 ---
 
