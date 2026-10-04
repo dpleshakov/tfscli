@@ -111,7 +111,7 @@ is a `config` error that names the flag and gives an example.
 sent with each flag, a flag that is not given not being sent, a missing or
 invalid `--ids`, a missing project, and the printed output; `make check`
 passes.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-06 `cli-workitem-get-batch`
 **Description:** Add `tfscli workitem get-batch` with the same flags and
