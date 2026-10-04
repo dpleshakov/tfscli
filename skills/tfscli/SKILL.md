@@ -113,6 +113,14 @@ Without a configured API version no `api-version` is sent, and the server
 answers at the version it chooses. A configured version is sent unchanged. Do
 not set one unless the user asks for it.
 
+`wit work-items get-batch` and `wit wiql query-by-wiql` send a POST request,
+and a server may refuse a POST without a version: the `config` error then says
+that no `api-version` was supplied. Do not pick a version yourself, and do not
+take the `1.0` from the server's example. Report the error and let the user set
+the version their server supports, with `--api-version`, `TFSCLI_API_VERSION`,
+or `apiVersion` in the config file. For `get-batch`, `wit work-items list`
+reads the same work items with a GET and needs no version.
+
 The config file is optional. Environment variables and flags alone are enough,
 so `-p` can carry everything a call needs beyond the credential.
 
