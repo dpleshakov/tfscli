@@ -9,6 +9,7 @@
 ### Fixed
 ### Changed
 - Requests no longer carry `api-version=7.2` by default: without `--api-version`, `TFSCLI_API_VERSION`, or `apiVersion`, no version is sent and the server answers at the version it chooses, so servers that do not support REST API 7.2 work without configuration.
+- An API version refused by the server is now reported together with the setting it came from — `--api-version`, `TFSCLI_API_VERSION`, or `apiVersion` in the config file — and how to fix it.
 - The config file is now read from `$XDG_CONFIG_HOME/tfscli/config.json`, or `~/.config/tfscli/config.json` when `XDG_CONFIG_HOME` is not set, on every OS including Windows; `~/.tfscli/config.json` is no longer read.
 - The personal access token is now sent only to the server URL stored with it; the server URL and the token always come from the same source, `auth.json` or `TFSCLI_AUTH`.
 

@@ -26,6 +26,15 @@ import (
 // cannot flood stderr.
 const maxMessageRunes = 300
 
+// versionErrorTypeKeys are the typeKey values of TFS errors that refuse the
+// requested API version. They are known from memory, not from a live server,
+// and are kept here alone so that a live check can correct them. The name of
+// the error for a preview resource requested without -preview is not known
+// yet and is missing.
+var versionErrorTypeKeys = map[string]bool{
+	"VssVersionOutOfRangeException": true,
+}
+
 // Client performs TFS REST API calls. It owns the PAT and is the only module
 // that sets the Authorization header.
 type Client struct {
@@ -35,6 +44,9 @@ type Client struct {
 	base       *url.URL
 	pat        string
 	apiVersion string
+	// apiVersionSource names the setting apiVersion came from; see
+	// config.Config.APIVersionSource.
+	apiVersionSource string
 }
 
 // New builds a Client from cfg. TLS is configured from CABundle (appended to
@@ -70,10 +82,11 @@ func New(cfg *config.Config, logger log.Logger) (*Client, error) {
 	transport.TLSClientConfig = tlsConfig
 
 	return &Client{
-		http:       &http.Client{Transport: &loggingTransport{base: transport, logger: logger}},
-		base:       base.JoinPath(cfg.Collection),
-		pat:        cfg.PAT,
-		apiVersion: cfg.APIVersion,
+		http:             &http.Client{Transport: &loggingTransport{base: transport, logger: logger}},
+		base:             base.JoinPath(cfg.Collection),
+		pat:              cfg.PAT,
+		apiVersion:       cfg.APIVersion,
+		apiVersionSource: cfg.APIVersionSource,
 	}, nil
 }
 
@@ -126,7 +139,7 @@ func (c *Client) Get(ctx context.Context, path string, query url.Values) ([]byte
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return nil, classify(resp.StatusCode, body)
+		return nil, c.classify(resp.StatusCode, body)
 	}
 	return body, nil
 }
@@ -224,12 +237,18 @@ func transportError(u *url.URL, err error) error {
 
 // classify maps a non-2xx response to a stable error category, preferring the
 // message from the TFS error JSON over the generic wording when the body
-// carries one.
-func classify(status int, body []byte) error {
+// carries one. When TFS refused a version the user configured, the message
+// goes on to name the setting and what to do with it.
+func (c *Client) classify(status int, body []byte) error {
 	category, generic := categoryFor(status)
 	message := generic
-	if fromServer := serverMessage(body); fromServer != "" {
-		message = fromServer
+	payload := parseServerError(body)
+	if payload.message != "" {
+		message = payload.message
+	}
+	if versionErrorTypeKeys[payload.typeKey] && c.apiVersion != "" {
+		message += fmt.Sprintf(" (api-version %q is set by %s; remove it to let the server choose the version, or set one the server supports)",
+			c.apiVersion, c.apiVersionSource)
 	}
 	return &tfserr.Error{
 		Category:   category,
@@ -258,17 +277,29 @@ func categoryFor(status int) (tfserr.Category, string) {
 	}
 }
 
-// serverMessage extracts the "message" field of a TFS error response. A body
-// that is not TFS error JSON — an HTML error page from a proxy, say — yields
-// an empty string so that the generic wording is used instead.
-func serverMessage(body []byte) string {
+// serverError is what tfscli reads from a TFS error response.
+type serverError struct {
+	// message is the human-readable text, sanitized for stderr.
+	message string
+	// typeKey is the short name of the server-side exception, such as
+	// VssVersionOutOfRangeException. Unlike message, it does not depend on
+	// the language the server is installed in.
+	typeKey string
+}
+
+// parseServerError extracts the "message" and "typeKey" fields of a TFS
+// error response. A body that is not TFS error JSON — an HTML error page from
+// a proxy, say — yields empty fields so that the generic wording is used
+// instead.
+func parseServerError(body []byte) serverError {
 	var payload struct {
 		Message string `json:"message"`
+		TypeKey string `json:"typeKey"`
 	}
 	if err := json.Unmarshal(body, &payload); err != nil {
-		return ""
+		return serverError{}
 	}
-	return sanitize(payload.Message)
+	return serverError{message: sanitize(payload.Message), typeKey: payload.TypeKey}
 }
 
 // sanitize collapses a server-supplied message into a single bounded line.

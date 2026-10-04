@@ -62,6 +62,10 @@ const fullConfig = `{
   "apiVersion": "6.0"
 }`
 
+// fileSource stands for the API version source of the config file in a
+// table, whose path is known only once the test has written the file.
+const fileSource = "<config file>"
+
 const fileAuth = `{"url": "https://file.example.com/tfs", "pat": "file-pat"}`
 
 func TestLoadPrecedence(t *testing.T) {
@@ -76,11 +80,12 @@ func TestLoadPrecedence(t *testing.T) {
 			name: "file only",
 			file: fullConfig,
 			want: Config{
-				URL:        "https://file.example.com/tfs",
-				PAT:        "file-pat",
-				Collection: "FileCollection",
-				Project:    "FileProject",
-				APIVersion: "6.0",
+				URL:              "https://file.example.com/tfs",
+				PAT:              "file-pat",
+				Collection:       "FileCollection",
+				Project:          "FileProject",
+				APIVersion:       "6.0",
+				APIVersionSource: fileSource,
 			},
 		},
 		{
@@ -92,11 +97,12 @@ func TestLoadPrecedence(t *testing.T) {
 				"TFSCLI_API_VERSION": "7.0",
 			},
 			want: Config{
-				URL:        "https://file.example.com/tfs",
-				PAT:        "file-pat",
-				Collection: "EnvCollection",
-				Project:    "EnvProject",
-				APIVersion: "7.0",
+				URL:              "https://file.example.com/tfs",
+				PAT:              "file-pat",
+				Collection:       "EnvCollection",
+				Project:          "EnvProject",
+				APIVersion:       "7.0",
+				APIVersionSource: "TFSCLI_API_VERSION",
 			},
 		},
 		{
@@ -113,11 +119,12 @@ func TestLoadPrecedence(t *testing.T) {
 				APIVersion: new("7.1"),
 			},
 			want: Config{
-				URL:        "https://file.example.com/tfs",
-				PAT:        "file-pat",
-				Collection: "FlagCollection",
-				Project:    "FlagProject",
-				APIVersion: "7.1",
+				URL:              "https://file.example.com/tfs",
+				PAT:              "file-pat",
+				Collection:       "FlagCollection",
+				Project:          "FlagProject",
+				APIVersion:       "7.1",
+				APIVersionSource: "--api-version",
 			},
 		},
 		{
@@ -149,11 +156,12 @@ func TestLoadPrecedence(t *testing.T) {
 			},
 			overrides: Overrides{Project: new("FlagProject")},
 			want: Config{
-				URL:        "https://file.example.com/tfs",
-				PAT:        "file-pat",
-				Collection: "EnvCollection",
-				Project:    "FlagProject",
-				APIVersion: "6.0",
+				URL:              "https://file.example.com/tfs",
+				PAT:              "file-pat",
+				Collection:       "EnvCollection",
+				Project:          "FlagProject",
+				APIVersion:       "6.0",
+				APIVersionSource: fileSource,
 			},
 		},
 		{
@@ -191,6 +199,9 @@ func TestLoadPrecedence(t *testing.T) {
 			got, err := Load(path, writeAuth(t, fileAuth), tt.overrides)
 			if err != nil {
 				t.Fatalf("Load() error = %v, want nil", err)
+			}
+			if tt.want.APIVersionSource == fileSource {
+				tt.want.APIVersionSource = `"apiVersion" in ` + path
 			}
 			if *got != tt.want {
 				t.Errorf("Load() = %+v, want %+v", *got, tt.want)

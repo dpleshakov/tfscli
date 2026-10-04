@@ -235,7 +235,7 @@ The `(HTTP status)` part is omitted for errors that did not come from an HTTP re
 | `forbidden` | Authenticated, but access was denied (HTTP 403). |
 | `not_found` | The work item, project, or collection does not exist (HTTP 404). |
 | `server` | TFS failed or returned an unparseable response (HTTP 5xx). |
-| `config` | Missing or invalid configuration, a bad argument, or a request TFS rejected. |
+| `config` | Missing or invalid configuration, a bad argument, or a request TFS rejected. When TFS refuses a configured API version, the message names the setting it came from. |
 | `network` | The server could not be reached, or the request timed out or was canceled. |
 
 Examples:
@@ -249,6 +249,9 @@ Error [config]: project is not set (pass -p, set TFSCLI_PROJECT, or add "project
 
 $ tfscli workitem get -p MyProject abc
 Error [config]: work item id "abc" is not a positive integer
+
+$ tfscli workitem get -p MyProject 12345
+Error [config]: The requested REST API version of 7.2 is out of range for this server. The latest REST API version this server supports is 7.1. (api-version "7.2" is set by TFSCLI_API_VERSION; remove it to let the server choose the version, or set one the server supports) (HTTP 400)
 
 $ tfscli workitem get -p MyProject 12345
 Error [network]: cannot reach https://tfs.company.com:8080

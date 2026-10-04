@@ -188,7 +188,7 @@ removed or renamed, though new ones may appear.
 | `forbidden` | HTTP 403 — authenticated, but access denied. | Do not retry. The PAT lacks the scope, or the project is closed to this user. Report it. |
 | `not_found` | HTTP 404 — no such work item, project, or collection. | Check the id and the project spelling against what the user gave. Do not scan ids looking for a match. |
 | `server` | HTTP 5xx, or a response that could not be parsed. | One retry is reasonable. If it repeats, report the server as unavailable. |
-| `config` | A missing or invalid setting, a missing or malformed credential, a bad argument, or a request TFS rejected — a 4xx other than 401, 403, and 404, such as an unknown field name or an unsupported API version. | Fix the invocation if the fault is in it. If a setting is missing, report what is missing; do not write the config file. If the user is not logged in, tell them to run `tfscli auth login`. |
+| `config` | A missing or invalid setting, a missing or malformed credential, a bad argument, or a request TFS rejected — a 4xx other than 401, 403, and 404, such as an unknown field name or an unsupported API version. A refused API version names the setting it came from — `--api-version`, `TFSCLI_API_VERSION`, or `apiVersion` in the config file — and the next step. | Fix the invocation if the fault is in it. If the API version was refused and it came from `--api-version` you passed, drop the flag and retry; if it came from the environment or the config file, report the message to the user rather than changing the setting. If a setting is missing, report what is missing; do not write the config file. If the user is not logged in, tell them to run `tfscli auth login`. |
 | `network` | The server could not be reached, or the request timed out or was canceled. | Do not repeat the call in a loop. Report the server as unreachable and let the user check the URL and their connection. |
 
 Representative messages:
@@ -197,6 +197,7 @@ Representative messages:
 Error [config]: not logged in: no credential at C:\Users\you\.local\share\tfscli\auth.json (run "tfscli auth login", or set TFSCLI_AUTH)
 Error [config]: project is not set (pass -p, set TFSCLI_PROJECT, or add "project" to the config file)
 Error [config]: work item id "abc" is not a positive integer
+Error [config]: The requested REST API version of 7.2 is out of range for this server. The latest REST API version this server supports is 7.1. (api-version "7.2" is set by TFSCLI_API_VERSION; remove it to let the server choose the version, or set one the server supports) (HTTP 400)
 Error [auth]: PAT is invalid or expired (HTTP 401)
 Error [network]: cannot reach https://tfs.company.com:8080
 ```

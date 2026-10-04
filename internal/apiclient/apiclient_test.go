@@ -240,6 +240,85 @@ func TestGetFallsBackToGenericMessage(t *testing.T) {
 	}
 }
 
+const outOfRangeMessage = "The requested REST API version of 7.2 is out of range for this server. " +
+	"The latest REST API version this server supports is 7.1."
+
+func TestGetNamesTheSourceOfARefusedVersion(t *testing.T) {
+	body := `{"$id":"1","message":"` + outOfRangeMessage + `","typeKey":"VssVersionOutOfRangeException"}`
+	srv := errorServer(t, http.StatusBadRequest, body)
+	client, err := New(&config.Config{
+		URL:              srv.URL,
+		Collection:       "DefaultCollection",
+		PAT:              testPAT,
+		APIVersion:       "7.2",
+		APIVersionSource: "TFSCLI_API_VERSION",
+	}, log.Noop())
+	if err != nil {
+		t.Fatalf("New() error = %v, want nil", err)
+	}
+
+	_, err = client.Get(t.Context(), "/MyProject/_apis/wit/workitems/123", nil)
+	te := assertTFSError(t, err, tfserr.Config)
+	want := outOfRangeMessage + ` (api-version "7.2" is set by TFSCLI_API_VERSION; ` +
+		"remove it to let the server choose the version, or set one the server supports)"
+	if te.Message != want {
+		t.Errorf("message = %q, want %q", te.Message, want)
+	}
+}
+
+func TestGetLeavesOtherRejectionsAlone(t *testing.T) {
+	tests := []struct {
+		name       string
+		body       string
+		apiVersion string
+		want       string
+	}{
+		{
+			name:       "another typeKey",
+			body:       `{"message":"TF51535: Cannot find field System.Titel.","typeKey":"WorkItemFieldInvalidException"}`,
+			apiVersion: "7.2",
+			want:       "TF51535: Cannot find field System.Titel.",
+		},
+		{
+			name:       "no typeKey",
+			body:       `{"message":"` + outOfRangeMessage + `"}`,
+			apiVersion: "7.2",
+			want:       outOfRangeMessage,
+		},
+		{
+			name: "version error with no version configured",
+			body: `{"message":"` + outOfRangeMessage + `","typeKey":"VssVersionOutOfRangeException"}`,
+			want: outOfRangeMessage,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := errorServer(t, http.StatusBadRequest, tt.body)
+			source := ""
+			if tt.apiVersion != "" {
+				source = "--api-version"
+			}
+			client, err := New(&config.Config{
+				URL:              srv.URL,
+				Collection:       "DefaultCollection",
+				PAT:              testPAT,
+				APIVersion:       tt.apiVersion,
+				APIVersionSource: source,
+			}, log.Noop())
+			if err != nil {
+				t.Fatalf("New() error = %v, want nil", err)
+			}
+
+			_, err = client.Get(t.Context(), "/MyProject/_apis/wit/workitems/123", nil)
+			te := assertTFSError(t, err, tfserr.Config)
+			if te.Message != tt.want {
+				t.Errorf("message = %q, want %q", te.Message, tt.want)
+			}
+		})
+	}
+}
+
 func TestGetCollapsesAndBoundsServerMessage(t *testing.T) {
 	body := `{"message":"line one\n\tline two   spaced ` + strings.Repeat("x", 400) + `"}`
 	srv := errorServer(t, http.StatusInternalServerError, body)

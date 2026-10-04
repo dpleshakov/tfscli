@@ -474,7 +474,7 @@ the expected `typeKey`, the message names the source of the version and the
 next step for each of the three sources. A 400 with another `typeKey`, or
 with none, keeps its current message. Tests cover these cases. `make check`
 passes.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-06 `live-check`
 **Description:** Against a live TFS or Azure DevOps Server, preferably more

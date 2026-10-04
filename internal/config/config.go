@@ -25,6 +25,12 @@ type Config struct {
 	// APIVersion is sent as api-version when set. Empty means no version is
 	// sent and the server answers at the version it chooses.
 	APIVersion string `json:"apiVersion"`
+	// APIVersionSource names the setting APIVersion came from, as the user
+	// would refer to it: "--api-version", "TFSCLI_API_VERSION", or
+	// "apiVersion" in the config file with its path. It is empty when no
+	// version is set, and lets an error about a refused version name the
+	// setting to change.
+	APIVersionSource string `json:"-"`
 
 	// InsecureSkipVerify disables TLS certificate verification. Config file
 	// only: there is deliberately no environment variable and no flag for it,
@@ -96,6 +102,10 @@ func Load(path, authPath string, ov Overrides) (*Config, error) {
 
 	applyEnv(cfg)
 	applyOverrides(cfg, ov)
+	// An empty --api-version clears the version, and with it the source.
+	if cfg.APIVersion == "" {
+		cfg.APIVersionSource = ""
+	}
 
 	if cfg.Collection == "" {
 		return nil, &tfserr.Error{
@@ -144,31 +154,45 @@ func LoadFile(path string) (*Config, error) {
 		}
 	}
 
+	if cfg.APIVersion != "" {
+		cfg.APIVersionSource = fmt.Sprintf("%q in %s", "apiVersion", path)
+	}
 	return cfg, nil
 }
 
 func applyEnv(cfg *Config) {
 	setFromEnv(&cfg.Collection, "TFSCLI_COLLECTION")
 	setFromEnv(&cfg.Project, "TFSCLI_PROJECT")
-	setFromEnv(&cfg.APIVersion, "TFSCLI_API_VERSION")
+	if setFromEnv(&cfg.APIVersion, "TFSCLI_API_VERSION") {
+		cfg.APIVersionSource = "TFSCLI_API_VERSION"
+	}
 }
 
-// setFromEnv overrides dst when the variable is set to a non-empty value. An
-// empty variable counts as unset rather than as an override with "".
-func setFromEnv(dst *string, name string) {
-	if v := os.Getenv(name); v != "" {
-		*dst = v
+// setFromEnv overrides dst when the variable is set to a non-empty value, and
+// reports whether it did. An empty variable counts as unset rather than as an
+// override with "".
+func setFromEnv(dst *string, name string) bool {
+	v := os.Getenv(name)
+	if v == "" {
+		return false
 	}
+	*dst = v
+	return true
 }
 
 func applyOverrides(cfg *Config, ov Overrides) {
 	setFromFlag(&cfg.Collection, ov.Collection)
 	setFromFlag(&cfg.Project, ov.Project)
-	setFromFlag(&cfg.APIVersion, ov.APIVersion)
+	if setFromFlag(&cfg.APIVersion, ov.APIVersion) {
+		cfg.APIVersionSource = "--api-version"
+	}
 }
 
-func setFromFlag(dst *string, flag *string) {
-	if flag != nil {
-		*dst = *flag
+// setFromFlag overrides dst when the flag was set, and reports whether it did.
+func setFromFlag(dst *string, flag *string) bool {
+	if flag == nil {
+		return false
 	}
+	*dst = *flag
+	return true
 }

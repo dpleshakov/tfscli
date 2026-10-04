@@ -210,6 +210,57 @@ func TestWorkItemGetConfiguredAPIVersion(t *testing.T) {
 	}
 }
 
+func TestWorkItemGetRefusedAPIVersionNamesItsSource(t *testing.T) {
+	const serverMessage = "The requested REST API version of 7.2 is out of range for this server. " +
+		"The latest REST API version this server supports is 7.1."
+	const body = `{"$id":"1","message":"` + serverMessage + `","typeKey":"VssVersionOutOfRangeException"}`
+	const step = "; remove it to let the server choose the version, or set one the server supports) (HTTP 400)\n"
+
+	tests := []struct {
+		name   string
+		flag   bool
+		env    bool
+		file   bool
+		source func(cfgPath string) string
+	}{
+		{name: "flag", flag: true, source: func(string) string { return "--api-version" }},
+		{name: "environment", env: true, source: func(string) string { return "TFSCLI_API_VERSION" }},
+		{name: "config file", file: true, source: func(p string) string { return `"apiVersion" in ` + p }},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := newServer(t, http.StatusBadRequest, body)
+			isolate(t)
+			t.Setenv("TFSCLI_AUTH", authFor(s))
+			cfgHome := t.TempDir()
+			t.Setenv("XDG_CONFIG_HOME", cfgHome)
+			cfgPath := filepath.Join(cfgHome, "tfscli", "config.json")
+			if tt.file {
+				writeTestFile(t, cfgPath, `{"apiVersion": "7.2"}`)
+			}
+			if tt.env {
+				t.Setenv("TFSCLI_API_VERSION", "7.2")
+			}
+			args := getArgs()
+			if tt.flag {
+				args = getArgs("--api-version", "7.2")
+			}
+
+			var out, errOut bytes.Buffer
+			code := run(testBuild, args, noTerminal{}, &out, &errOut)
+
+			if code != 1 {
+				t.Errorf("exit code = %d, want 1", code)
+			}
+			want := "Error [config]: " + serverMessage + ` (api-version "7.2" is set by ` + tt.source(cfgPath) + step
+			if errOut.String() != want {
+				t.Errorf("stderr = %q, want %q", errOut.String(), want)
+			}
+		})
+	}
+}
+
 func TestWorkItemGetProjectFromEnvironment(t *testing.T) {
 	s := newServer(t, http.StatusOK, workItemResponse)
 	isolate(t)
