@@ -14,7 +14,7 @@ func TestPrintWithHTTPStatus(t *testing.T) {
 		status   int
 		want     string
 	}{
-		{Auth, "PAT is invalid or expired", 401, "Error [auth]: PAT is invalid or expired (HTTP 401)\n"},
+		{Auth, "the server did not accept the PAT", 401, "Error [auth]: the server did not accept the PAT (HTTP 401)\n"},
 		{NotFound, "work item 99999 not found in project MyProject", 404, "Error [not_found]: work item 99999 not found in project MyProject (HTTP 404)\n"},
 		{Forbidden, "no access to project MyProject", 403, "Error [forbidden]: no access to project MyProject (HTTP 403)\n"},
 		{Server, "TFS returned an internal error", 500, "Error [server]: TFS returned an internal error (HTTP 500)\n"},
@@ -84,8 +84,8 @@ func TestPrintNil(t *testing.T) {
 }
 
 func TestErrorMessage(t *testing.T) {
-	withStatus := &Error{Category: Auth, Message: "PAT is invalid", HTTPStatus: 401}
-	if got, want := withStatus.Error(), "[auth] PAT is invalid (HTTP 401)"; got != want {
+	withStatus := &Error{Category: Auth, Message: "the server did not accept the PAT", HTTPStatus: 401}
+	if got, want := withStatus.Error(), "[auth] the server did not accept the PAT (HTTP 401)"; got != want {
 		t.Errorf("Error() = %q, want %q", got, want)
 	}
 	withoutStatus := &Error{Category: Config, Message: "config file not found"}

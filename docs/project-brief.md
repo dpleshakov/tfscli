@@ -103,7 +103,7 @@ Project flag `-p` is required unless default project is set in config or `TFSCLI
 Categories (`auth`, `not_found`, `forbidden`, `server`, `config`, `network`) are a stable contract — see Design Principles.
 
 ```
-Error [auth]: PAT is invalid or expired (HTTP 401)
+Error [auth]: the server did not accept the PAT (it may be invalid, expired, or revoked; if it is valid, IIS Basic Authentication may be enabled on the server, which only an administrator can turn off) (HTTP 401)
 Error [not_found]: work item 99999 not found in project MyProject (HTTP 404)
 Error [forbidden]: no access to project MyProject (HTTP 403)
 Error [server]: TFS returned HTTP 500

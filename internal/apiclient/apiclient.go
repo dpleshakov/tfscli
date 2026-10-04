@@ -265,7 +265,10 @@ func (c *Client) classify(status int, body []byte) error {
 func categoryFor(status int) (tfserr.Category, string) {
 	switch {
 	case status == http.StatusUnauthorized:
-		return tfserr.Auth, "PAT is invalid or expired"
+		// A 401 says only that the token was refused. Besides a bad token,
+		// Microsoft documents IIS Basic Authentication as preventing PAT
+		// authentication on Azure DevOps Server, which a user cannot fix.
+		return tfserr.Auth, "the server did not accept the PAT (it may be invalid, expired, or revoked; if it is valid, IIS Basic Authentication may be enabled on the server, which only an administrator can turn off)"
 	case status == http.StatusForbidden:
 		return tfserr.Forbidden, "access denied by TFS"
 	case status == http.StatusNotFound:

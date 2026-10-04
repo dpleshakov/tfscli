@@ -178,7 +178,7 @@ func TestGetClassifiesResponseStatus(t *testing.T) {
 		want    tfserr.Category
 		message string
 	}{
-		{http.StatusUnauthorized, tfserr.Auth, "PAT is invalid or expired"},
+		{http.StatusUnauthorized, tfserr.Auth, "the server did not accept the PAT (it may be invalid, expired, or revoked; if it is valid, IIS Basic Authentication may be enabled on the server, which only an administrator can turn off)"},
 		{http.StatusForbidden, tfserr.Forbidden, "access denied by TFS"},
 		{http.StatusNotFound, tfserr.NotFound, "resource not found"},
 		{http.StatusInternalServerError, tfserr.Server, "TFS returned a server error"},
