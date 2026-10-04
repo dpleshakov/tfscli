@@ -10,7 +10,7 @@ Note: tasks files created before the move to skills (e.g. `docs/2026-05-20-tasks
 
 ## Project state
 
-The MVP is implemented: `tfscli wit work-items get` works end to end, `tfscli wit work-items list` and `tfscli wit work-items get-batch` read several work items by id, and the module has one package per architecture module (see the "Project Structure" section of `docs/architecture.md`). Release 0.0.5, which predates the current command names, has been run against a live TFS instance: `auth login` and reading one work item (`get`) work there; `list` and `get-batch` have not been run against a live server yet; the error paths and rich-text rendering on real data have not been checked yet — see the "Status" and "Known limitations" sections of `README.md`. Further work goes through tasks files per the `tasks` skill.
+The MVP is implemented: `tfscli wit work-items get` works end to end, `tfscli wit work-items list` and `tfscli wit work-items get-batch` read several work items by id, `tfscli wit wiql query-by-wiql` finds work item ids with a WIQL query, and the module has one package per architecture module (see the "Project Structure" section of `docs/architecture.md`). Release 0.0.5, which predates the current command names, has been run against a live TFS instance: `auth login` and reading one work item (`get`) work there; `list`, `get-batch`, and `query-by-wiql` have not been run against a live server yet; the error paths and rich-text rendering on real data have not been checked yet — see the "Status" and "Known limitations" sections of `README.md`. Further work goes through tasks files per the `tasks` skill.
 
 Three documents drive everything:
 
@@ -49,9 +49,10 @@ tfscli wit work-items get -p MyProject 12345
 tfscli wit work-items get -p MyProject 12345 --fields System.Title,System.State,System.Description
 tfscli wit work-items list -p MyProject --ids 297,299,300
 tfscli wit work-items get-batch -p MyProject --ids 297,299,300
+tfscli wit wiql query-by-wiql -p MyProject --query "SELECT [System.Id] FROM WorkItems WHERE [System.State] = 'Active'"
 ```
 
-`-p` (project) is required unless a default project is set in config or `TFSCLI_PROJECT`.
+`-p` (project) is required unless a default project is set in config or `TFSCLI_PROJECT`, except for `tfscli wit wiql query-by-wiql`, where the project is optional and the query then runs at collection level.
 
 ## Build / test commands
 

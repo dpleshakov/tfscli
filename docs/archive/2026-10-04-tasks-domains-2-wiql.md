@@ -1,6 +1,6 @@
 # 2026-10-04-tasks-domains-2-wiql.md
 
-**Status:** Active
+**Status:** Archived
 
 ## Context
 
@@ -140,4 +140,4 @@ that `-p` is required unless a default project is set, in "Command Format" of
 state that the project is optional for `tfscli wit wiql query-by-wiql`.
 **Definition of done:** The documents describe the command as implemented;
 `make check` passes.
-**Status:** Pending
+**Status:** Done

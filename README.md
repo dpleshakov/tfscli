@@ -6,12 +6,13 @@ Every invocation hits the server: there is no daemon, no background process, and
 
 ## Status
 
-Pre-release. Three read commands exist — `wit work-items get`, `wit work-items list`, and `wit work-items get-batch`. They are covered by tests that drive the full command tree against a stub HTTP server, so the request shape, the output format, and the error contract behave as documented. Against a live TFS instance, release 0.0.5 has been checked for the main path only: `auth login` with a valid PAT and reading one work item, the command now named `wit work-items get`, succeed. `wit work-items list` and `wit work-items get-batch` have not been run against a live server yet. The error paths and rich-text rendering of a variety of real work items have not been exercised yet; expect discrepancies there, particularly in rich-text rendering.
+Pre-release. Four read commands exist — `wit work-items get`, `wit work-items list`, `wit work-items get-batch`, and `wit wiql query-by-wiql`. They are covered by tests that drive the full command tree against a stub HTTP server, so the request shape, the output format, and the error contract behave as documented. Against a live TFS instance, release 0.0.5 has been checked for the main path only: `auth login` with a valid PAT and reading one work item, the command now named `wit work-items get`, succeed. `wit work-items list`, `wit work-items get-batch`, and `wit wiql query-by-wiql` have not been run against a live server yet. The error paths and rich-text rendering of a variety of real work items have not been exercised yet; expect discrepancies there, particularly in rich-text rendering.
 
 Available now:
 
 - `wit work-items get` — one work item as markdown, whole or narrowed by `--fields`
 - `wit work-items list` and `wit work-items get-batch` — several work items by id in one request
+- `wit wiql query-by-wiql` — find work items with a WIQL query
 - `auth login` — store the server URL, the collection, and a PAT, checked against the server
 - Configuration through a file, environment variables, and flags
 - `--verbose` request logging and the full error contract
@@ -217,6 +218,26 @@ The two commands are the two operations the REST API offers for this, and take t
 
 A flag that is not given is not sent, and `--as-of` and `--error-policy` are passed to the server unchecked: what it accepts is the server's to decide.
 
+### `wit wiql query-by-wiql`
+
+Find work items with a WIQL query:
+
+```
+tfscli wit wiql query-by-wiql -p MyProject --query "SELECT [System.Id] FROM WorkItems WHERE [System.State] = 'Active'"
+```
+
+The query is passed to the server as written; WIQL syntax errors come back from the server as `config` errors with its message. The server returns ids, not work items, so the command prints the ids; read the work items with `wit work-items list --ids`, at most 200 ids per call.
+
+| Flag | API parameter | Effect |
+|---|---|---|
+| `--query` | `query` | The WIQL query. Required. |
+| `-p`, `--project` | `project` | Team project. Optional for this command: without a project from any source, the query runs across the collection. |
+| `--team` | `team` | Team of the project, for macros such as `@CurrentIteration`. Needs a project. |
+| `--top` | `$top` | Return at most this many results. Without it the server's own limit applies. |
+| `--time-precision` | `timePrecision` | Compare dates with the time of day, not only the date. |
+
+A flag that is not given is not sent.
+
 ### Output
 
 Short values are printed as `Name: value` lines; prose and multi-line values become sections. HTML fields (`System.Description`, `Microsoft.VSTS.TCM.ReproSteps`, `Microsoft.VSTS.TCM.SystemInfo`, `Microsoft.VSTS.Common.AcceptanceCriteria`) are converted to markdown. Identity fields print as `Display Name <unique.name>`, and timestamps are normalised to UTC with whole seconds, so the same work item renders identically on any machine.
@@ -241,6 +262,29 @@ Field names are the raw TFS reference names — the same strings `--fields` acce
 # Work item 298 (not returned: it does not exist, or the PAT has no access to it)
 ```
 
+`wit wiql query-by-wiql` prints the type of the query and the time of the result, the columns the query selected as reference names in the form `--fields` takes, and the result. A flat query prints the ids in the form `--ids` takes:
+
+```markdown
+# WIQL query (flat, as of 2026-10-04T10:15:00Z)
+
+Columns: System.Id,System.Title
+Work items: 297,299,300
+```
+
+A tree or one-hop query prints one line per link, in the order the server returned them: the id alone for a top-level work item, otherwise the source, the target, and the link type:
+
+```markdown
+# WIQL query (tree, as of 2026-10-04T10:15:00Z)
+
+Columns: System.Id,System.Title
+Relations:
+- 297
+- 297 -> 299 (System.LinkTypes.Hierarchy-Forward)
+- 297 -> 300 (System.LinkTypes.Hierarchy-Forward)
+```
+
+An empty result reads `Work items: none` or `Relations: none`.
+
 ### Request logging
 
 `--verbose` writes one line per request to stderr — method, URL, status, duration — leaving stdout clean for the markdown. Headers and bodies are never logged, so the PAT cannot leak through it. A failed round trip is logged with status `0`.
@@ -264,7 +308,7 @@ The `(HTTP status)` part is omitted for errors that did not come from an HTTP re
 |---|---|
 | `auth` | The server did not accept the PAT (HTTP 401): it is invalid, expired, or revoked, or IIS Basic Authentication is enabled on the server. |
 | `forbidden` | Authenticated, but access was denied (HTTP 403). |
-| `not_found` | The work item or project does not exist (HTTP 404). During `auth login`, the server URL or the collection leads nowhere. |
+| `not_found` | The work item, project, or team does not exist (HTTP 404). During `auth login`, the server URL or the collection leads nowhere. |
 | `server` | TFS failed or returned an unparseable response (HTTP 5xx). |
 | `config` | Missing or invalid configuration, a bad argument, or a request TFS rejected. When TFS refuses a configured API version, the message names the setting it came from. |
 | `network` | The server could not be reached, or the request timed out or was canceled. |
@@ -283,6 +327,9 @@ Error [config]: work item id "abc" is not a positive integer
 
 $ tfscli wit work-items list -p MyProject 297 299
 Error [config]: list takes no arguments; pass the work item ids with --ids, e.g. --ids 297,299
+
+$ tfscli wit wiql query-by-wiql --team Web --query "SELECT [System.Id] FROM WorkItems"
+Error [config]: --team needs a project, and the project is not set (pass -p, set TFSCLI_PROJECT, or add "project" to the config file)
 
 $ tfscli wit work-items get -p MyProject 12345
 Error [config]: The requested REST API version of 7.2 is out of range for this server. The latest REST API version this server supports is 7.1. (api-version "7.2" is set by TFSCLI_API_VERSION; remove it to let the server choose the version, or set one the server supports) (HTTP 400)
