@@ -59,6 +59,17 @@ A release is made by running the `Release` workflow from the Actions tab with a 
 
 `CONTRIBUTING.md` has the rest — required tool versions, what each target does, the lint and coverage rules, and the release procedure. **Read it before touching the build, the workflows, or a release.**
 
+## Git workflow
+
+`main` is protected: changes reach it only through pull requests, and a merge requires a
+green CI. The only direct pushes to `main` are made by the `Release` workflow.
+
+Before committing, check the current branch. If it is `main`, do not commit: propose a
+branch name to the user and create the branch once they agree. Pushing and opening pull
+requests are done by the user; commit locally and stop there.
+
+`CONTRIBUTING.md` ("Commits and branches") has the full procedure.
+
 ## Tooling note
 
 Primary search tool is `rg` (ripgrep) — already in PATH. Prefer it over `Select-String`/`findstr`. See the user's global instructions for full guidance.
