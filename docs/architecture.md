@@ -173,7 +173,7 @@ This section describes the conceptual module structure, their responsibilities, 
 - **cli** — cobra commands; persistent flags (`--verbose`, config overrides); orchestrates the chain config → apiclient → domain → printer → exit. Owns the markdown printer functions (one per resource) plus small per-kind scalar formatters for identity and datetime values used by those printers. No `Renderer` interface in v1 — printers are plain functions. When `--json` is added later, the interface and a second renderer can be introduced here without touching the domain layer.
 - **config** — resolves the credential (`URL`, `Collection`, and `PAT`; a PAT is issued for one collection) from `TFSCLI_AUTH` or `$XDG_DATA_HOME/tfscli/auth.json`, never from a mix of sources; loads the optional `$XDG_CONFIG_HOME/tfscli/config.json`, applies environment overrides (`TFSCLI_*`), applies cobra flag overrides; validates that all required fields are set for the command being run. Writes `auth.json` for `auth login` (mode `0600`, directory `0700`). Holds `URL`, `Collection`, `PAT`, `Project`, `APIVersion`, `InsecureSkipVerify`, `CABundle`. Never logs PAT.
 - **apiclient** — wraps `net/http`. Builds URLs from `Config.URL + Collection + path`, adding `api-version` only when `APIVersion` is set; without it the server answers at the version it chooses. Sets `Authorization: Basic base64(":<PAT>")` on every request. Configures TLS using `CABundle` (appended to system root pool) and `InsecureSkipVerify`. Hooks the logger via a `RoundTripper` — that transport is the single call site of `LogRequest`, so every outgoing request is logged exactly once and no other module logs HTTP traffic. Classifies HTTP outcomes into the stable error categories defined in the brief (`auth`, `not_found`, `forbidden`, `server`, `config`, `network`).
-- **workitem** — domain logic for Work Items (initially Get). Owns the `WorkItem`/`Field` types and the allowlist of fields known to contain HTML (`System.Description`, `Microsoft.VSTS.TCM.ReproSteps`, `Microsoft.VSTS.TCM.SystemInfo`, `Microsoft.VSTS.Common.AcceptanceCriteria`, …). After unmarshalling, tags each field with its `FieldKind`. Returns raw values — does not perform markdown conversion.
+- **workitem** — domain logic for Work Items: Get Work Item, Work Items - List, and Get Work Items Batch. Owns the `WorkItem`/`Field` types, the `BatchRequest`/`Batch` types for reading several work items, and the allowlist of fields known to contain HTML (`System.Description`, `Microsoft.VSTS.TCM.ReproSteps`, `Microsoft.VSTS.TCM.SystemInfo`, `Microsoft.VSTS.Common.AcceptanceCriteria`, …). After unmarshalling, tags each field with its `FieldKind`. For several work items, keeps the server's order and reports the requested ids the server did not return. Returns raw values — does not perform markdown conversion.
 - **htmlmd** — thin wrapper over `github.com/JohannesKaufmann/html-to-markdown/v2`. One method: `Convert(html string) (string, error)`. v1 uses library defaults only; the wrapper is the extension point where TFS-specific rules will be registered once real HTML samples have been collected (see `2026-05-20-tasks-html-quirks.md`).
 - **tfserr** — typed error `Error{Category, Message, HTTPStatus, Cause}` with the stable category set from the brief. Provides `Print(err, w)` writing `Error [category]: message (HTTP status)` and `ExitCode(err)` mapping to a non-zero process exit code (v1: 1 for every category; the API leaves room for per-category exit codes later without breaking the contract).
 - **log** — `Logger` interface with two implementations: `noop` (default) and `stderr` (selected by `--verbose` / `TFSCLI_VERBOSE=1`). Methods: `LogRequest(method, url, status, dur)` and `Warn(msg)`. The logger interface accepts only these four request fields — PAT and the `Authorization` header are never passed in, so they cannot leak through the logger by construction.
@@ -185,7 +185,7 @@ These are the boundaries between modules. Final signatures may evolve during Ste
 ```go
 type APIClient interface {
     Get(ctx context.Context, path string, query url.Values) ([]byte, error)
-    Post(ctx context.Context, path string, body any) ([]byte, error)
+    Post(ctx context.Context, path string, query url.Values, body any) ([]byte, error)
 }
 
 type Logger interface {
@@ -220,6 +220,18 @@ type WorkItem struct {
     Rev    int
     Fields []Field
 }
+
+type BatchRequest struct {
+    IDs         []int
+    Fields      []string
+    AsOf        string   // passed through; empty is not sent
+    ErrorPolicy string   // passed through; empty is not sent
+}
+
+type Batch struct {
+    WorkItems []*WorkItem   // in the order the server returned them
+    Missing   []int         // requested ids the server did not return
+}
 ```
 
 ### Data flow: `tfscli workitem get -p MyProject 12345 --fields System.Title,System.Description`
@@ -234,12 +246,14 @@ type WorkItem struct {
 8. The cli printer iterates `wi.Fields`. HTML fields go through `htmlmd.Convert`. Identity and datetime fields are formatted by small dedicated helpers. Plain fields print as is. Output is written to `stdout`.
 9. On error at any step: `tfserr.Print(err, os.Stderr)`; `os.Exit(tfserr.ExitCode(err))`.
 
+`workitem list` and `workitem get-batch` follow the same flow with a `BatchRequest`. `workitem.List` sends it as the query of `GET {Project}/_apis/wit/workitems`, `workitem.GetBatch` as the JSON body of `POST {Project}/_apis/wit/workitemsbatch` through `client.Post`; parameters that are not set are not sent. Both parse the `value` array of the response with the single-item parser, skip the `null` entries that `errorPolicy=omit` leaves, and return a `*Batch`. The cli printer writes each work item as `workitem get` does and then one heading per missing id.
+
 ### Security checklist
 
 **Trust boundary.** Untrusted input enters the program at four places: (a) HTTP responses from the TFS server, (b) the config file, (c) the credential in `auth.json` or `TFSCLI_AUTH`, (d) CLI args, environment variables, and the answers typed into `auth login`. The domain layer (`workitem`) and printers treat parsed Go structures as already-validated; validation happens at the boundary.
 
 **Validation.**
-- CLI args: cobra type checking; positive-integer check on work-item id.
+- CLI args: cobra type checking; positive-integer check on every work-item id, from the argument of `workitem get` and from `--ids`.
 - Env vars, config file, and credential: required fields enforced in `config.Load` after the merge. Malformed JSON in the config file, `auth.json`, or `TFSCLI_AUTH` fails fast at load with category `config`; the credential URL must be `http` or `https` with a host.
 - TFS response: `encoding/json` validates shape into typed intermediate structs. HTML field values are passed only to `htmlmd` — never executed, never written to disk verbatim except as markdown in stdout, never used to build shell or filesystem paths.
 
