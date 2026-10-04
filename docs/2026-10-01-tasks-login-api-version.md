@@ -142,6 +142,102 @@ its body, and none supports the "Logged in to … as …" message. Whether an
 invalid PAT on any of them yields 401 rather than anonymous access is the
 open question of TD-01.
 
+### Findings: the default API version
+
+Further sources:
+
+- [S8] REST API reference overview, including "API and TFS version mapping":
+  https://learn.microsoft.com/en-us/rest/api/azure/devops/?view=azure-devops-rest-7.2
+- [S9] Work Items - Get Work Item, views `azure-devops-rest-7.2`,
+  `azure-devops-server-rest-7.1`, `azure-devops-server-rest-5.0`,
+  `vsts-rest-tfs-4.1`:
+  https://learn.microsoft.com/en-us/rest/api/azure/devops/wit/work-items/get-work-item
+- [S10] TFS 2017 REST API reference (archived), Work Items, API 1.0:
+  https://learn.microsoft.com/en-us/previous-versions/azure/devops/integrate/previous-apis/wit/work-items?view=tfs-2017
+
+**Server releases and API versions** [S8], which supersedes the shorter
+table in [S1]:
+
+| Server | REST API version |
+|---|---|
+| Azure DevOps Server vNext | 7.2 |
+| Azure DevOps Server 2022.1 | 7.1 |
+| Azure DevOps Server 2022 | 7.0 |
+| Azure DevOps Server 2020 | 6.0 |
+| Azure DevOps Server 2019 | 5.0 |
+| TFS 2018 Update 2, Update 3 | 4.1 |
+| TFS 2018 RTW, Update 1 | 4.0 |
+| TFS 2017 Update 2 | 3.2 |
+| TFS 2017 Update 1 | 3.1 |
+| TFS 2017 RTW | 3.0 |
+| TFS 2015 Update 3, Update 4 | 2.3 |
+| TFS 2015 Update 2 | 2.2 |
+| TFS 2015 Update 1 | 2.1 |
+| TFS 2015 RTW | 2.0 |
+
+"REST API versions are compatible with the Server version listed, as well as
+Server versions that are newer" [S8]. 7.2 is listed only for "vNext"; which
+released on-premises version supports it is not stated (unverified). Every
+release up to and including Azure DevOps Server 2022.1 is therefore below the
+default `7.2`, and rejects it as out of range.
+
+**`7.2` may not work for Get Work Item on any server.** At 7.2 the resource is
+documented only as `7.2-preview.3`, and only for Azure DevOps Services; the
+on-premises views end at `azure-devops-server-rest-7.1` [S9]. A released
+`7.2` for it is documented nowhere. By the negotiation rule in [S3], a
+released version above the resource's released version needs `-preview`, so
+`api-version=7.2` would be refused even by a server that supports 7.2.
+Unverified, and the first thing to check against a live server.
+
+**The request path and parameters.** `project` is an optional path segment
+in every documented version from 4.1 to 7.2 [S9]. At API 1.0 (the TFS 2017
+reference) the single work item route is documented without a project,
+`{instance}/{collection}/_apis/wit/workitems/{id}`, and with `$expand` as its
+only option; `fields` is documented only for the list route,
+`workitems?ids=…` [S10]. Whether TFS 2017 and earlier accept the project
+segment and `fields` on the single work item route: unverified.
+
+**The response shape across versions.** Identity fields such as
+`System.AssignedTo` and `System.CreatedBy` are strings,
+`"Display Name <unique name>"`, at API 1.0 and 4.1, and objects with
+`displayName` and `uniqueName` from 5.0 on [S9, S10]. Some identity fields
+remain strings even at 7.x, e.g. `Microsoft.VSTS.Common.ActivatedBy` in the
+7.1 and 7.2 samples [S9]. `internal/workitem` already accepts both forms: an
+object becomes an identity, a string stays plain, and both print as
+`Name <unique name>`. The markdown output is therefore unaffected by this
+difference; a future `--json` output would expose it.
+
+**No `api-version`.** In addition to the findings on `connectionData`: [S8]
+words the rule as "should include" where [S1] says "must", and its own C#
+sample sends `GET https://dev.azure.com/{organization}/_apis/projects`
+without a version. Without a version the server answers at its latest
+released version of the resource [S3, comment only], so the same request
+yields the string identity shape from a TFS 2018 server and the object shape
+from Azure DevOps Server 2019 and later. Server behaviour for GET without a
+version: unverified, and for TFS 2017 and earlier there is not even SDK
+evidence.
+
+**Reading the supported version from an error.** The out-of-range message
+names the latest version the server supports [S6], so a client could retry
+with it. The message text is not a documented contract, and whether an
+on-premises server installed in another language localises it is
+unverified. `OPTIONS {url}/_apis` is the structured source of the same
+information [S3].
+
+**An empty value cannot be sent.** `internal/config/config.go` replaces an
+empty `apiVersion` with the default, both after flags are applied and in
+`LoadFile`.
+
+**The alternatives:**
+
+| Option | Server compatibility | Stability of the response shape | Works with no configuration |
+|---|---|---|---|
+| No `api-version` at all | Every server that accepts a GET without a version: TFS 2018 Update 2 and later by SDK evidence, earlier unverified | Varies by server; irrelevant to the markdown output, relevant to `--json` | Yes |
+| No version by default; `--api-version`, `TFSCLI_API_VERSION`, and `apiVersion` as overrides | As above, and a user can still pin a version | Varies by default, pinned when configured | Yes |
+| The lowest version all target servers support as the default, e.g. `1.0` | `1.0` is supported from TFS 2015 to Azure DevOps Server 2022 [S1]; a higher floor such as `4.1` excludes TFS 2017 and 2015 | Stable, at the oldest shape | Yes, if the request shape tfscli sends (project segment, `fields`) is accepted at that version, which is unverified for `1.0` |
+| Negotiation through `OPTIONS {url}/_apis` before each call | Depends on the `OPTIONS` request being available and answered with the PAT; unverified before TFS 2018 | Varies by server | Yes, at the cost of a second request on every call, since tfscli keeps no cache |
+| Retry with the version named in an out-of-range error | Every server that names its version in the error | Varies by server | Yes, at the cost of a second request on servers below the default, and only while the message text keeps its form |
+
 ---
 
 ### TASK-01 `research`
@@ -212,7 +308,7 @@ where one is available.
 with its source; anything not confirmed is marked as unverified. The
 alternatives are compared by server compatibility, stability of the response
 shape, and whether tfscli works with no configuration.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-03 `decide`
 **Description:** Using the findings, decide how `auth login` handles the API
