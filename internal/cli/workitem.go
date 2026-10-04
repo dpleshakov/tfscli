@@ -14,10 +14,12 @@ import (
 	"github.com/dpleshakov/tfscli/internal/workitem"
 )
 
-func newWorkItemCmd(g *globals) *cobra.Command {
+// newWorkItemsCmd is the resource Work Items of the area wit, named after the
+// path of its operations in the REST API reference (wit/work-items).
+func newWorkItemsCmd(g *globals) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "workitem",
-		Short: "Work item commands",
+		Use:   "work-items",
+		Short: "Work items: get one or several by id",
 	}
 	cmd.AddCommand(newWorkItemGetCmd(g))
 	cmd.AddCommand(newWorkItemListCmd(g))
@@ -31,15 +33,15 @@ func newWorkItemGetBatchCmd(g *globals) *cobra.Command {
 		short: "Print several work items as markdown, for requests too long for list",
 		long: "Get several work items by id with Get Work Items Batch, a POST request that\n" +
 			"carries the ids and the other parameters in its body, so that it is not\n" +
-			"limited by the length of the URL as workitem list is; at most 200 ids are\n" +
-			"accepted by the server. It needs Azure DevOps Server 2019 or later; on an\n" +
-			"older server use workitem list.\n\n",
-		example: "  tfscli workitem get-batch -p MyProject --ids 297,299,300\n" +
-			"  tfscli workitem get-batch -p MyProject --ids 297,299,300 --fields System.Title,System.State --error-policy omit",
+			"limited by the length of the URL as wit work-items list is; at most 200 ids\n" +
+			"are accepted by the server. It needs Azure DevOps Server 2019 or later; on\n" +
+			"an older server use wit work-items list.\n\n",
+		example: "  tfscli wit work-items get-batch -p MyProject --ids 297,299,300\n" +
+			"  tfscli wit work-items get-batch -p MyProject --ids 297,299,300 --fields System.Title,System.State --error-policy omit",
 		read: workitem.GetBatch,
 		// A server older than 2019 has no such route and answers with a bare
 		// 404, which says nothing of the version it needs.
-		bareNotFound: "Get Work Items Batch needs Azure DevOps Server 2019 or later; on an older server use tfscli workitem list",
+		bareNotFound: "Get Work Items Batch needs Azure DevOps Server 2019 or later; on an older server use tfscli wit work-items list",
 	})
 }
 
@@ -49,8 +51,8 @@ func newWorkItemListCmd(g *globals) *cobra.Command {
 		short: "Print several work items as markdown",
 		long: "Get several work items by id with Work Items - List, a GET request that\n" +
 			"carries the ids in the URL; at most 200 ids are accepted by the server.\n\n",
-		example: "  tfscli workitem list -p MyProject --ids 297,299,300\n" +
-			"  tfscli workitem list -p MyProject --ids 297,299,300 --fields System.Title,System.State --error-policy omit",
+		example: "  tfscli wit work-items list -p MyProject --ids 297,299,300\n" +
+			"  tfscli wit work-items list -p MyProject --ids 297,299,300 --fields System.Title,System.State --error-policy omit",
 		read: workitem.List,
 	})
 }
@@ -82,13 +84,13 @@ func newWorkItemBatchCmd(g *globals, bc batchCommand) *cobra.Command {
 		Use:   bc.use + " --ids <id,...>",
 		Short: bc.short,
 		Long: bc.long +
-			"Work items are printed as `workitem get` prints them, in the order the server\n" +
-			"returns them. With --error-policy omit, a work item that does not exist or\n" +
-			"cannot be read is listed after the others as \"not returned\" instead of\n" +
-			"failing the command.",
+			"Work items are printed as `wit work-items get` prints them, in the order the\n" +
+			"server returns them. With --error-policy omit, a work item that does not\n" +
+			"exist or cannot be read is listed after the others as \"not returned\"\n" +
+			"instead of failing the command.",
 		Example: bc.example,
-		// Ids given as arguments, the way workitem get takes one, are the
-		// likely mistake; the error says where they go instead.
+		// Ids given as arguments, the way wit work-items get takes one, are
+		// the likely mistake; the error says where they go instead.
 		Args: func(_ *cobra.Command, args []string) error {
 			if len(args) > 0 {
 				return &tfserr.Error{
@@ -189,8 +191,8 @@ func newWorkItemGetCmd(g *globals) *cobra.Command {
 			"All fields are printed unless --fields narrows the request; the fields are\n" +
 			"then printed in the order they were asked for. HTML fields (Description,\n" +
 			"Repro Steps, System Info, Acceptance Criteria) are converted to markdown.",
-		Example: "  tfscli workitem get -p MyProject 12345\n" +
-			"  tfscli workitem get -p MyProject 12345 --fields System.Title,System.State,System.Description",
+		Example: "  tfscli wit work-items get -p MyProject 12345\n" +
+			"  tfscli wit work-items get -p MyProject 12345 --fields System.Title,System.State,System.Description",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseID(args[0])

@@ -94,7 +94,7 @@ func newRoot(b build, stdin prompter, stdout, stderr io.Writer) *cobra.Command {
 	f.StringVar(&g.apiVersion, "api-version", "", "REST API version (TFSCLI_API_VERSION; by default none is sent and the server chooses)")
 
 	root.AddCommand(newAuthCmd(g))
-	root.AddCommand(newWorkItemCmd(g))
+	root.AddCommand(newWitCmd(g))
 	return root
 }
 
