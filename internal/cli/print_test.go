@@ -304,7 +304,7 @@ func TestPrintWiqlResultFlat(t *testing.T) {
 	}
 
 	want := strings.Join([]string{
-		"# WIQL query (flat, as of 2026-10-04T10:15:00Z)",
+		"# WIQL query (flat, as of 2026-10-04T10:15:00.483Z)",
 		"",
 		"Columns: System.Id,System.Title,System.State",
 		"Work items: 300,297,299",
@@ -401,5 +401,22 @@ func TestPrintWiqlResultMatchesPlan(t *testing.T) {
 
 	if got := wiqlMarkdown(t, result); got != want {
 		t.Errorf("printWiqlResult() wrote:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestFormatAsOf(t *testing.T) {
+	tests := []struct {
+		value string
+		want  string
+	}{
+		{value: "2026-10-04T10:15:00.4836721Z", want: "2026-10-04T10:15:00.4836721Z"},
+		{value: "2026-10-04T10:15:00Z", want: "2026-10-04T10:15:00Z"},
+		{value: "2026-10-04T13:15:00.25+03:00", want: "2026-10-04T10:15:00.25Z"},
+		{value: "yesterday", want: "yesterday"},
+	}
+	for _, tt := range tests {
+		if got := formatAsOf(tt.value); got != tt.want {
+			t.Errorf("formatAsOf(%q) = %q, want %q", tt.value, got, tt.want)
+		}
 	}
 }

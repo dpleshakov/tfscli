@@ -284,7 +284,7 @@ type Result struct {
 3. cli builds the `Logger` and the `apiclient.APIClient` as above and calls `wiql.QueryByWiql(ctx, client, req)`, setting `Top` and `TimePrecision` only for flags that were given.
 4. `wiql.QueryByWiql` builds the path `{Project}/{Team}/_apis/wit/wiql`, leaving out the segments that are empty, and calls `client.Post` with the body `{"query": ...}` and the optional `$top` and `timePrecision` in the query string. A syntax error in the query comes back as HTTP 400 with the server's message, which `apiclient` reports in the `config` category.
 5. `wiql.QueryByWiql` unmarshals the response into a `*wiql.Result`; a response of the wrong shape is reported in the `server` category.
-6. The cli printer writes a heading with the query type and `asOf`, the columns, and either the ids or one line per relation, with `none` for an empty list. The work items themselves are not read; the caller passes the ids to `wit work-items list --ids`.
+6. The cli printer writes a heading with the query type and `asOf` (in UTC, keeping the server's sub-second precision so that it can be passed to `--as-of`), the columns, and either the ids or one line per relation, with `none` for an empty list. The work items themselves are not read; the caller passes the ids to `wit work-items list --ids`.
 
 ### Security checklist
 
