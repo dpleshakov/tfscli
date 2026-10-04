@@ -87,6 +87,28 @@ untrimmed URL after a 404.
 **Added:** 2026-10-04, in review of
 `docs/archive/2026-10-04-tasks-login-collection.md`
 
+#### TD-06 `path-segments-unescaped`
+**Problem:** the domain packages join the project and the team into the
+request path as given (`internal/workitem/workitem.go`,
+`internal/wiql/wiql.go`, `path`), and `apiclient` adds the path with
+`url.URL.JoinPath`, which treats it as already escaped. Spaces, `#`, and `?`
+are encoded correctly, but `%` is not: a name with an invalid escape
+sequence, such as `100% Done`, makes `JoinPath` drop the whole path silently,
+so the request goes to the collection URL itself; a name with a valid
+sequence, such as `A%20B`, is decoded and addresses `A B` instead. It is not
+known whether TFS permits `%` in project or team names.
+**Why deferred:** no such name is known to occur, the behaviour predates
+`--team`, and the fix touches every domain package and the contract of
+`APIClient.Get` and `APIClient.Post`, which concerns more than the work in
+which it was noticed. The likely fix is to escape each user-supplied segment
+with `url.PathEscape`, either in the domain packages or by having `apiclient`
+take the path as segments.
+**Trigger:** the next domain that puts a user-supplied name into the path,
+such as a repository name for Git pull requests, or a report of a project or
+team name containing `%`.
+**Added:** 2026-10-04, in review of
+`docs/archive/2026-10-04-tasks-domains-2-wiql.md`
+
 ---
 
 ### Closed
