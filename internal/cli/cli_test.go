@@ -566,38 +566,51 @@ const listResponse = `{
   ]
 }`
 
+// batchCommands are the commands that read several work items. They share
+// their flags, checks, and output, so those cases are run against both.
+var batchCommands = []string{"list", "get-batch"}
+
 // listArgs is a complete `workitem list` invocation, with every required
 // setting other than the credential passed as a flag.
 func listArgs(extra ...string) []string {
-	return append([]string{"workitem", "list", "-p", "MyProject", "--ids", "12345,299,297"}, extra...)
+	return batchArgs("list", extra...)
 }
 
-func TestWorkItemListPrintsMarkdown(t *testing.T) {
-	s := newServer(t, http.StatusOK, listResponse)
+// batchArgs is the same invocation of the command named.
+func batchArgs(command string, extra ...string) []string {
+	return append([]string{"workitem", command, "-p", "MyProject", "--ids", "12345,299,297"}, extra...)
+}
 
-	stdout, stderr, code := execute(t, s, listArgs("--error-policy", "omit")...)
+func TestWorkItemBatchPrintsMarkdown(t *testing.T) {
+	for _, command := range batchCommands {
+		t.Run(command, func(t *testing.T) {
+			s := newServer(t, http.StatusOK, listResponse)
 
-	if code != 0 {
-		t.Fatalf("exit code = %d, want 0 (stderr: %s)", code, stderr)
-	}
-	if stderr != "" {
-		t.Errorf("stderr = %q, want nothing", stderr)
-	}
+			stdout, stderr, code := execute(t, s, batchArgs(command, "--error-policy", "omit")...)
 
-	want := strings.Join([]string{
-		"# Work item 297 (rev 1)",
-		"",
-		"System.Title: Customer can sign in",
-		"",
-		"# Work item 12345 (rev 7)",
-		"",
-		"System.Title: Payment confirmation email is not sent for partial refunds",
-		"",
-		"# Work item 299 (not returned: it does not exist, or the PAT has no access to it)",
-		"",
-	}, "\n")
-	if stdout != want {
-		t.Errorf("stdout:\n%s\nwant:\n%s", stdout, want)
+			if code != 0 {
+				t.Fatalf("exit code = %d, want 0 (stderr: %s)", code, stderr)
+			}
+			if stderr != "" {
+				t.Errorf("stderr = %q, want nothing", stderr)
+			}
+
+			want := strings.Join([]string{
+				"# Work item 297 (rev 1)",
+				"",
+				"System.Title: Customer can sign in",
+				"",
+				"# Work item 12345 (rev 7)",
+				"",
+				"System.Title: Payment confirmation email is not sent for partial refunds",
+				"",
+				"# Work item 299 (not returned: it does not exist, or the PAT has no access to it)",
+				"",
+			}, "\n")
+			if stdout != want {
+				t.Errorf("stdout:\n%s\nwant:\n%s", stdout, want)
+			}
+		})
 	}
 }
 
@@ -655,58 +668,115 @@ func TestWorkItemListRequest(t *testing.T) {
 	}
 }
 
-func TestWorkItemListReportsServerErrors(t *testing.T) {
-	body := `{"message":"TF401232: Work item 299 does not exist, or you do not have permissions to read it.","typeKey":"WorkItemUnauthorizedAccessException"}`
-	s := newServer(t, http.StatusNotFound, body)
+func TestWorkItemBatchReportsServerErrors(t *testing.T) {
+	for _, command := range batchCommands {
+		t.Run(command, func(t *testing.T) {
+			body := `{"message":"TF401232: Work item 299 does not exist, or you do not have permissions to read it.","typeKey":"WorkItemUnauthorizedAccessException"}`
+			s := newServer(t, http.StatusNotFound, body)
 
-	stdout, stderr, code := execute(t, s, listArgs()...)
+			stdout, stderr, code := execute(t, s, batchArgs(command)...)
 
-	if code != 1 {
-		t.Errorf("exit code = %d, want 1", code)
-	}
-	want := "Error [not_found]: TF401232: Work item 299 does not exist, or you do not have permissions to read it. (HTTP 404)\n"
-	if stderr != want {
-		t.Errorf("stderr = %q, want %q", stderr, want)
-	}
-	if stdout != "" {
-		t.Errorf("stdout = %q, want nothing", stdout)
+			if code != 1 {
+				t.Errorf("exit code = %d, want 1", code)
+			}
+			want := "Error [not_found]: TF401232: Work item 299 does not exist, or you do not have permissions to read it. (HTTP 404)\n"
+			if stderr != want {
+				t.Errorf("stderr = %q, want %q", stderr, want)
+			}
+			if stdout != "" {
+				t.Errorf("stdout = %q, want nothing", stdout)
+			}
+		})
 	}
 }
 
-func TestWorkItemListRejectsBadInputBeforeCalling(t *testing.T) {
+func TestWorkItemBatchRejectsBadInputBeforeCalling(t *testing.T) {
+	for _, command := range batchCommands {
+		t.Run(command, func(t *testing.T) {
+			tests := []struct {
+				name string
+				args []string
+				want string
+			}{
+				{
+					name: "no --ids",
+					args: []string{"workitem", command, "-p", "MyProject"},
+					want: "Error [config]: no work item ids given (pass them with --ids, e.g. --ids 297,299,300)\n",
+				},
+				{
+					name: "only commas",
+					args: []string{"workitem", command, "-p", "MyProject", "--ids", " , ,"},
+					want: "Error [config]: no work item ids given (pass them with --ids, e.g. --ids 297,299,300)\n",
+				},
+				{
+					name: "an id is not a number",
+					args: []string{"workitem", command, "-p", "MyProject", "--ids", "297,twelve"},
+					want: "Error [config]: work item id \"twelve\" is not a positive integer\n",
+				},
+				{
+					name: "an id is zero",
+					args: []string{"workitem", command, "-p", "MyProject", "--ids", "0,297"},
+					want: "Error [config]: work item id \"0\" is not a positive integer\n",
+				},
+				{
+					name: "ids as arguments",
+					args: []string{"workitem", command, "-p", "MyProject", "297", "299"},
+					want: "Error [config]: " + command + " takes no arguments; pass the work item ids with --ids, e.g. --ids 297,299\n",
+				},
+				{
+					name: "no project",
+					args: []string{"workitem", command, "--ids", "297"},
+				},
+			}
+
+			for _, tt := range tests {
+				t.Run(tt.name, func(t *testing.T) {
+					s := newServer(t, http.StatusOK, listResponse)
+
+					stdout, stderr, code := execute(t, s, tt.args...)
+
+					if code != 1 {
+						t.Errorf("exit code = %d, want 1", code)
+					}
+					if tt.want == "" {
+						if !strings.HasPrefix(stderr, "Error [config]: project is not set") {
+							t.Errorf("stderr = %q, want the missing-project config error", stderr)
+						}
+					} else if stderr != tt.want {
+						t.Errorf("stderr = %q, want %q", stderr, tt.want)
+					}
+					if stdout != "" {
+						t.Errorf("stdout = %q, want nothing", stdout)
+					}
+					if s.calls != 0 {
+						t.Errorf("the server was called %d times, want no call at all", s.calls)
+					}
+				})
+			}
+		})
+	}
+}
+
+func TestWorkItemGetBatchRequest(t *testing.T) {
 	tests := []struct {
-		name string
-		args []string
-		want string
+		name  string
+		extra []string
+		want  string
 	}{
 		{
-			name: "no --ids",
-			args: []string{"workitem", "list", "-p", "MyProject"},
-			want: "Error [config]: no work item ids given (pass them with --ids, e.g. --ids 297,299,300)\n",
+			name: "ids only",
+			want: `{"ids":[12345,299,297]}`,
 		},
 		{
-			name: "only commas",
-			args: []string{"workitem", "list", "-p", "MyProject", "--ids", " , ,"},
-			want: "Error [config]: no work item ids given (pass them with --ids, e.g. --ids 297,299,300)\n",
+			name:  "every flag",
+			extra: []string{"--fields", "System.Title, System.State", "--as-of", "2026-06-14T09:00:00Z", "--error-policy", "omit"},
+			want:  `{"ids":[12345,299,297],"fields":["System.Title","System.State"],"asOf":"2026-06-14T09:00:00Z","errorPolicy":"omit"}`,
 		},
 		{
-			name: "an id is not a number",
-			args: []string{"workitem", "list", "-p", "MyProject", "--ids", "297,twelve"},
-			want: "Error [config]: work item id \"twelve\" is not a positive integer\n",
-		},
-		{
-			name: "an id is zero",
-			args: []string{"workitem", "list", "-p", "MyProject", "--ids", "0,297"},
-			want: "Error [config]: work item id \"0\" is not a positive integer\n",
-		},
-		{
-			name: "ids as arguments",
-			args: []string{"workitem", "list", "-p", "MyProject", "297", "299"},
-			want: "Error [config]: list takes no arguments; pass the work item ids with --ids, e.g. --ids 297,299\n",
-		},
-		{
-			name: "no project",
-			args: []string{"workitem", "list", "--ids", "297"},
+			// Values the server may refuse are still its to refuse.
+			name:  "values passed through unchecked",
+			extra: []string{"--as-of", "yesterday", "--error-policy", "ignore"},
+			want:  `{"ids":[12345,299,297],"asOf":"yesterday","errorPolicy":"ignore"}`,
 		},
 	}
 
@@ -714,23 +784,22 @@ func TestWorkItemListRejectsBadInputBeforeCalling(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			s := newServer(t, http.StatusOK, listResponse)
 
-			stdout, stderr, code := execute(t, s, tt.args...)
+			_, stderr, code := execute(t, s, batchArgs("get-batch", tt.extra...)...)
 
-			if code != 1 {
-				t.Errorf("exit code = %d, want 1", code)
+			if code != 0 {
+				t.Fatalf("exit code = %d, want 0 (stderr: %s)", code, stderr)
 			}
-			if tt.want == "" {
-				if !strings.HasPrefix(stderr, "Error [config]: project is not set") {
-					t.Errorf("stderr = %q, want the missing-project config error", stderr)
-				}
-			} else if stderr != tt.want {
-				t.Errorf("stderr = %q, want %q", stderr, tt.want)
+			if s.method != http.MethodPost {
+				t.Errorf("method = %s, want POST", s.method)
 			}
-			if stdout != "" {
-				t.Errorf("stdout = %q, want nothing", stdout)
+			if want := "/DefaultCollection/MyProject/_apis/wit/workitemsbatch"; s.path != want {
+				t.Errorf("requested path %q, want %q", s.path, want)
 			}
-			if s.calls != 0 {
-				t.Errorf("the server was called %d times, want no call at all", s.calls)
+			if len(s.query) != 0 {
+				t.Errorf("query = %v, want none: the parameters belong in the body", s.query)
+			}
+			if s.sent != tt.want {
+				t.Errorf("body = %s, want %s", s.sent, tt.want)
 			}
 		})
 	}

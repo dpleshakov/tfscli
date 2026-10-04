@@ -19,7 +19,23 @@ func newWorkItemCmd(g *globals) *cobra.Command {
 	}
 	cmd.AddCommand(newWorkItemGetCmd(g))
 	cmd.AddCommand(newWorkItemListCmd(g))
+	cmd.AddCommand(newWorkItemGetBatchCmd(g))
 	return cmd
+}
+
+func newWorkItemGetBatchCmd(g *globals) *cobra.Command {
+	return newWorkItemBatchCmd(g, batchCommand{
+		use:   "get-batch",
+		short: "Print several work items as markdown, for requests too long for list",
+		long: "Get several work items by id with Get Work Items Batch, a POST request that\n" +
+			"carries the ids and the other parameters in its body, so that it is not\n" +
+			"limited by the length of the URL as workitem list is; at most 200 ids are\n" +
+			"accepted by the server. It needs Azure DevOps Server 2019 or later; on an\n" +
+			"older server use workitem list.\n\n",
+		example: "  tfscli workitem get-batch -p MyProject --ids 297,299,300\n" +
+			"  tfscli workitem get-batch -p MyProject --ids 297,299,300 --fields System.Title,System.State --error-policy omit",
+		read: workitem.GetBatch,
+	})
 }
 
 func newWorkItemListCmd(g *globals) *cobra.Command {
