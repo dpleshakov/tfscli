@@ -10,7 +10,7 @@ Note: tasks files created before the move to skills (e.g. `docs/2026-05-20-tasks
 
 ## Project state
 
-The MVP is implemented: `tfscli workitem get` works end to end, and the module has one package per architecture module (see the "Project Structure" section of `docs/architecture.md`). Release 0.0.5 has been run against a live TFS instance: `auth login` and `workitem get` work there; the error paths and rich-text rendering on real data have not been checked yet — see the "Status" and "Known limitations" sections of `README.md`. Further work goes through tasks files per the `tasks` skill.
+The MVP is implemented: `tfscli workitem get` works end to end, `tfscli workitem list` and `tfscli workitem get-batch` read several work items by id, and the module has one package per architecture module (see the "Project Structure" section of `docs/architecture.md`). Release 0.0.5 has been run against a live TFS instance: `auth login` and `workitem get` work there; `workitem list` and `workitem get-batch` have not been run against a live server yet; the error paths and rich-text rendering on real data have not been checked yet — see the "Status" and "Known limitations" sections of `README.md`. Further work goes through tasks files per the `tasks` skill.
 
 Three documents drive everything:
 
@@ -40,11 +40,13 @@ These come from `project-brief.md` and override casual feature requests. If a ch
 tfscli <resource> <action> [flags] [arguments]
 ```
 
-MVP commands (from the brief):
+Commands (from the brief):
 
 ```
 tfscli workitem get -p MyProject 12345
 tfscli workitem get -p MyProject 12345 --fields System.Title,System.State,System.Description
+tfscli workitem list -p MyProject --ids 297,299,300
+tfscli workitem get-batch -p MyProject --ids 297,299,300
 ```
 
 `-p` (project) is required unless a default project is set in config or `TFSCLI_PROJECT`.

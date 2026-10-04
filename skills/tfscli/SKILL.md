@@ -33,8 +33,9 @@ name. Output is markdown on stdout; errors are one line on stderr.
 
 ## When not to use it
 
-Apart from `auth login`, which is the user's to run, the tool covers the
-three commands below. Do not attempt anything below; none of it exists,
+Apart from `auth login`, which is the user's to run, the tool covers three
+commands: `workitem get`, `workitem list`, and `workitem get-batch`. Do not
+attempt anything below; none of it exists,
 and inventing a flag or a subcommand produces an error, not a result.
 
 - **No writes.** Nothing creates, updates, or comments on a work item. If the

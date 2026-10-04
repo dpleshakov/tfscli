@@ -14,7 +14,7 @@ import (
 
 // printWorkItem writes wi as markdown: short values as "Name: value" lines,
 // prose and anything else spanning several lines as a "## Name" section. Field
-// order is the one workitem.Get established and is not rearranged here.
+// order is the one the workitem package established and is not rearranged here.
 //
 // The document is assembled in memory first, so that a field that fails to
 // convert leaves nothing half-written on stdout.

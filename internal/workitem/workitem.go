@@ -53,7 +53,8 @@ type Field struct {
 	Value any
 }
 
-// WorkItem is a single work item as returned by Get Work Item.
+// WorkItem is a single work item, as returned by Get Work Item or as one
+// element of the response of List and Get Work Items Batch.
 type WorkItem struct {
 	ID     int
 	Rev    int
