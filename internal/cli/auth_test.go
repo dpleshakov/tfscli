@@ -128,6 +128,86 @@ func TestAuthLoginStoresTheCredential(t *testing.T) {
 	assertMode(t, filepath.Dir(authPath), 0o700|fs.ModeDir)
 }
 
+func TestAuthLoginRemovesTheCollectionFromTheURL(t *testing.T) {
+	const notice = "The URL ends with the collection"
+
+	tests := []struct {
+		name    string
+		path    string
+		stored  string
+		request string
+		trimmed bool
+	}{
+		{
+			name:    "path is the collection only, in another case",
+			path:    "/defaultCOLLECTION",
+			stored:  "",
+			request: "/DefaultCollection/_apis/connectionData",
+			trimmed: true,
+		},
+		{
+			name:    "collection after a virtual directory",
+			path:    "/tfs/DefaultCollection/",
+			stored:  "/tfs",
+			request: "/tfs/DefaultCollection/_apis/connectionData",
+			trimmed: true,
+		},
+		{
+			name:    "collection repeated twice is removed once",
+			path:    "/DefaultCollection/DefaultCollection",
+			stored:  "/DefaultCollection",
+			request: "/DefaultCollection/DefaultCollection/_apis/connectionData",
+			trimmed: true,
+		},
+		{
+			name:    "no collection in the URL",
+			path:    "/tfs",
+			stored:  "/tfs",
+			request: "/tfs/DefaultCollection/_apis/connectionData",
+		},
+		{
+			name:    "collection name inside a longer segment",
+			path:    "/MyDefaultCollection",
+			stored:  "/MyDefaultCollection",
+			request: "/MyDefaultCollection/DefaultCollection/_apis/connectionData",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := newServer(t, http.StatusOK, connectionDataResponse)
+
+			authPath, stdout, stderr, code := login(t, typed(s.URL+tt.path, "DefaultCollection", "secret-token"))
+
+			if code != 0 {
+				t.Fatalf("exit code = %d, want 0 (stderr: %s)", code, stderr)
+			}
+			stored := s.URL + tt.stored
+			if want := "Logged in to " + stored + ", collection DefaultCollection, as Jane Doe\n"; stdout != want {
+				t.Errorf("stdout = %q, want %q", stdout, want)
+			}
+			if s.path != tt.request {
+				t.Errorf("requested path %q, want %q", s.path, tt.request)
+			}
+			if got := strings.Contains(stderr, notice+"; using "+stored+" as the server URL\n"); got != tt.trimmed {
+				t.Errorf("stderr = %q, notice present = %v, want %v", stderr, got, tt.trimmed)
+			}
+
+			data, err := os.ReadFile(authPath)
+			if err != nil {
+				t.Fatalf("reading the auth file: %v", err)
+			}
+			var auth map[string]string
+			if err := json.Unmarshal(data, &auth); err != nil {
+				t.Fatalf("auth file is not JSON: %v\n%s", err, data)
+			}
+			if auth["url"] != stored {
+				t.Errorf("stored url = %q, want %q", auth["url"], stored)
+			}
+		})
+	}
+}
+
 func TestAuthLoginReplacesTheCredential(t *testing.T) {
 	s := newServer(t, http.StatusOK, connectionDataResponse)
 	isolate(t)

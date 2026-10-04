@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"strings"
 
@@ -152,7 +153,7 @@ func (g *globals) promptAuth() (*config.Auth, error) {
 	if err != nil {
 		return nil, inputError("the server URL", err)
 	}
-	url, err := config.NormalizeURL(raw)
+	server, err := config.NormalizeURL(raw)
 	if err != nil {
 		return nil, err
 	}
@@ -169,6 +170,10 @@ func (g *globals) promptAuth() (*config.Auth, error) {
 			Message:  "the collection is empty",
 		}
 	}
+	if trimmed, ok := trimCollection(server, collection); ok {
+		server = trimmed
+		_, _ = fmt.Fprintf(g.stderr, "The URL ends with the collection; using %s as the server URL\n", server)
+	}
 
 	_, _ = fmt.Fprint(g.stderr, "Personal access token: ")
 	pat, err := g.stdin.ReadSecret()
@@ -184,7 +189,25 @@ func (g *globals) promptAuth() (*config.Auth, error) {
 			Message:  "the personal access token is empty",
 		}
 	}
-	return &config.Auth{URL: url, Collection: collection, PAT: pat}, nil
+	return &config.Auth{URL: server, Collection: collection, PAT: pat}, nil
+}
+
+// trimCollection removes collection from the end of the normalised server
+// URL when its last path segment names it, as a URL copied from the browser
+// does. Collection names are compared case-insensitively, as TFS treats them;
+// only that one segment is removed. It reports whether anything was removed.
+func trimCollection(server, collection string) (string, bool) {
+	u, err := url.Parse(server)
+	if err != nil {
+		return server, false
+	}
+	i := strings.LastIndex(u.Path, "/")
+	if i < 0 || !strings.EqualFold(u.Path[i+1:], collection) {
+		return server, false
+	}
+	u.Path = u.Path[:i]
+	u.RawPath = ""
+	return u.String(), true
 }
 
 func inputError(what string, err error) error {
