@@ -8,5 +8,6 @@ import "github.com/spf13/cobra"
 func newWitCmd(g *globals) *cobra.Command {
 	cmd := newGroupCmd("wit", "Work Item Tracking (REST API area wit)")
 	cmd.AddCommand(newWorkItemsCmd(g))
+	cmd.AddCommand(newWiqlCmd(g))
 	return cmd
 }
