@@ -58,6 +58,9 @@ therefore logical, not in the code. Output in markdown:
   `Relations:` followed by one list item per relation in response order: the
   target ID alone when the relation has no source, otherwise
   `source -> target (rel)`.
+- When the list is empty, the line reads `Work items: none` or
+  `Relations: none`, so that an empty result is not mistaken for truncated
+  output.
 - The `url` of each element is omitted, as metadata noise.
 
 Example of a link query:
@@ -78,8 +81,54 @@ the server's text.
 
 ---
 
-### TASK-01 `wiql-query`
-**Description:** Run a WIQL query against the server and return the matching
-work items. To be broken down into atomic tasks before work starts.
-**Definition of done:** The task is broken down into atomic tasks in this file.
+### TASK-01 `wiql-query-by-wiql`
+**Description:** Add the domain package `internal/wiql` with `QueryByWiql`: it
+requests `POST {project}/{team}/_apis/wit/wiql` with the body
+`{"query": ...}` and adds `$top` and `timePrecision` to the query only when
+they are given. The path is built at collection level without a project, with
+the project, or with the project and the team. The response is parsed into a
+result holding the query type, `asOf`, the reference names of `columns`, the
+IDs of `workItems`, and the relations of `workItemRelations`, whose source may
+be absent. A malformed response is reported in the `server` category, as in
+`internal/workitem`.
+**Definition of done:** Unit tests cover the path in all three forms,
+including a team name with a space, the body and the query for each
+combination of parameters, a flat response, a link response with a root that
+has no source, empty lists, and a malformed response; `make check` passes.
+**Status:** Pending
+
+### TASK-02 `print-wiql`
+**Description:** Add a printer to `internal/cli` for the result of
+`wiql.QueryByWiql` in the format recorded in Context: the heading, `Columns:`,
+then `Work items:` or `Relations:`, with `none` for an empty list. As with
+`printWorkItem`, the output is assembled in memory before it is written.
+**Definition of done:** Unit tests cover a flat result, a link result, both
+empty cases, and the example in Context byte for byte; `make check` passes.
+**Status:** Pending
+
+### TASK-03 `cli-wit-wiql-query-by-wiql`
+**Description:** Add `tfscli wit wiql query-by-wiql` under the area command
+`wit` with `-p`, `--team`, `--query`, `--top`, and `--time-precision`. The
+project is optional for this command. The following are local `config`
+errors: a missing `--query`, which names the flag and gives an example; the
+query given as a positional argument, which says to pass it with `--query`, as
+the batch commands do for `--ids`; `--team` without a project, which names
+`-p` and `TFSCLI_PROJECT`. Help text and examples follow
+`tfscli wit work-items get`.
+**Definition of done:** Command tests against a test server cover the request
+sent with each flag, a flag that is not given not being sent, a request
+without a project, the three local errors, a 400 response with a server
+message reported in the `config` category, and the printed output;
+`make check` passes.
+**Status:** Pending
+
+### TASK-04 `docs`
+**Description:** Describe the command in `README.md` and
+`skills/tfscli/SKILL.md`, the latter showing how the IDs found are read with
+`tfscli wit work-items list --ids`. Add an entry under `### Added` in
+`## [Unreleased]` of `CHANGELOG.md`. Add the `wiql` module, its result type,
+and its data flow to `docs/architecture.md`, and the command to "Command
+Format" and the API coverage in `docs/project-brief.md`.
+**Definition of done:** The documents describe the command as implemented;
+`make check` passes.
 **Status:** Pending
