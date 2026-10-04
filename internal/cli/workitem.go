@@ -2,12 +2,14 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
 
+	"github.com/dpleshakov/tfscli/internal/apiclient"
 	"github.com/dpleshakov/tfscli/internal/tfserr"
 	"github.com/dpleshakov/tfscli/internal/workitem"
 )
@@ -35,6 +37,9 @@ func newWorkItemGetBatchCmd(g *globals) *cobra.Command {
 		example: "  tfscli workitem get-batch -p MyProject --ids 297,299,300\n" +
 			"  tfscli workitem get-batch -p MyProject --ids 297,299,300 --fields System.Title,System.State --error-policy omit",
 		read: workitem.GetBatch,
+		// A server older than 2019 has no such route and answers with a bare
+		// 404, which says nothing of the version it needs.
+		bareNotFound: "Get Work Items Batch needs Azure DevOps Server 2019 or later; on an older server use tfscli workitem list",
 	})
 }
 
@@ -52,9 +57,12 @@ func newWorkItemListCmd(g *globals) *cobra.Command {
 
 // batchCommand describes a command that reads several work items: the text
 // that tells it apart and the workitem function that makes the request.
+// bareNotFound, when set, is the next step added to a 404 that carries no
+// message from TFS.
 type batchCommand struct {
 	use, short, long, example string
 	read                      func(context.Context, workitem.APIClient, string, workitem.BatchRequest) (*workitem.Batch, error)
+	bareNotFound              string
 }
 
 // newWorkItemBatchCmd builds a command reading several work items. Its flags
@@ -115,7 +123,7 @@ func newWorkItemBatchCmd(g *globals, bc batchCommand) *cobra.Command {
 				ErrorPolicy: errorPolicy,
 			})
 			if err != nil {
-				return err
+				return withNotFoundHint(err, bc.bareNotFound)
 			}
 			return printWorkItems(g.stdout, batch)
 		},
@@ -127,6 +135,22 @@ func newWorkItemBatchCmd(g *globals, bc batchCommand) *cobra.Command {
 	cmd.Flags().StringVar(&asOf, "as-of", "", "read the work items as they were at this UTC time, e.g. 2026-06-14T09:00:00Z")
 	cmd.Flags().StringVar(&errorPolicy, "error-policy", "", "fail or omit: whether a work item that cannot be returned fails the request (server default: fail)")
 	return cmd
+}
+
+// withNotFoundHint adds hint to a 404 whose response carried no TFS message
+// of its own. A 404 with a message — a work item that does not exist, say —
+// already says what is wrong, and every other error passes through unchanged.
+func withNotFoundHint(err error, hint string) error {
+	var te *tfserr.Error
+	if hint == "" || !errors.As(err, &te) || te.Category != tfserr.NotFound || te.Message != apiclient.NotFoundMessage {
+		return err
+	}
+	return &tfserr.Error{
+		Category:   tfserr.NotFound,
+		Message:    te.Message + " (" + hint + ")",
+		HTTPStatus: te.HTTPStatus,
+		Cause:      err,
+	}
 }
 
 // parseIDs turns the --ids value into work item ids, checking each as parseID
@@ -212,7 +236,8 @@ func parseID(arg string) (int, error) {
 	return id, nil
 }
 
-// splitFields turns the --fields value into the list workitem.Get expects.
+// splitFields turns the --fields value into the field list workitem.Get and
+// workitem.BatchRequest take.
 // Surrounding spaces are tolerated so that a quoted "System.Title, System.State"
 // works, and empty entries are dropped so that a stray comma is harmless.
 func splitFields(value string) []string {
