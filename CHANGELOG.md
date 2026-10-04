@@ -4,6 +4,14 @@
 
 ### Added
 ### Fixed
+### Changed
+### Removed
+
+---
+
+## [0.0.5] — 2026-10-04
+
+### Fixed
 - `tfscli auth login` now succeeds on servers that accept a personal access token only within its collection, where it used to fail with an `auth` error for a valid token.
 
 ### Changed
