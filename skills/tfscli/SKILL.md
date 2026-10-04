@@ -1,6 +1,6 @@
 ---
 name: tfscli
-description: Read work items from an on-premises TFS / Azure DevOps Server with the tfscli command-line tool. Use when a request refers to a TFS or Azure DevOps Server work item — a bug, task, user story, or PBI named by its numeric id — to an on-prem team project or collection, or asks for a work item's title, state, assignee, description, repro steps, or acceptance criteria. Covers authentication, configuration and its precedence, the wit work-items get, list, and get-batch commands, the markdown output format, the error categories and the action each one calls for, and the known limitations of the HTML-to-markdown conversion.
+description: Read work items from an on-premises TFS / Azure DevOps Server with the tfscli command-line tool. Use when a request refers to a TFS or Azure DevOps Server work item — a bug, task, user story, or PBI named by its numeric id — to an on-prem team project or collection, or asks for a work item's title, state, assignee, description, repro steps, or acceptance criteria, or asks to find work items by a condition such as state, assignee, area, or parent. Covers authentication, configuration and its precedence, the wit work-items get, list, and get-batch commands, the wit wiql query-by-wiql command, the markdown output format, the error categories and the action each one calls for, and the known limitations of the HTML-to-markdown conversion.
 ---
 
 # tfscli
@@ -15,6 +15,7 @@ The requests it issues are:
 GET  <url>/<collection>/<project>/_apis/wit/workitems/<id>         wit work-items get
 GET  <url>/<collection>/<project>/_apis/wit/workitems?ids=<ids>    wit work-items list
 POST <url>/<collection>/<project>/_apis/wit/workitemsbatch         wit work-items get-batch
+POST <url>/<collection>[/<project>[/<team>]]/_apis/wit/wiql         wit wiql query-by-wiql
 ```
 
 with `api-version=<version>` added to the query only when a version is
@@ -29,20 +30,23 @@ name. Output is markdown on stdout; errors are one line on stderr.
   description of a task, the state of a bug, the acceptance criteria of a story.
 - Several work items are named by id — the related items of a task, the ids a
   user listed — and are needed together.
+- Work items have to be found rather than read: the active tasks of a user, the
+  children of a feature, the bugs in an area. WIQL finds their ids.
 - The server is an on-premises TFS or Azure DevOps Server instance.
 
 ## When not to use it
 
-Apart from `auth login`, which is the user's to run, the tool covers three
-commands: `wit work-items get`, `wit work-items list`, and
-`wit work-items get-batch`. Do not attempt anything below; none of it exists,
+Apart from `auth login`, which is the user's to run, the tool covers four
+commands: `wit work-items get`, `wit work-items list`,
+`wit work-items get-batch`, and `wit wiql query-by-wiql`. Do not attempt anything below; none of it exists,
 and inventing a flag or a subcommand produces an error, not a result.
 
 - **No writes.** Nothing creates, updates, or comments on a work item. If the
   user asks for a change, report that the tool is read-only.
-- **No search and no queries.** There is no WIQL and no filter by title, state,
-  or assignee. `wit work-items list` reads the ids it is given; it does not
-  list the work items of a project. A work item is reached by id only.
+- **No search beyond WIQL.** The only way to find work items is a WIQL query
+  passed to `wit wiql query-by-wiql`; there is no filter flag, no full-text
+  search, and no saved (shared) query by name or id. `wit work-items list`
+  reads the ids it is given; it does not list the work items of a project.
 - **No other resources.** No repositories, builds, pipelines, pull requests,
   test plans, or wiki.
 - **No JSON output.** There is no `--json` flag. The output is markdown, and it
@@ -182,6 +186,45 @@ Pass `--error-policy omit` when the ids come from somewhere that may hold
 stale or inaccessible ones, such as the links of another work item: one
 missing id then does not cost the rest.
 
+### Finding work items with WIQL
+
+```
+tfscli wit wiql query-by-wiql -p <project> --query "<WIQL>"
+```
+
+The query is WIQL, passed to the server as written; there is no other query
+syntax. It returns ids, not work items: read them afterwards with
+`wit work-items list --ids`, which accepts at most 200 ids per call, so split a
+longer list into portions of at most 200. When only the first results are
+needed — the latest bugs, a sample — limit the query with `--top` rather than
+reading everything it returns. Ask in `SELECT` only for `[System.Id]` unless
+the column list matters: the fields of the work items are read by
+`wit work-items list --fields`, not by the query.
+
+| Flag | Effect |
+|---|---|
+| `--query` | The WIQL query. Required, and given as a flag, not as an argument; quote it as one shell word. |
+| `-p`, `--project` | Team project. Optional here: without a project from any source, the query runs across the collection. |
+| `--team` | Team of the project. Macros that depend on a team, such as `@CurrentIteration`, need it. It needs a project. |
+| `--top` | Return at most this many results. |
+| `--time-precision` | Compare dates with the time of day, not only the date. |
+
+A flag that is not given is not sent.
+
+Typical queries:
+
+```
+tfscli wit wiql query-by-wiql -p MyProject --query "SELECT [System.Id] FROM WorkItems WHERE [System.AssignedTo] = @Me AND [System.State] = 'Active'"
+tfscli wit wiql query-by-wiql -p MyProject --query "SELECT [System.Id] FROM WorkItemLinks WHERE [Source].[System.Id] = 297 AND [System.Links.LinkType] = 'System.LinkTypes.Hierarchy-Forward' MODE (MustContain)"
+tfscli wit wiql query-by-wiql -p MyProject --top 20 --query "SELECT [System.Id] FROM WorkItems WHERE [System.WorkItemType] = 'Bug' ORDER BY [System.CreatedDate] DESC"
+```
+
+A query that selects `FROM WorkItems` is flat and prints the ids; one that
+selects `FROM WorkItemLinks` is a link query and prints the links. A syntax
+error in the query, or a field it names that does not exist, is reported as a
+`config` error carrying the server's message; fix the query rather than
+retrying it unchanged.
+
 ## Output
 
 Short values print as `Name: value` lines. Prose, and any value spanning more
@@ -225,6 +268,33 @@ follows as a heading with no body:
 The server does not say which of the two it is. The text in the parentheses is
 tfscli's note, not work item content.
 
+`wit wiql query-by-wiql` prints the type of the query, the time of the result,
+and the columns the query selected, then the result. A flat query prints the
+ids in the form `--ids` takes, ready to pass on:
+
+```markdown
+# WIQL query (flat, as of 2026-10-04T10:15:00Z)
+
+Columns: System.Id,System.Title
+Work items: 297,299,300
+```
+
+A link query prints one line per link in the server's order: the id alone for
+a top-level work item, otherwise `source -> target (link type)`:
+
+```markdown
+# WIQL query (tree, as of 2026-10-04T10:15:00Z)
+
+Columns: System.Id,System.Title
+Relations:
+- 297
+- 297 -> 299 (System.LinkTypes.Hierarchy-Forward)
+- 297 -> 300 (System.LinkTypes.Hierarchy-Forward)
+```
+
+An empty result reads `Work items: none` or `Relations: none`: the query
+matched nothing, and the output is not truncated.
+
 ## Errors
 
 Failures go to stderr in one stable format, and the exit code is non-zero — 1
@@ -243,7 +313,7 @@ removed or renamed, though new ones may appear.
 |---|---|---|
 | `auth` | HTTP 401 — the server did not accept the PAT: it is invalid, expired, or revoked, or IIS Basic Authentication is enabled on the server. | Do not retry, and do not try another token. Tell the user the PAT needs to be renewed and stored again with `tfscli auth login`, or, if the PAT is known to be valid, that a server administrator has to turn IIS Basic Authentication off. |
 | `forbidden` | HTTP 403 — authenticated, but access denied. | Do not retry. The PAT lacks the scope, or the project is closed to this user. Report it. |
-| `not_found` | HTTP 404 — no such work item or project. For `wit work-items list` and `wit work-items get-batch`, one missing id is enough. | Check the id and the project spelling against what the user gave. Do not scan ids looking for a match. For several ids, retry once with `--error-policy omit` to learn which are missing. |
+| `not_found` | HTTP 404 — no such work item, project, or team. For `wit work-items list` and `wit work-items get-batch`, one missing id is enough. | Check the id and the project spelling against what the user gave. Do not scan ids looking for a match. For several ids, retry once with `--error-policy omit` to learn which are missing. |
 | `server` | HTTP 5xx, or a response that could not be parsed. | One retry is reasonable. If it repeats, report the server as unavailable. |
 | `config` | A missing or invalid setting, a missing or malformed credential, a bad argument, or a request TFS rejected — a 4xx other than 401, 403, and 404, such as an unknown field name or an unsupported API version. A refused API version names the setting it came from — `--api-version`, `TFSCLI_API_VERSION`, or `apiVersion` in the config file — and the next step. | Fix the invocation if the fault is in it. If the API version was refused and it came from `--api-version` you passed, drop the flag and retry; if it came from the environment or the config file, report the message to the user rather than changing the setting. If a setting is missing, report what is missing; do not write the config file. If the user is not logged in, tell them to run `tfscli auth login`. |
 | `network` | The server could not be reached, or the request timed out or was canceled. | Do not repeat the call in a loop. Report the server as unreachable and let the user check the URL and their connection. |
@@ -255,6 +325,7 @@ Error [config]: not logged in: no credential at C:\Users\you\.local\share\tfscli
 Error [config]: project is not set (pass -p, set TFSCLI_PROJECT, or add "project" to the config file)
 Error [config]: work item id "abc" is not a positive integer
 Error [config]: list takes no arguments; pass the work item ids with --ids, e.g. --ids 297,299
+Error [config]: --team needs a project, and the project is not set (pass -p, set TFSCLI_PROJECT, or add "project" to the config file)
 Error [config]: The requested REST API version of 7.2 is out of range for this server. The latest REST API version this server supports is 7.1. (api-version "7.2" is set by TFSCLI_API_VERSION; remove it to let the server choose the version, or set one the server supports) (HTTP 400)
 Error [auth]: the server did not accept the PAT (it may be invalid, expired, or revoked; if it is valid, IIS Basic Authentication may be enabled on the server, which only an administrator can turn off) (HTTP 401)
 Error [network]: cannot reach https://tfs.company.com:8080

@@ -151,10 +151,10 @@ This section describes the conceptual module structure, their responsibilities, 
                  │ raw JSON / *tfserr.Error
                  ▼
         ┌──────────────────┐
-        │  workitem        │   json.Unmarshal + tag FieldKind
+        │  workitem, wiql  │   json.Unmarshal + tag FieldKind
         │  (domain)        │   (HTML field allowlist lives here)
         └────────┬─────────┘
-                 │ *WorkItem / *Batch
+                 │ *WorkItem / *Batch / *wiql.Result
                  ▼
         ┌──────────────────┐      ┌────────────────────┐
         │  cli printer     │─────►│  htmlmd            │
@@ -174,6 +174,7 @@ This section describes the conceptual module structure, their responsibilities, 
 - **config** — resolves the credential (`URL`, `Collection`, and `PAT`; a PAT is issued for one collection) from `TFSCLI_AUTH` or `$XDG_DATA_HOME/tfscli/auth.json`, never from a mix of sources; loads the optional `$XDG_CONFIG_HOME/tfscli/config.json`, applies environment overrides (`TFSCLI_*`), applies cobra flag overrides; validates that all required fields are set for the command being run. Writes `auth.json` for `auth login` (mode `0600`, directory `0700`). Holds `URL`, `Collection`, `PAT`, `Project`, `APIVersion`, `InsecureSkipVerify`, `CABundle`. Never logs PAT.
 - **apiclient** — wraps `net/http`. Builds URLs from `Config.URL + Collection + path`, adding `api-version` only when `APIVersion` is set; without it the server answers at the version it chooses. Sets `Authorization: Basic base64(":<PAT>")` on every request. Configures TLS using `CABundle` (appended to system root pool) and `InsecureSkipVerify`. Hooks the logger via a `RoundTripper` — that transport is the single call site of `LogRequest`, so every outgoing request is logged exactly once and no other module logs HTTP traffic. Classifies HTTP outcomes into the stable error categories defined in the brief (`auth`, `not_found`, `forbidden`, `server`, `config`, `network`).
 - **workitem** — domain logic for Work Items: Get Work Item, Work Items - List, and Get Work Items Batch. Owns the `WorkItem`/`Field` types, the `BatchRequest`/`Batch` types for reading several work items, and the allowlist of fields known to contain HTML (`System.Description`, `Microsoft.VSTS.TCM.ReproSteps`, `Microsoft.VSTS.TCM.SystemInfo`, `Microsoft.VSTS.Common.AcceptanceCriteria`, …). After unmarshalling, tags each field with its `FieldKind`. For several work items, keeps the server's order and reports the requested ids the server did not return. Returns raw values — does not perform markdown conversion.
+- **wiql** — domain logic for Wiql: Query By Wiql. Owns the `Request` and `Result` types. Builds the path at collection level, under a project, or under a project and a team; passes the query text through unchanged and sends `$top` and `timePrecision` only when they are given. Reads the query type, `asOf`, the reference names of the columns, and either the work item ids of a flat query or the relations of a link query, keeping the server's order. Does not read the work items themselves: that is a separate call through `workitem`, made by the caller.
 - **htmlmd** — thin wrapper over `github.com/JohannesKaufmann/html-to-markdown/v2`. One method: `Convert(html string) (string, error)`. v1 uses library defaults only; the wrapper is the extension point where TFS-specific rules will be registered once real HTML samples have been collected (see `2026-05-20-tasks-html-quirks.md`).
 - **tfserr** — typed error `Error{Category, Message, HTTPStatus, Cause}` with the stable category set from the brief. Provides `Print(err, w)` writing `Error [category]: message (HTTP status)` and `ExitCode(err)` mapping to a non-zero process exit code (v1: 1 for every category; the API leaves room for per-category exit codes later without breaking the contract).
 - **log** — `Logger` interface with two implementations: `noop` (default) and `stderr` (selected by `--verbose` / `TFSCLI_VERBOSE=1`). Methods: `LogRequest(method, url, status, dur)` and `Warn(msg)`. The logger interface accepts only these four request fields — PAT and the `Authorization` header are never passed in, so they cannot leak through the logger by construction.
@@ -234,6 +235,34 @@ type Batch struct {
 }
 ```
 
+Domain types for Wiql:
+
+```go
+type Request struct {
+    Project       string   // empty: the query runs at collection level
+    Team          string   // used only together with Project
+    Query         string   // passed through unchanged
+    Top           *int     // nil is not sent
+    TimePrecision *bool    // nil is not sent
+}
+
+type Relation struct {
+    Source    int
+    HasSource bool          // false for a root of a link result
+    Target    int
+    Rel       string
+}
+
+type Result struct {
+    QueryType string        // flat, tree, oneHop
+    AsOf      string
+    Columns   []string      // reference names
+    Link      bool          // a link query, even when Relations is empty
+    WorkItems []int         // flat query, in the server's order
+    Relations []Relation    // link query, in the server's order
+}
+```
+
 ### Data flow: `tfscli wit work-items get -p MyProject 12345 --fields System.Title,System.Description`
 
 1. cobra parses the command and flags.
@@ -248,9 +277,18 @@ type Batch struct {
 
 `wit work-items list` and `wit work-items get-batch` follow the same flow with a `BatchRequest`. `workitem.List` sends it as the query of `GET {Project}/_apis/wit/workitems`, `workitem.GetBatch` as the JSON body of `POST {Project}/_apis/wit/workitemsbatch` through `client.Post`; parameters that are not set are not sent. Both parse the `value` array of the response with the single-item parser, skip the `null` entries that `errorPolicy=omit` leaves, and return a `*Batch`. The cli printer writes each work item as `wit work-items get` does and then one heading per missing id.
 
+### Data flow: `tfscli wit wiql query-by-wiql -p MyProject --team Web --query "<WIQL>"`
+
+1. cobra parses the command and flags. A missing or blank `--query` and a query given as an argument are rejected locally with category `config`, before any request.
+2. `config.Load` resolves the configuration as for `wit work-items get`. The project is optional for this command; `--team` without a project from any source is rejected locally with category `config`.
+3. cli builds the `Logger` and the `apiclient.APIClient` as above and calls `wiql.QueryByWiql(ctx, client, req)`, setting `Top` and `TimePrecision` only for flags that were given.
+4. `wiql.QueryByWiql` builds the path `{Project}/{Team}/_apis/wit/wiql`, leaving out the segments that are empty, and calls `client.Post` with the body `{"query": ...}` and the optional `$top` and `timePrecision` in the query string. A syntax error in the query comes back as HTTP 400 with the server's message, which `apiclient` reports in the `config` category.
+5. `wiql.QueryByWiql` unmarshals the response into a `*wiql.Result`; a response of the wrong shape is reported in the `server` category.
+6. The cli printer writes a heading with the query type and `asOf`, the columns, and either the ids or one line per relation, with `none` for an empty list. The work items themselves are not read; the caller passes the ids to `wit work-items list --ids`.
+
 ### Security checklist
 
-**Trust boundary.** Untrusted input enters the program at four places: (a) HTTP responses from the TFS server, (b) the config file, (c) the credential in `auth.json` or `TFSCLI_AUTH`, (d) CLI args, environment variables, and the answers typed into `auth login`. The domain layer (`workitem`) and printers treat parsed Go structures as already-validated; validation happens at the boundary.
+**Trust boundary.** Untrusted input enters the program at four places: (a) HTTP responses from the TFS server, (b) the config file, (c) the credential in `auth.json` or `TFSCLI_AUTH`, (d) CLI args, environment variables, and the answers typed into `auth login`. The domain layer (`workitem`, `wiql`) and printers treat parsed Go structures as already-validated; validation happens at the boundary.
 
 **Validation.**
 - CLI args: cobra type checking; positive-integer check on every work-item id, from the argument of `wit work-items get` and from `--ids`.
@@ -267,7 +305,7 @@ type Batch struct {
 - PAT enters at `config.Load` (from `auth.json` or `TFSCLI_AUTH`) or at the hidden prompt of `auth login`, and is held only in `Config` and `config.Auth`. It is never accepted as a flag or a command argument.
 - The PAT is always paired with the URL stored next to it; no flag, environment variable, or config key can redirect it to another server.
 - Passed to `apiclient.New(cfg, logger)` and stored there. Used in exactly one place: setting `Authorization` on outgoing requests.
-- `workitem`, `htmlmd`, `tfserr`, and the cli printer never receive the PAT.
+- `workitem`, `wiql`, `htmlmd`, `tfserr`, and the cli printer never receive the PAT.
 
 **Defaults are safe.**
 - TLS verification: on. `InsecureSkipVerify` must be set explicitly in the config file.
@@ -276,7 +314,7 @@ type Batch struct {
 
 ### Notes for future evolution
 
-- **New API domain** (repos, builds, wiql): add a new domain module and register its resource command under the area command, adding the area command (e.g. `git`) if it does not exist yet. No edits to `apiclient`, `config`, or `tfserr`.
+- **New API domain** (repos, builds): add a new domain module and register its resource command under the area command, adding the area command (e.g. `git`) if it does not exist yet. No edits to `apiclient`, `config`, or `tfserr`.
 - **`--json` output**: introduce a `Renderer` interface in the cli layer; add a `JSONRenderer` that consumes `*WorkItem` directly. The markdown printer becomes the other implementation. Local refactor confined to the cli layer.
 - **TFS-specific HTML quirks** (mentions, attachment links, Word paste leftovers): add rules in `htmlmd` plus golden tests on real samples. Tracked in `2026-05-20-tasks-html-quirks.md`.
 
@@ -288,7 +326,7 @@ Go module path: `github.com/dpleshakov/tfscli`.
 
 ### Layout principle
 
-Standard Go CLI layout: a single binary entry point under `cmd/`, all implementation under `internal/`. Package boundaries are exactly the module boundaries from the Architecture section — one Go package per module (cli, config, apiclient, workitem, htmlmd, tfserr, log) — so the dependency rules stated there are visible in import lists and enforced by the compiler rather than by convention. Everything lives under `internal/` because tfscli is a CLI tool, not a library: a zero public API surface keeps full freedom to refactor between releases.
+Standard Go CLI layout: a single binary entry point under `cmd/`, all implementation under `internal/`. Package boundaries are exactly the module boundaries from the Architecture section — one Go package per module (cli, config, apiclient, workitem, wiql, htmlmd, tfserr, log) — so the dependency rules stated there are visible in import lists and enforced by the compiler rather than by convention. Everything lives under `internal/` because tfscli is a CLI tool, not a library: a zero public API surface keeps full freedom to refactor between releases.
 
 ### Top-level directories
 
