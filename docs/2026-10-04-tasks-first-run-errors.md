@@ -9,7 +9,7 @@ way" principle in `docs/project-brief.md` found errors that a first-time user
 can encounter without being told the next step, and one setting that may be
 required without need. The problems tied to the REST API version and to the
 login verification request are tracked in
-`docs/2026-10-01-tasks-login-api-version.md` and are not repeated here.
+`docs/archive/2026-10-01-tasks-login-api-version.md` and are not repeated here.
 
 The error categories are a contract and stay as they are; the tasks below
 change message text only, unless a task records otherwise.

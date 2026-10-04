@@ -1,6 +1,6 @@
 # 2026-10-01-tasks-login-api-version.md
 
-**Status:** Active
+**Status:** Archived
 
 ## Context
 
@@ -490,4 +490,4 @@ PAT are answered (TD-01 in `docs/tech-debt.md`).
 confirmed or refuted, with the server release it was checked on. A refuted
 assumption is followed by a new task in this file, or by a new tasks file
 when it changes a decision.
-**Status:** Pending
+**Status:** Skipped — the live check is done separately; any fixes it calls for go into a new tasks file

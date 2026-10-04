@@ -14,9 +14,10 @@ access would be accepted and stored.
 instance, and no live run has happened yet; the stub-server tests cover the
 assumed shape only.
 **Trigger:** the live check of `auth login` (TASK-04 of
-`docs/archive/2026-10-01-tasks-auth-login.md`, done separately), or the
-research in `docs/2026-10-01-tasks-login-api-version.md` if it replaces the
-verification request.
+`docs/archive/2026-10-01-tasks-auth-login.md` and TASK-06 of
+`docs/archive/2026-10-01-tasks-login-api-version.md`, both done separately).
+The research in the latter kept the verification request, so it does not
+resolve this item.
 **Added:** 2026-10-01, in a pre-push review of the unpushed commits
 
 #### TD-02 `tls-1.2-minimum`
@@ -51,7 +52,7 @@ injected clock in `loggingTransport`, or a weaker assertion such as
 **Trigger:** the next change to `loggingTransport` or to request logging, or
 any further flaky failure in the `apiclient` tests.
 **Added:** 2026-10-04, while executing TASK-04 of
-`docs/2026-10-01-tasks-login-api-version.md`
+`docs/archive/2026-10-01-tasks-login-api-version.md`
 
 ---
 
