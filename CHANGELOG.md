@@ -3,15 +3,25 @@
 ## [Unreleased]
 
 ### Added
+### Fixed
+### Changed
+### Removed
+
+---
+
+## [0.0.6] — 2026-10-04
+
+### Added
 - `tfscli wit work-items list` prints several work items by id with one request, taking the ids in `--ids` and the optional `--fields`, `--as-of`, and `--error-policy`.
 - `tfscli wit work-items get-batch` does the same with a POST request, for lists of ids too long for the URL of `wit work-items list`, on Azure DevOps Server 2019 or later.
 - `--error-policy omit` on both commands prints the work items that exist and lists each id the server did not return, instead of failing the command.
 - `tfscli wit wiql query-by-wiql` runs the WIQL query given in `--query` and prints the ids of the work items found, or the links between them for a tree or one-hop query, with the optional `-p`, `--team`, `--top`, and `--time-precision`; without a project the query runs across the collection.
+
 ### Fixed
 - A mistyped command name after the area, such as `tfscli wit workitems get`, is now reported as a `config` error that suggests the closest command, instead of printing help and exiting with 0.
+
 ### Changed
 - `tfscli workitem get` is now `tfscli wit work-items get`: commands are named by the REST API area, the resource, and the operation, as the paths of the REST API reference name them, and the old name is no longer accepted.
-### Removed
 
 ---
 
