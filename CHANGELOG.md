@@ -3,13 +3,22 @@
 ## [Unreleased]
 
 ### Added
-- `tfscli auth login` asks for the server URL and a personal access token with hidden input, checks them against the server without an API version, and stores them together in `$XDG_DATA_HOME/tfscli/auth.json` (`~/.local/share/tfscli/auth.json` by default), readable by the current user only.
-- `TFSCLI_AUTH` supplies the same credential as JSON, `{"url": "…", "pat": "…"}`, where an interactive login is not possible, such as in CI.
-
 ### Fixed
 ### Changed
 - Requests no longer carry `api-version=7.2` by default: without `--api-version`, `TFSCLI_API_VERSION`, or `apiVersion`, no version is sent and the server answers at the version it chooses, so servers that do not support REST API 7.2 work without configuration.
+- `tfscli auth login` now checks the credential without an API version: `apiVersion` from the config file no longer applies to it, and `--api-version` on it is refused with a `config` error.
 - An API version refused by the server is now reported together with the setting it came from — `--api-version`, `TFSCLI_API_VERSION`, or `apiVersion` in the config file — and how to fix it.
+### Removed
+
+---
+
+## [0.0.3] — 2026-10-01
+
+### Added
+- `tfscli auth login` asks for the server URL and a personal access token with hidden input, checks them against the server, and stores them together in `$XDG_DATA_HOME/tfscli/auth.json` (`~/.local/share/tfscli/auth.json` by default), readable by the current user only.
+- `TFSCLI_AUTH` supplies the same credential as JSON, `{"url": "…", "pat": "…"}`, where an interactive login is not possible, such as in CI.
+
+### Changed
 - The config file is now read from `$XDG_CONFIG_HOME/tfscli/config.json`, or `~/.config/tfscli/config.json` when `XDG_CONFIG_HOME` is not set, on every OS including Windows; `~/.tfscli/config.json` is no longer read.
 - The personal access token is now sent only to the server URL stored with it; the server URL and the token always come from the same source, `auth.json` or `TFSCLI_AUTH`.
 
