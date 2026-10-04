@@ -132,11 +132,12 @@ func TestAuthLoginRemovesTheCollectionFromTheURL(t *testing.T) {
 	const notice = "The URL ends with the collection"
 
 	tests := []struct {
-		name    string
-		path    string
-		stored  string
-		request string
-		trimmed bool
+		name       string
+		path       string
+		collection string // DefaultCollection when empty
+		stored     string
+		request    string
+		trimmed    bool
 	}{
 		{
 			name:    "path is the collection only, in another case",
@@ -171,19 +172,31 @@ func TestAuthLoginRemovesTheCollectionFromTheURL(t *testing.T) {
 			stored:  "/MyDefaultCollection",
 			request: "/MyDefaultCollection/DefaultCollection/_apis/connectionData",
 		},
+		{
+			name:       "percent-encoded collection name",
+			path:       "/tfs/My%20Collection",
+			collection: "My Collection",
+			stored:     "/tfs",
+			request:    "/tfs/My Collection/_apis/connectionData",
+			trimmed:    true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			collection := tt.collection
+			if collection == "" {
+				collection = "DefaultCollection"
+			}
 			s := newServer(t, http.StatusOK, connectionDataResponse)
 
-			authPath, stdout, stderr, code := login(t, typed(s.URL+tt.path, "DefaultCollection", "secret-token"))
+			authPath, stdout, stderr, code := login(t, typed(s.URL+tt.path, collection, "secret-token"))
 
 			if code != 0 {
 				t.Fatalf("exit code = %d, want 0 (stderr: %s)", code, stderr)
 			}
 			stored := s.URL + tt.stored
-			if want := "Logged in to " + stored + ", collection DefaultCollection, as Jane Doe\n"; stdout != want {
+			if want := "Logged in to " + stored + ", collection " + collection + ", as Jane Doe\n"; stdout != want {
 				t.Errorf("stdout = %q, want %q", stdout, want)
 			}
 			if s.path != tt.request {
