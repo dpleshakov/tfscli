@@ -238,6 +238,107 @@ empty `apiVersion` with the default, both after flags are applied and in
 | Negotiation through `OPTIONS {url}/_apis` before each call | Depends on the `OPTIONS` request being available and answered with the PAT; unverified before TFS 2018 | Varies by server | Yes, at the cost of a second request on every call, since tfscli keeps no cache |
 | Retry with the version named in an out-of-range error | Every server that names its version in the error | Varies by server | Yes, at the cost of a second request on servers below the default, and only while the message text keeps its form |
 
+### Decisions
+
+The decisions below cover every request, not only the login verification:
+`auth login` and the other commands share `apiclient` and the configuration
+chain, so the API version cannot be settled for one without the other.
+
+**1. No `api-version` by default.** When no version is configured, requests
+carry no `api-version`, neither in the query nor in the `Accept` header. A
+version set by `--api-version`, `TFSCLI_API_VERSION`, or `apiVersion` in the
+config file is sent unchanged. The built-in default `7.2` is removed.
+
+Reasons: a GET without a version works on every server that accepts it, and
+Microsoft's own Node SDK and documentation samples rely on that; the user
+does not need to know the server's API version; the login verification and
+the commands behave alike, and `connectionData` is served at its latest
+preview version without tfscli appending `-preview`; a user can still pin a
+version.
+
+Accepted costs: the documentation calls the version required; GET without a
+version is unverified on TFS 2017 and earlier, which do not work without
+configuration today either; the response shape depends on the server, which
+the markdown output tolerates and which has to be settled together with
+`--json`; a POST request, needed by future commands such as batch get or
+WIQL, is refused without a version, so those commands need their own
+approach when they arrive.
+
+Rejected:
+- The lowest version all target servers support, such as `1.0`: it is
+  unverified whether the request tfscli sends (project segment, `fields`) is
+  accepted at that version, and it fixes the oldest response shape on every
+  server.
+- Negotiation through `OPTIONS {url}/_apis`: a second request on every call,
+  since tfscli keeps no cache, and unverified availability before TFS 2018.
+- Retrying with the version named in an out-of-range error: it depends on
+  message text that is not a contract and may be localised, and costs a
+  second request on every older server.
+- Keeping `7.2`: by the findings above it is likely refused by every server
+  for Get Work Item.
+
+**2. The login verification never carries `api-version`.** The
+`connectionData` request made by `auth login` is sent without a version,
+whatever the flag, the environment, or the config file say. The appending of
+`-preview` in `internal/cli/auth.go` is removed. `--api-version` given to
+`auth login` is refused with a `config` error rather than silently ignored;
+`TFSCLI_API_VERSION` and `apiVersion` are ignored by `auth login`, since they
+are set for the other commands, and its help says so.
+
+Reasons: `connectionData` has no released version, so a version pinned for
+the commands, such as `6.0`, would be refused for it unless `-preview` were
+appended, which rests on an unverified assumption; the version a user pins
+fixes the shape of data, which the verification of the URL and PAT pair does
+not read; an out-of-range error cannot occur during login, so login needs no
+next step for it; the special case "login reads the version from the config
+file only" disappears.
+
+Accepted cost: a server that refuses `connectionData` without a version, if
+one exists (TFS 2017 and earlier are unverified), leaves no way to log in.
+Such a server cannot be logged in to today without a config file either; it
+is addressed when one is reported.
+
+Rejected:
+- The login verification reads the version from the same chain as the
+  commands: a pinned released version is refused for a preview resource, so
+  the `-preview` workaround would have to stay.
+- Keeping the version from the config file only, as now: the same problem,
+  plus an exception to the configuration chain that has no reason.
+- Trying without a version first and with one second: no server is known to
+  need the second attempt, and the version for it would have to be guessed.
+- Replacing the verification request: no candidate identifies the user, and
+  `projects` needs a collection, which login does not have (see the findings
+  above).
+
+**3. A refused API version names its source and the next step.** After
+decisions 1 and 2 the server can refuse a version only for a command, and
+only when the user configured one. The error is recognised by the exception
+name in the TFS error body (`typeKey`, alongside `message`), not by the
+message text. When it names a version error and a version was configured,
+the message from the server is kept and followed by the source of the
+version (`--api-version`, `TFSCLI_API_VERSION`, or `apiVersion` in the config
+file with its path) and the next step: remove the setting to let the server
+choose, or lower it. Every other error is unchanged.
+
+Reasons: the exception name does not depend on the server's language or on
+the wording of the message; the server's message is kept, and it names the
+latest version the server supports; an error about an unknown field in
+`--fields`, which is also HTTP 400, does not receive a misleading hint.
+
+Accepted costs: the `typeKey` values are known from memory only —
+`VssVersionOutOfRangeException` for a version above the server's, and
+probably a separate one for a preview resource requested without `-preview`
+— and are unverified; until they are confirmed the hint may not appear, which
+leaves the user with the server's message, as today. The configuration has to
+record where the version came from.
+
+Rejected:
+- Matching the message text, such as "out of range": it breaks on a server
+  installed in another language.
+- Adding the hint to every HTTP 400 when a version is configured: it
+  misleads on an error about `--fields`, which contradicts the rule not to
+  guess.
+
 ---
 
 ### TASK-01 `research`
@@ -326,4 +427,67 @@ options with their reasons in the Context section.
 **Definition of done:** The decision and the rejected options are recorded in
 the Context section, and implementation tasks for the decision are added to
 this file.
+**Status:** Done
+
+### TASK-04 `no-default-version`
+**Description:** Implement decisions 1 and 2 together, since removing the
+default alone would leave `auth login` sending `api-version=-preview`.
+- Remove `DefaultAPIVersion` and the substitution of an empty `apiVersion`
+  in `internal/config/config.go`, and make `internal/apiclient/apiclient.go`
+  add `api-version` only when a version is configured.
+- In `internal/cli/auth.go`, send the `connectionData` request without a
+  version and remove the appending of `-preview`; refuse `--api-version` on
+  `auth login` with a `config` error; state in the command's help that the
+  API version settings do not apply to it.
+- Update the `--api-version` help text in `internal/cli/cli.go`; the
+  configuration tables, the request shown, the verbose example, and the
+  description of `auth login` in `README.md` and `skills/tfscli/SKILL.md`;
+  `config.example.json`; the target API version and the "Authentication"
+  section in `docs/project-brief.md`; the `CLAUDE.md` constraint that names
+  `7.2` as the default; and `docs/architecture.md` where it names the
+  default.
+- Record the change in `CHANGELOG.md` through the `changelog` skill.
+**Definition of done:** With no version configured, a request carries no
+`api-version` parameter; a version from the flag, the environment, or the
+config file is sent unchanged. The login verification carries no
+`api-version` whatever is configured, and `auth login --api-version …` fails
+with a `config` error. Tests cover each case. No document outside
+`docs/archive/`, earlier `CHANGELOG.md` releases, and the Context section of
+this file describes `7.2` as the default or says that `auth login` reads the
+API version. `make check` passes.
+**Status:** Pending
+
+### TASK-05 `version-error-step`
+**Description:** Implement decision 3. Record in `internal/config` which
+source supplied the API version: the flag, the environment, or the config
+file with its path. In `internal/apiclient/apiclient.go`, read `typeKey` from
+the TFS error body next to `message`; when it names a version error and a
+version was configured, append the source and the next step to the server's
+message. Treat `VssVersionOutOfRangeException` as a version error, and the
+exception for a preview resource requested without `-preview` once its name
+is known; keep the set of names in one place so that the live check can
+correct it. Update the `config` row in the error table of
+`skills/tfscli/SKILL.md` and its representative messages. Record the change
+in `CHANGELOG.md` through the `changelog` skill.
+**Definition of done:** Against a stub server returning a version error with
+the expected `typeKey`, the message names the source of the version and the
+next step for each of the three sources. A 400 with another `typeKey`, or
+with none, keeps its current message. Tests cover these cases. `make check`
+passes.
+**Status:** Pending
+
+### TASK-06 `live-check`
+**Description:** Against a live TFS or Azure DevOps Server, preferably more
+than one release, check the assumptions the decisions rest on: that
+`_apis/connectionData` and `{project}/_apis/wit/workitems/{id}`, with and
+without `fields`, are answered without `api-version`; that
+`api-version=7.2` is refused for Get Work Item; the `typeKey` values of the
+out-of-range error and of a preview resource requested without `-preview`;
+how `connectionData` answers a URL that contains a collection, including
+`instanceId` and `deploymentId`; and how an anonymous request and an invalid
+PAT are answered (TD-01 in `docs/tech-debt.md`).
+**Definition of done:** Each assumption is recorded in the Context section as
+confirmed or refuted, with the server release it was checked on. A refuted
+assumption is followed by a new task in this file, or by a new tasks file
+when it changes a decision.
 **Status:** Pending
