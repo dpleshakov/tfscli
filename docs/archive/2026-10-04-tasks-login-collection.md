@@ -1,6 +1,6 @@
 # 2026-10-04-tasks-login-collection.md
 
-**Status:** Active
+**Status:** Archived
 
 ## Context
 
@@ -132,4 +132,4 @@ the user.
 **Definition of done:** `auth login` stores the credential and prints the
 success line; `workitem get` returns a work item using the stored
 credential.
-**Status:** Pending
+**Status:** Skipped — the live run is made on the binary built by the Release workflow after a release; problems it reveals go to a new tasks file
