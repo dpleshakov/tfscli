@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -537,4 +538,146 @@ func assertTFSError(t *testing.T, err error, want tfserr.Category) *tfserr.Error
 		t.Fatalf("category = %q, want %q", te.Category, want)
 	}
 	return te
+}
+
+// postRecord is what a test server saw of one request.
+type postRecord struct {
+	method      string
+	path        string
+	query       url.Values
+	contentType string
+	auth        string
+	body        string
+}
+
+func recordingServer(t *testing.T, reply string) (*httptest.Server, *postRecord) {
+	t.Helper()
+	rec := &postRecord{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		*rec = postRecord{
+			method:      r.Method,
+			path:        r.URL.Path,
+			query:       r.URL.Query(),
+			contentType: r.Header.Get("Content-Type"),
+			auth:        r.Header.Get("Authorization"),
+			body:        string(body),
+		}
+		_, _ = w.Write([]byte(reply))
+	}))
+	t.Cleanup(srv.Close)
+	return srv, rec
+}
+
+func TestPostSendsJSONBody(t *testing.T) {
+	srv, rec := recordingServer(t, `{"count":0,"value":[]}`)
+	client, _ := newTestClient(t, srv.URL)
+
+	body := struct {
+		IDs    []int    `json:"ids"`
+		Fields []string `json:"fields,omitempty"`
+	}{IDs: []int{297, 299}}
+	got, err := client.Post(t.Context(), "/MyProject/_apis/wit/workitemsbatch", nil, body)
+	if err != nil {
+		t.Fatalf("Post() error = %v, want nil", err)
+	}
+
+	if rec.method != http.MethodPost {
+		t.Errorf("method = %q, want POST", rec.method)
+	}
+	if want := "/DefaultCollection/MyProject/_apis/wit/workitemsbatch"; rec.path != want {
+		t.Errorf("path = %q, want %q", rec.path, want)
+	}
+	if rec.contentType != "application/json" {
+		t.Errorf("Content-Type = %q, want application/json", rec.contentType)
+	}
+	if want := `{"ids":[297,299]}`; rec.body != want {
+		t.Errorf("body = %q, want %q", rec.body, want)
+	}
+	if want := "Basic " + base64.StdEncoding.EncodeToString([]byte(":"+testPAT)); rec.auth != want {
+		t.Errorf("Authorization = %q, want %q", rec.auth, want)
+	}
+	if want := `{"count":0,"value":[]}`; string(got) != want {
+		t.Errorf("returned body = %q, want %q", got, want)
+	}
+}
+
+func TestPostCarriesQueryAndAPIVersion(t *testing.T) {
+	srv, rec := recordingServer(t, "")
+	client, _ := newTestClient(t, srv.URL)
+
+	query := url.Values{"$top": {"50"}}
+	if _, err := client.Post(t.Context(), "/MyProject/_apis/wit/wiql", query, map[string]string{}); err != nil {
+		t.Fatalf("Post() error = %v, want nil", err)
+	}
+
+	if want := "7.2"; rec.query.Get("api-version") != want {
+		t.Errorf("api-version = %q, want %q", rec.query.Get("api-version"), want)
+	}
+	if want := "50"; rec.query.Get("$top") != want {
+		t.Errorf("$top = %q, want %q", rec.query.Get("$top"), want)
+	}
+	if _, ok := query["api-version"]; ok {
+		t.Errorf("caller query gained an api-version key: %v", query)
+	}
+}
+
+func TestPostWithoutAPIVersion(t *testing.T) {
+	srv, rec := recordingServer(t, "")
+	client, err := New(&config.Config{
+		URL:        srv.URL,
+		Collection: "DefaultCollection",
+		PAT:        testPAT,
+	}, &recordingLogger{})
+	if err != nil {
+		t.Fatalf("New() error = %v, want nil", err)
+	}
+
+	if _, err := client.Post(t.Context(), "/MyProject/_apis/wit/workitemsbatch", nil, map[string]string{}); err != nil {
+		t.Fatalf("Post() error = %v, want nil", err)
+	}
+
+	if _, ok := rec.query["api-version"]; ok {
+		t.Errorf("query = %v, want no api-version", rec.query)
+	}
+}
+
+func TestGetSendsNoContentType(t *testing.T) {
+	srv, rec := recordingServer(t, "")
+	client, _ := newTestClient(t, srv.URL)
+
+	if _, err := client.Get(t.Context(), "/MyProject/_apis/wit/workitems/123", nil); err != nil {
+		t.Fatalf("Get() error = %v, want nil", err)
+	}
+
+	if rec.contentType != "" {
+		t.Errorf("Content-Type = %q, want none for a request without a body", rec.contentType)
+	}
+}
+
+func TestPostClassifiesResponseStatus(t *testing.T) {
+	const body = `{"$id":"1","message":"TF401232: Work item 99999 does not exist.","typeKey":"WorkItemNotFoundException"}`
+	srv := errorServer(t, http.StatusNotFound, body)
+	client, _ := newTestClient(t, srv.URL)
+
+	_, err := client.Post(t.Context(), "/MyProject/_apis/wit/workitemsbatch", nil, map[string]string{})
+	te := assertTFSError(t, err, tfserr.NotFound)
+	if te.HTTPStatus != http.StatusNotFound {
+		t.Errorf("HTTPStatus = %d, want %d", te.HTTPStatus, http.StatusNotFound)
+	}
+	if want := "TF401232: Work item 99999 does not exist."; te.Message != want {
+		t.Errorf("message = %q, want %q", te.Message, want)
+	}
+}
+
+func TestPostRejectsUnencodableBody(t *testing.T) {
+	srv, rec := recordingServer(t, "")
+	client, _ := newTestClient(t, srv.URL)
+
+	_, err := client.Post(t.Context(), "/MyProject/_apis/wit/workitemsbatch", nil, make(chan int))
+
+	_ = assertTFSError(t, err, tfserr.Config)
+	if rec.method != "" {
+		t.Errorf("a %s request was sent, want none", rec.method)
+	}
 }

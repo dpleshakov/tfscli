@@ -1,6 +1,7 @@
 package apiclient
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -102,6 +103,26 @@ func New(cfg *config.Config, logger log.Logger) (*Client, error) {
 // response or a transport failure the error is a *tfserr.Error carrying the
 // matching category.
 func (c *Client) Get(ctx context.Context, path string, query url.Values) ([]byte, error) {
+	return c.do(ctx, http.MethodGet, path, query, nil)
+}
+
+// Post performs a POST request against path with body encoded as JSON. The
+// path, the query, api-version, and the errors are handled as in Get.
+func (c *Client) Post(ctx context.Context, path string, query url.Values, body any) ([]byte, error) {
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return nil, &tfserr.Error{
+			Category: tfserr.Config,
+			Message:  fmt.Sprintf("cannot encode the request body for %s", path),
+			Cause:    err,
+		}
+	}
+	return c.do(ctx, http.MethodPost, path, query, payload)
+}
+
+// do sends one request and returns the body of a 2xx response. A nil payload
+// sends no body; a non-nil one is sent as JSON.
+func (c *Client) do(ctx context.Context, method, path string, query url.Values, payload []byte) ([]byte, error) {
 	u := c.base.JoinPath(path)
 	q := maps.Clone(query)
 	if q == nil {
@@ -112,7 +133,11 @@ func (c *Client) Get(ctx context.Context, path string, query url.Values) ([]byte
 	}
 	u.RawQuery = q.Encode()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	var reqBody io.Reader
+	if payload != nil {
+		reqBody = bytes.NewReader(payload)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, u.String(), reqBody)
 	if err != nil {
 		return nil, &tfserr.Error{
 			Category: tfserr.Config,
@@ -124,6 +149,9 @@ func (c *Client) Get(ctx context.Context, path string, query url.Values) ([]byte
 	// single place where it is attached to a request.
 	req.SetBasicAuth("", c.pat)
 	req.Header.Set("Accept", "application/json")
+	if payload != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
 
 	resp, err := c.http.Do(req)
 	if err != nil {

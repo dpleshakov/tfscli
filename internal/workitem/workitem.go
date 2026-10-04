@@ -15,11 +15,11 @@ import (
 	"github.com/dpleshakov/tfscli/internal/tfserr"
 )
 
-// APIClient is the part of the API client this package uses. Post is absent
-// because Get Work Item is a GET; it joins the interface when the first POST
-// endpoint (batch get, WIQL) arrives.
+// APIClient is the part of the API client this package uses: Get for Get Work
+// Item and List, Post for Get Work Items Batch.
 type APIClient interface {
 	Get(ctx context.Context, path string, query url.Values) ([]byte, error)
+	Post(ctx context.Context, path string, query url.Values, body any) ([]byte, error)
 }
 
 // FieldKind tells the printer how to render a field value.

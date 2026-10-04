@@ -78,7 +78,7 @@ that says it is absent.
 **Definition of done:** Unit tests cover the method, the `Content-Type`
 header, the body sent, `api-version` present and absent, and the error
 classification on a non-2xx response; `make check` passes.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-03 `workitem-get-batch`
 **Description:** Add `workitem.GetBatch` to `internal/workitem`: it requests
