@@ -60,17 +60,20 @@ report, not to guess at.
 
 ## Authentication
 
-The server URL and the PAT are stored together, and the token is only ever
-sent to the URL stored with it. They come from one of two sources:
+A PAT is issued for one collection, so the server URL, the collection, and the
+PAT are stored together, and the token is only ever sent to the URL and the
+collection stored with it. They come from one of two sources:
 
 - `$XDG_DATA_HOME/tfscli/auth.json` (`~/.local/share/tfscli/auth.json` when
   `XDG_DATA_HOME` is not set, on every OS), written by `tfscli auth login`.
-- `TFSCLI_AUTH`, holding the same JSON, `{"url": "…", "pat": "…"}`. When it is
-  set, `auth.json` is not read.
+- `TFSCLI_AUTH`, holding the same JSON,
+  `{"url": "…", "collection": "…", "pat": "…"}`. When it is set, `auth.json`
+  is not read.
 
-There is no flag, separate environment variable, or config key for the URL or
-the token. The server is therefore fixed by the user's login; do not try to
-point tfscli at another one.
+There is no flag, separate environment variable, or config key for the URL, the
+collection, or the token. The server and the collection are therefore fixed by
+the user's login; do not try to point tfscli at another one. If the user needs
+a different collection, they have to log in again with a token issued for it.
 
 `tfscli auth login` is for the user to run in their own terminal: it asks for
 the token with echo turned off and refuses to run without an interactive
@@ -88,7 +91,6 @@ OS), environment variables, command-line flags.
 
 | Setting | Config key | Environment variable | Flag | Default | Required |
 |---|---|---|---|---|---|
-| Collection | `collection` | `TFSCLI_COLLECTION` | `--collection` | — | yes |
 | Team project | `project` | `TFSCLI_PROJECT` | `-p`, `--project` | — | per command |
 | REST API version | `apiVersion` | `TFSCLI_API_VERSION` | `--api-version` | none | no |
 | Request logging | — | `TFSCLI_VERBOSE=1` | `--verbose` | off | no |
@@ -103,7 +105,7 @@ answers at the version it chooses. A configured version is sent unchanged. Do
 not set one unless the user asks for it.
 
 The config file is optional. Environment variables and flags alone are enough,
-so `--collection` and `-p` can carry everything a call needs.
+so `-p` can carry everything a call needs beyond the credential.
 
 ## The command
 
@@ -186,7 +188,7 @@ removed or renamed, though new ones may appear.
 |---|---|---|
 | `auth` | HTTP 401 — the server did not accept the PAT: it is invalid, expired, or revoked, or IIS Basic Authentication is enabled on the server. | Do not retry, and do not try another token. Tell the user the PAT needs to be renewed and stored again with `tfscli auth login`, or, if the PAT is known to be valid, that a server administrator has to turn IIS Basic Authentication off. |
 | `forbidden` | HTTP 403 — authenticated, but access denied. | Do not retry. The PAT lacks the scope, or the project is closed to this user. Report it. |
-| `not_found` | HTTP 404 — no such work item, project, or collection. | Check the id and the project spelling against what the user gave. Do not scan ids looking for a match. |
+| `not_found` | HTTP 404 — no such work item or project. | Check the id and the project spelling against what the user gave. Do not scan ids looking for a match. |
 | `server` | HTTP 5xx, or a response that could not be parsed. | One retry is reasonable. If it repeats, report the server as unavailable. |
 | `config` | A missing or invalid setting, a missing or malformed credential, a bad argument, or a request TFS rejected — a 4xx other than 401, 403, and 404, such as an unknown field name or an unsupported API version. A refused API version names the setting it came from — `--api-version`, `TFSCLI_API_VERSION`, or `apiVersion` in the config file — and the next step. | Fix the invocation if the fault is in it. If the API version was refused and it came from `--api-version` you passed, drop the flag and retry; if it came from the environment or the config file, report the message to the user rather than changing the setting. If a setting is missing, report what is missing; do not write the config file. If the user is not logged in, tell them to run `tfscli auth login`. |
 | `network` | The server could not be reached, or the request timed out or was canceled. | Do not repeat the call in a loop. Report the server as unreachable and let the user check the URL and their connection. |

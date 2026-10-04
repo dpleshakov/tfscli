@@ -31,7 +31,7 @@ An AI agent can call `tfscli`, read work item content, and use it meaningfully i
 - **Platform:** primary target is Windows (most on-prem TFS environments). Cross-compilation to Linux/macOS is a bonus enabled by Go, not a priority.
 - **API coverage in MVP:** Work Items → Get Work Item (single ID). Get Work Items Batch (multiple IDs) if supported by the target API version. Fields selectable via `--fields` parameter; all fields returned by default.
 - **Target API version:** none by default. Requests carry no `api-version`, so the server answers at the version it chooses, and the same configuration works with older TFS installations and with the latest Azure DevOps Server alike. A version can be pinned in the config file, the environment, or per call, and is then sent unchanged.
-- **Authentication:** PAT only. No SSPI or NTLM. The server URL and the PAT are stored together and always come from the same source, so the token is never sent to any other server: either `$XDG_DATA_HOME/tfscli/auth.json` (default `~/.local/share/tfscli/auth.json`, on every OS), written only by `tfscli auth login`, or the `TFSCLI_AUTH` environment variable holding the same JSON, which takes precedence and serves CI. `auth.json` holds exactly one server, is written with mode `0600` (directory `0700`), and stores the token in plaintext. No flag, separate environment variable, or config key supplies the URL or the token. See "Authentication" below.
+- **Authentication:** PAT only. No SSPI or NTLM. A PAT is issued for one collection, so the collection is part of the credential. The server URL, the collection, and the PAT are stored together and always come from the same source, so the token is never sent to any other server or collection: either `$XDG_DATA_HOME/tfscli/auth.json` (default `~/.local/share/tfscli/auth.json`, on every OS), written only by `tfscli auth login`, or the `TFSCLI_AUTH` environment variable holding the same JSON, which takes precedence and serves CI. `auth.json` holds exactly one credential, is written with mode `0600` (directory `0700`), and stores the token in plaintext. No flag, separate environment variable, or config key supplies the URL, the collection, or the token. See "Authentication" below.
 - **No OS keychain.** Against code running as the same user a keychain adds no protection; other users are excluded by file permissions, and stolen disks by disk encryption. A keychain is reconsidered only if an organisation requires secrets to be kept in the system store, and would then be a second storage backend behind the same `auth login`.
 - **Output:** Markdown by default. JSON as optional flag in future versions.
 - **Distribution:** open source on GitHub, pre-built binaries in releases.
@@ -49,18 +49,19 @@ An AI agent can call `tfscli`, read work item content, and use it meaningfully i
 
 - **Follow TFS API structure.** Command hierarchy mirrors API domains. Parameter names match API parameter names where possible. If TFS API has a batch endpoint — tfscli exposes batch. If it doesn't — tfscli doesn't invent one.
 - **Predictable error output.** Errors go to stderr with a machine-readable category and human-readable message. Exit code is non-zero. Format: `Error [category]: message (HTTP status)`. Error categories are a stable contract: existing categories are never removed or renamed; new categories may be added in future versions.
-- **Minimal configuration.** `auth login` stores the server URL and PAT. An optional config file stores the collection, an optional default project, the API version, and TLS settings. Environment variables and flags override config values. No other configuration needed.
+- **Minimal configuration.** `auth login` stores the server URL, the collection, and the PAT. An optional config file stores an optional default project, the API version, and TLS settings. Environment variables and flags override config values. No other configuration needed.
 - **Clean output for AI consumption.** HTML in work item fields is converted to markdown. Metadata noise (URLs, internal IDs, revision details) is minimized in default output.
 - **Works out of the box; errors lead the way.** tfscli assumes that the user has read no documentation and prepared nothing beforehand. Required setup is limited to what tfscli cannot determine unambiguously on its own, and no setting is required merely because tfscli lacks a working default. tfscli does not guess and does not make choices on the user's behalf: where a value has more than one plausible answer, it asks the user to supply it. Since tfscli is not interactive, apart from `auth login`, error messages are the means of guidance: every error a first-time user can encounter states the concrete next step — the command to run, or the flag, variable, or value to set — and, where only a person can take that step, as with the interactive `auth login`, says so. An error that leaves the user without a next step is a defect.
 - **Server compatibility is preserved.** On-premises installations are upgraded rarely, so the range of TFS / Azure DevOps Server versions tfscli works with should not shrink. A change should not stop tfscli from working with a server it worked with before, whether through the REST API version it requires or through any other server-side dependency. Where a new feature needs a newer server, it is preferably optional: on an older server it fails with a clear error and everything else keeps working. Dropping support for older servers is not prohibited, but it is a deliberate decision: it is made only when the benefit justifies the servers lost, after explicit discussion, and is recorded together with its justification and the alternatives rejected.
 
 ## Authentication
 
-`tfscli auth login` takes no flags. It refuses to run when stdin is not a terminal, asks for the server URL, then for the PAT with echo turned off, verifies the pair with a request to `{url}/_apis/connectionData`, and writes `auth.json` only if the request succeeds. Verification failures are reported in the error categories below. The URL is normalised before it is stored: lower-case scheme and host, no trailing slash. TLS settings come from the config file when it exists. The verification request carries no `api-version`, whatever the config file, `TFSCLI_API_VERSION`, or `--api-version` say: `connectionData` has no released version, and the request reads no data whose shape a version would fix. `--api-version` given to `auth login` is refused with a `config` error.
+`tfscli auth login` takes no flags. It refuses to run when stdin is not a terminal, asks for the server URL, then for the collection, then for the PAT with echo turned off, verifies the three with a request to `{url}/{collection}/_apis/connectionData`, and writes `auth.json` only if the request succeeds. The request is made at collection level because a PAT is issued for a collection: a server may refuse it at server level while accepting it within the collection. Verification failures are reported in the error categories below; a 404 names the address the URL and the collection make up and asks to check both. The URL is normalised before it is stored: lower-case scheme and host, no trailing slash. When the last segment of its path names the collection, as in a URL copied from the browser, that segment is removed and the user is told so. TLS settings come from the config file when it exists. The verification request carries no `api-version`, whatever the config file, `TFSCLI_API_VERSION`, or `--api-version` say: `connectionData` has no released version, and the request reads no data whose shape a version would fix. `--api-version` given to `auth login` is refused with a `config` error.
 
 ```json
 {
   "url": "https://tfs.company.com:8080/tfs",
+  "collection": "DefaultCollection",
   "pat": "..."
 }
 ```
@@ -73,12 +74,11 @@ File: `$XDG_CONFIG_HOME/tfscli/config.json`, defaulting to `~/.config/tfscli/con
 
 ```json
 {
-  "collection": "DefaultCollection",
   "project": "MyProject"
 }
 ```
 
-All values overridable via environment variables (`TFSCLI_COLLECTION`, `TFSCLI_PROJECT`, `TFSCLI_API_VERSION`) and command-line flags (`--collection`, `-p`, `--api-version`). The API version is set with `apiVersion` in the config file, and has no default: without it no `api-version` is sent. The TLS settings `caBundle` and `insecureSkipVerify` are accepted in the config file only.
+All values overridable via environment variables (`TFSCLI_PROJECT`, `TFSCLI_API_VERSION`) and command-line flags (`-p`, `--api-version`). The API version is set with `apiVersion` in the config file, and has no default: without it no `api-version` is sent. The TLS settings `caBundle` and `insecureSkipVerify` are accepted in the config file only.
 
 Priority: CLI flag > environment variable > config file > built-in default.
 

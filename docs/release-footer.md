@@ -1,3 +1,3 @@
 ---
 
-Before the first run, set the server URL, collection, and personal access token as described in [Configuration](https://github.com/dpleshakov/tfscli#configuration).
+Before the first run, store the server URL, the collection, and a personal access token with `tfscli auth login`, as described in [Authentication](https://github.com/dpleshakov/tfscli#authentication).

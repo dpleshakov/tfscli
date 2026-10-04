@@ -11,7 +11,7 @@ Pre-release, and **not yet run against a live TFS instance**. One command exists
 Available now:
 
 - `workitem get` — one work item as markdown, whole or narrowed by `--fields`
-- `auth login` — store the server URL and a PAT, checked against the server
+- `auth login` — store the server URL, the collection, and a PAT, checked against the server
 - Configuration through a file, environment variables, and flags
 - `--verbose` request logging and the full error contract
 
@@ -105,26 +105,27 @@ plain markdown under a short YAML header.
 
 ## Authentication
 
-The server URL and the personal access token are stored together, and the token is only ever sent to the URL stored with it. Store them once per machine:
+A personal access token is issued for one collection, so the server URL, the collection, and the token are stored together, and the token is only ever sent to the URL and the collection stored with it. Store them once per machine:
 
 ```
 $ tfscli auth login
 Server URL (e.g. https://tfs.company.com:8080/tfs): https://tfs.company.com:8080/tfs
+Collection (e.g. DefaultCollection): DefaultCollection
 Personal access token:
-Logged in to https://tfs.company.com:8080/tfs as Jane Doe
+Logged in to https://tfs.company.com:8080/tfs, collection DefaultCollection, as Jane Doe
 ```
 
-The token is typed with echo turned off, and the pair is checked against the server (`_apis/connectionData`) before anything is written. A rejected token is reported in the usual error format and leaves nothing behind. The URL is stored with a lower-case scheme and host and without a trailing slash. The command takes no flags and needs an interactive terminal; it reads `caBundle` and `insecureSkipVerify` from the config file when there is one, so a server behind an internal CA can be reached during login too. The API version settings do not apply to it: the check is sent without `api-version`, whatever the config file or `TFSCLI_API_VERSION` say, and `--api-version` is refused. On Windows under Git Bash (mintty), stdin is not a console; run the command from Windows Terminal, PowerShell, or `cmd`, or prefix it with `winpty`.
+The token is typed with echo turned off, and the three are checked against the server (`{url}/{collection}/_apis/connectionData`) before anything is written. A rejected token is reported in the usual error format and leaves nothing behind; so is a URL or collection that leads nowhere, with the address they made up. The URL is stored with a lower-case scheme and host and without a trailing slash. A URL copied from the browser often ends with the collection: when its last path segment names the collection entered next, that segment is removed, and the command says which server URL it uses instead. The command takes no flags and needs an interactive terminal; it reads `caBundle` and `insecureSkipVerify` from the config file when there is one, so a server behind an internal CA can be reached during login too. The API version settings do not apply to it: the check is sent without `api-version`, whatever the config file or `TFSCLI_API_VERSION` say, and `--api-version` is refused. On Windows under Git Bash (mintty), stdin is not a console; run the command from Windows Terminal, PowerShell, or `cmd`, or prefix it with `winpty`.
 
-The credential is written to `$XDG_DATA_HOME/tfscli/auth.json`, or `~/.local/share/tfscli/auth.json` when `XDG_DATA_HOME` is not set — the same location on every OS. The file is created with mode `0600` and its directory with `0700`; on Windows it inherits the permissions of the user profile. It holds exactly one server: running `auth login` again replaces it.
+The credential is written to `$XDG_DATA_HOME/tfscli/auth.json`, or `~/.local/share/tfscli/auth.json` when `XDG_DATA_HOME` is not set — the same location on every OS. The file is created with mode `0600` and its directory with `0700`; on Windows it inherits the permissions of the user profile. It holds exactly one credential: running `auth login` again replaces it. Working with another collection means logging in again with a token issued for it.
 
 Where an interactive login is impossible, as in CI, put the same JSON into `TFSCLI_AUTH`. When the variable is set, `auth.json` is not read:
 
 ```
-TFSCLI_AUTH='{"url": "https://tfs.company.com:8080/tfs", "pat": "…"}'
+TFSCLI_AUTH='{"url": "https://tfs.company.com:8080/tfs", "collection": "DefaultCollection", "pat": "…"}'
 ```
 
-The URL and the token always come from the same source. There is no flag, separate environment variable, or config key for either, so that neither a mistyped server address nor an injected one can make tfscli send the token to another host.
+All three fields are required. The URL, the collection, and the token always come from the same source. There is no flag, separate environment variable, or config key for any of them, so that neither a mistyped server address nor an injected one can make tfscli send the token to another host.
 
 PAT is the only authentication method. SSPI and NTLM are out of scope. The token is sent as HTTP Basic authentication with an empty user name, which is what the TFS REST API expects. It is not kept in the OS keychain: against code running as the same user a keychain adds no protection, other users are excluded by the file permissions, and a stolen disk is a matter for disk encryption.
 
@@ -141,14 +142,12 @@ The config file is optional: every setting it holds, except the TLS ones below, 
 
 ```json
 {
-  "collection": "DefaultCollection",
   "project": "MyProject"
 }
 ```
 
 | Setting | Config key | Environment variable | Flag | Default | Required |
 |---|---|---|---|---|---|
-| Collection | `collection` | `TFSCLI_COLLECTION` | `--collection` | — | yes |
 | Team project | `project` | `TFSCLI_PROJECT` | `-p`, `--project` | — | per command |
 | REST API version | `apiVersion` | `TFSCLI_API_VERSION` | `--api-version` | none | no |
 | Request logging | — | `TFSCLI_VERBOSE=1` | `--verbose` | off | no |
@@ -233,7 +232,7 @@ The `(HTTP status)` part is omitted for errors that did not come from an HTTP re
 |---|---|
 | `auth` | The server did not accept the PAT (HTTP 401): it is invalid, expired, or revoked, or IIS Basic Authentication is enabled on the server. |
 | `forbidden` | Authenticated, but access was denied (HTTP 403). |
-| `not_found` | The work item, project, or collection does not exist (HTTP 404). |
+| `not_found` | The work item or project does not exist (HTTP 404). During `auth login`, the server URL or the collection leads nowhere. |
 | `server` | TFS failed or returned an unparseable response (HTTP 5xx). |
 | `config` | Missing or invalid configuration, a bad argument, or a request TFS rejected. When TFS refuses a configured API version, the message names the setting it came from. |
 | `network` | The server could not be reached, or the request timed out or was canceled. |
