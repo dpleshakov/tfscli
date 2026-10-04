@@ -1,6 +1,6 @@
 # 2026-10-04-tasks-domains-1-workitem-batch.md
 
-**Status:** Active
+**Status:** Archived
 
 ## Context
 
@@ -129,4 +129,4 @@ POST request; `make check` passes.
 API client and the work item module as GET-only or single-item.
 **Definition of done:** The documents describe the commands as implemented;
 `make check` passes.
-**Status:** Pending
+**Status:** Done

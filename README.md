@@ -6,11 +6,12 @@ Every invocation hits the server: there is no daemon, no background process, and
 
 ## Status
 
-Pre-release. One command exists — `workitem get`. It is covered by tests that drive the full command tree against a stub HTTP server, so the request shape, the output format, and the error contract behave as documented. Against a live TFS instance, release 0.0.5 has been checked for the main path only: `auth login` with a valid PAT and `workitem get` succeed. The error paths and rich-text rendering of a variety of real work items have not been exercised yet; expect discrepancies there, particularly in rich-text rendering.
+Pre-release. Three read commands exist — `workitem get`, `workitem list`, and `workitem get-batch`. They are covered by tests that drive the full command tree against a stub HTTP server, so the request shape, the output format, and the error contract behave as documented. Against a live TFS instance, release 0.0.5 has been checked for the main path only: `auth login` with a valid PAT and `workitem get` succeed. `workitem list` and `workitem get-batch` have not been run against a live server yet. The error paths and rich-text rendering of a variety of real work items have not been exercised yet; expect discrepancies there, particularly in rich-text rendering.
 
 Available now:
 
 - `workitem get` — one work item as markdown, whole or narrowed by `--fields`
+- `workitem list` and `workitem get-batch` — several work items by id in one request
 - `auth login` — store the server URL, the collection, and a PAT, checked against the server
 - Configuration through a file, environment variables, and flags
 - `--verbose` request logging and the full error contract
@@ -195,6 +196,25 @@ Without `--fields`, every field of the work item is printed in the order the ser
 
 `-p` is required unless `project` is set in the config file or `TFSCLI_PROJECT` is exported.
 
+### `workitem list` and `workitem get-batch`
+
+Print several work items, at most 200, with one request:
+
+```
+tfscli workitem list -p MyProject --ids 297,299,300
+```
+
+The two commands are the two operations the REST API offers for this, and take the same flags. `workitem list` is Work Items - List, a GET that carries the ids in the URL. `workitem get-batch` is Get Work Items Batch, a POST that carries them in the request body, so it is not limited by the length of the URL; it needs Azure DevOps Server 2019 or later.
+
+| Flag | API parameter | Effect |
+|---|---|---|
+| `--ids` | `ids` | Comma-separated work item ids. Required. |
+| `--fields` | `fields` | Comma-separated field names, as for `workitem get`. |
+| `--as-of` | `asOf` | Read the work items as they were at this UTC time, e.g. `2026-06-14T09:00:00Z`. |
+| `--error-policy` | `errorPolicy` | `fail` or `omit`. With `fail`, the server's default, a work item that does not exist or cannot be read fails the whole request; with `omit`, the others are returned. |
+
+A flag that is not given is not sent, and `--as-of` and `--error-policy` are passed to the server unchecked: what it accepts is the server's to decide.
+
 ### Output
 
 Short values are printed as `Name: value` lines; prose and multi-line values become sections. HTML fields (`System.Description`, `Microsoft.VSTS.TCM.ReproSteps`, `Microsoft.VSTS.TCM.SystemInfo`, `Microsoft.VSTS.Common.AcceptanceCriteria`) are converted to markdown. Identity fields print as `Display Name <unique.name>`, and timestamps are normalised to UTC with whole seconds, so the same work item renders identically on any machine.
@@ -212,6 +232,12 @@ A **partial** refund sends no email.
 ```
 
 Field names are the raw TFS reference names — the same strings `--fields` accepts.
+
+`workitem list` and `workitem get-batch` print each work item exactly as `workitem get` does, one after another, separated by a blank line, in the order the server returned them, which need not be the order of `--ids`. With `--error-policy omit`, each id the server did not return is printed after them as a heading with no body; the server does not say whether the work item does not exist or cannot be read:
+
+```markdown
+# Work item 298 (not returned: it does not exist, or the PAT has no access to it)
+```
 
 ### Request logging
 
@@ -252,6 +278,9 @@ Error [config]: project is not set (pass -p, set TFSCLI_PROJECT, or add "project
 
 $ tfscli workitem get -p MyProject abc
 Error [config]: work item id "abc" is not a positive integer
+
+$ tfscli workitem list -p MyProject 297 299
+Error [config]: list takes no arguments; pass the work item ids with --ids, e.g. --ids 297,299
 
 $ tfscli workitem get -p MyProject 12345
 Error [config]: The requested REST API version of 7.2 is out of range for this server. The latest REST API version this server supports is 7.1. (api-version "7.2" is set by TFSCLI_API_VERSION; remove it to let the server choose the version, or set one the server supports) (HTTP 400)
