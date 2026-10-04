@@ -18,12 +18,14 @@ import (
 // set, the auth file is not read.
 const AuthEnv = "TFSCLI_AUTH"
 
-// Auth is the credential: the server URL and the PAT issued for it. Both
-// always come from the same source, so that the token is never sent to a
-// server other than the one it was stored with.
+// Auth is the credential: the server URL, the collection, and the PAT issued
+// for that collection. A PAT is issued for one collection, and requests
+// outside it are refused, so the three always come from the same source and
+// the token is never sent anywhere other than where it was stored for.
 type Auth struct {
-	URL string `json:"url"`
-	PAT string `json:"pat"`
+	URL        string `json:"url"`
+	Collection string `json:"collection"`
+	PAT        string `json:"pat"`
 }
 
 // DefaultAuthPath returns the path of the auth file,
@@ -39,7 +41,8 @@ func DefaultAuthPath() (string, error) {
 
 // LoadAuth returns the credential from TFSCLI_AUTH when that variable is set
 // to a non-empty value, and from the auth file at path otherwise. The URL is
-// returned normalised. Every failure is a config error naming the source.
+// returned normalised. Every field is required, and every failure is a config
+// error naming the source.
 func LoadAuth(path string) (*Auth, error) {
 	if v := os.Getenv(AuthEnv); v != "" {
 		return parseAuth([]byte(v), AuthEnv)
@@ -75,7 +78,9 @@ func parseAuth(data []byte, source string) (*Auth, error) {
 		}
 	}
 
-	for _, f := range []struct{ name, value string }{{"url", auth.URL}, {"pat", auth.PAT}} {
+	for _, f := range []struct{ name, value string }{
+		{"url", auth.URL}, {"collection", auth.Collection}, {"pat", auth.PAT},
+	} {
 		if f.value == "" {
 			return nil, &tfserr.Error{
 				Category: tfserr.Config,

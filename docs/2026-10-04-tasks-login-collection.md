@@ -69,7 +69,7 @@ prompt for the collection between the URL and the token, verify against
 the login prompt, the collection-level verification path, the stored
 `auth.json` content, and the success line; `--collection` is rejected as an
 unknown flag.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-02 `login-url-collection-strip`
 **Description:** In `auth login`, when the last path segment of the

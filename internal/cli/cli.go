@@ -57,7 +57,6 @@ type globals struct {
 	stderr io.Writer
 
 	verbose    bool
-	collection string
 	apiVersion string
 }
 
@@ -69,9 +68,10 @@ func newRoot(b build, stdin prompter, stdout, stderr io.Writer) *cobra.Command {
 		Short: "Read-only access to on-premises TFS / Azure DevOps Server",
 		Long: "tfscli reads TFS / Azure DevOps Server through its REST API and prints the\n" +
 			"result as markdown. It is stateless: every call hits the server.\n\n" +
-			"The server URL and the personal access token are stored together by\n" +
-			"\"tfscli auth login\" in $XDG_DATA_HOME/tfscli/auth.json (by default\n" +
-			"~/.local/share/tfscli/auth.json), or supplied as the same JSON in TFSCLI_AUTH.\n\n" +
+			"The server URL, the collection, and the personal access token are stored\n" +
+			"together by \"tfscli auth login\" in $XDG_DATA_HOME/tfscli/auth.json (by\n" +
+			"default ~/.local/share/tfscli/auth.json), or supplied as the same JSON in\n" +
+			"TFSCLI_AUTH.\n\n" +
 			"The other settings are read from $XDG_CONFIG_HOME/tfscli/config.json (by\n" +
 			"default ~/.config/tfscli/config.json), which is optional, and can be\n" +
 			"overridden by the TFSCLI_* environment variables and by the flags below, in\n" +
@@ -91,7 +91,6 @@ func newRoot(b build, stdin prompter, stdout, stderr io.Writer) *cobra.Command {
 
 	f := root.PersistentFlags()
 	f.BoolVar(&g.verbose, "verbose", false, "log every request to stderr (also TFSCLI_VERBOSE=1)")
-	f.StringVar(&g.collection, "collection", "", "collection name (TFSCLI_COLLECTION)")
 	f.StringVar(&g.apiVersion, "api-version", "", "REST API version (TFSCLI_API_VERSION; by default none is sent and the server chooses)")
 
 	root.AddCommand(newAuthCmd(g))
@@ -104,11 +103,7 @@ func newRoot(b build, stdin prompter, stdout, stderr io.Writer) *cobra.Command {
 // Changed distinguishes.
 func (g *globals) overrides(cmd *cobra.Command) config.Overrides {
 	var ov config.Overrides
-	flags := cmd.Flags()
-	if flags.Changed("collection") {
-		ov.Collection = &g.collection
-	}
-	if flags.Changed("api-version") {
+	if cmd.Flags().Changed("api-version") {
 		ov.APIVersion = &g.apiVersion
 	}
 	return ov

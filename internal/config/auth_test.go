@@ -16,30 +16,30 @@ func TestLoadAuthSources(t *testing.T) {
 	}{
 		{
 			name: "auth file",
-			file: `{"url": "https://file.example.com/tfs", "pat": "file-pat"}`,
-			want: Auth{URL: "https://file.example.com/tfs", PAT: "file-pat"},
+			file: `{"url": "https://file.example.com/tfs", "collection": "FileCollection", "pat": "file-pat"}`,
+			want: Auth{URL: "https://file.example.com/tfs", Collection: "FileCollection", PAT: "file-pat"},
 		},
 		{
 			name: "TFSCLI_AUTH without an auth file",
-			env:  `{"url": "https://env.example.com/tfs", "pat": "env-pat"}`,
-			want: Auth{URL: "https://env.example.com/tfs", PAT: "env-pat"},
+			env:  `{"url": "https://env.example.com/tfs", "collection": "EnvCollection", "pat": "env-pat"}`,
+			want: Auth{URL: "https://env.example.com/tfs", Collection: "EnvCollection", PAT: "env-pat"},
 		},
 		{
 			name: "TFSCLI_AUTH takes precedence over the auth file",
-			env:  `{"url": "https://env.example.com/tfs", "pat": "env-pat"}`,
-			file: `{"url": "https://file.example.com/tfs", "pat": "file-pat"}`,
-			want: Auth{URL: "https://env.example.com/tfs", PAT: "env-pat"},
+			env:  `{"url": "https://env.example.com/tfs", "collection": "EnvCollection", "pat": "env-pat"}`,
+			file: `{"url": "https://file.example.com/tfs", "collection": "FileCollection", "pat": "file-pat"}`,
+			want: Auth{URL: "https://env.example.com/tfs", Collection: "EnvCollection", PAT: "env-pat"},
 		},
 		{
 			name: "TFSCLI_AUTH is not merged with the auth file",
-			env:  `{"url": "https://env.example.com/tfs", "pat": "env-pat"}`,
+			env:  `{"url": "https://env.example.com/tfs", "collection": "EnvCollection", "pat": "env-pat"}`,
 			file: `this file is not even JSON`,
-			want: Auth{URL: "https://env.example.com/tfs", PAT: "env-pat"},
+			want: Auth{URL: "https://env.example.com/tfs", Collection: "EnvCollection", PAT: "env-pat"},
 		},
 		{
 			name: "the url is normalised",
-			file: `{"url": "HTTPS://TFS.Example.com:8080/tfs/", "pat": "file-pat"}`,
-			want: Auth{URL: "https://tfs.example.com:8080/tfs", PAT: "file-pat"},
+			file: `{"url": "HTTPS://TFS.Example.com:8080/tfs/", "collection": "FileCollection", "pat": "file-pat"}`,
+			want: Auth{URL: "https://tfs.example.com:8080/tfs", Collection: "FileCollection", PAT: "file-pat"},
 		},
 	}
 
@@ -89,9 +89,10 @@ func TestLoadAuthMalformed(t *testing.T) {
 		want string
 	}{
 		{"not JSON", `{"url": "https://tfs.example.com",`, "is not valid JSON"},
-		{"no url", `{"pat": "secret"}`, `has no "url"`},
-		{"no pat", `{"url": "https://tfs.example.com"}`, `has no "pat"`},
-		{"bad url", `{"url": "tfs.example.com/tfs", "pat": "secret"}`, "must start with http:// or https://"},
+		{"no url", `{"collection": "DefaultCollection", "pat": "secret"}`, `has no "url"`},
+		{"no collection", `{"url": "https://tfs.example.com", "pat": "secret"}`, `has no "collection"`},
+		{"no pat", `{"url": "https://tfs.example.com", "collection": "DefaultCollection"}`, `has no "pat"`},
+		{"bad url", `{"url": "tfs.example.com/tfs", "collection": "DefaultCollection", "pat": "secret"}`, "must start with http:// or https://"},
 	}
 
 	for _, tt := range tests {
@@ -188,7 +189,7 @@ func TestDefaultAuthPath(t *testing.T) {
 func TestSaveAuthRoundTrip(t *testing.T) {
 	clearEnv(t)
 	path := filepath.Join(t.TempDir(), "nested", "tfscli", "auth.json")
-	want := Auth{URL: "https://tfs.example.com/tfs", PAT: "secret"}
+	want := Auth{URL: "https://tfs.example.com/tfs", Collection: "DefaultCollection", PAT: "secret"}
 
 	if err := SaveAuth(path, &want); err != nil {
 		t.Fatalf("SaveAuth() error = %v, want nil", err)

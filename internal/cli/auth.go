@@ -74,15 +74,16 @@ func newAuthCmd(g *globals) *cobra.Command {
 func newAuthLoginCmd(g *globals) *cobra.Command {
 	return &cobra.Command{
 		Use:   "login",
-		Short: "Store the server URL and a personal access token",
-		Long: "Ask for the server URL and a personal access token, check them against the\n" +
-			"server, and store them together in $XDG_DATA_HOME/tfscli/auth.json (by\n" +
-			"default ~/.local/share/tfscli/auth.json), readable by the current user only.\n" +
-			"The token is only ever sent to the URL stored with it. Running the command\n" +
-			"again replaces the stored credential.\n\n" +
+		Short: "Store the server URL, the collection, and a personal access token",
+		Long: "Ask for the server URL, the collection, and a personal access token, check\n" +
+			"them against the server, and store them together in\n" +
+			"$XDG_DATA_HOME/tfscli/auth.json (by default ~/.local/share/tfscli/auth.json),\n" +
+			"readable by the current user only. A token is issued for one collection, and\n" +
+			"it is only ever sent to the URL and the collection stored with it. Running\n" +
+			"the command again replaces the stored credential.\n\n" +
 			"The token is typed with echo off and is never accepted as an argument. The\n" +
 			"command needs an interactive terminal; where there is none, such as in CI,\n" +
-			"set TFSCLI_AUTH to {\"url\": \"…\", \"pat\": \"…\"} instead.\n\n" +
+			"set TFSCLI_AUTH to {\"url\": \"…\", \"collection\": \"…\", \"pat\": \"…\"} instead.\n\n" +
 			"The TLS settings (caBundle, insecureSkipVerify) are taken from the config\n" +
 			"file when it exists. The API version settings (--api-version,\n" +
 			"TFSCLI_API_VERSION, apiVersion) do not apply: the check is sent without an\n" +
@@ -129,6 +130,7 @@ func (g *globals) login(ctx context.Context) error {
 	}
 
 	cfg.URL = auth.URL
+	cfg.Collection = auth.Collection
 	cfg.PAT = auth.PAT
 	user, err := g.verify(ctx, cfg)
 	if err != nil {
@@ -138,12 +140,12 @@ func (g *globals) login(ctx context.Context) error {
 	if err := config.SaveAuth(authPath, auth); err != nil {
 		return err
 	}
-	_, err = fmt.Fprintf(g.stdout, "Logged in to %s as %s\n", auth.URL, user)
+	_, err = fmt.Fprintf(g.stdout, "Logged in to %s, collection %s, as %s\n", auth.URL, auth.Collection, user)
 	return err
 }
 
-// promptAuth asks for the URL and the token. Prompts go to stderr so that
-// stdout carries only the result.
+// promptAuth asks for the URL, the collection, and the token. Prompts go to
+// stderr so that stdout carries only the result.
 func (g *globals) promptAuth() (*config.Auth, error) {
 	_, _ = fmt.Fprint(g.stderr, "Server URL (e.g. https://tfs.company.com:8080/tfs): ")
 	raw, err := g.stdin.ReadLine()
@@ -153,6 +155,19 @@ func (g *globals) promptAuth() (*config.Auth, error) {
 	url, err := config.NormalizeURL(raw)
 	if err != nil {
 		return nil, err
+	}
+
+	_, _ = fmt.Fprint(g.stderr, "Collection (e.g. DefaultCollection): ")
+	collection, err := g.stdin.ReadLine()
+	if err != nil {
+		return nil, inputError("the collection", err)
+	}
+	collection = strings.TrimSpace(collection)
+	if collection == "" {
+		return nil, &tfserr.Error{
+			Category: tfserr.Config,
+			Message:  "the collection is empty",
+		}
 	}
 
 	_, _ = fmt.Fprint(g.stderr, "Personal access token: ")
@@ -169,7 +184,7 @@ func (g *globals) promptAuth() (*config.Auth, error) {
 			Message:  "the personal access token is empty",
 		}
 	}
-	return &config.Auth{URL: url, PAT: pat}, nil
+	return &config.Auth{URL: url, Collection: collection, PAT: pat}, nil
 }
 
 func inputError(what string, err error) error {
@@ -181,8 +196,10 @@ func inputError(what string, err error) error {
 }
 
 // verify checks the credential with a request to _apis/connectionData at the
-// server level and returns the display name of the user the token belongs
-// to. HTTP failures come back in their usual categories.
+// collection level and returns the display name of the user the token belongs
+// to. The server level is not used: a PAT is issued for a collection, and a
+// live server answered 401 at the server level to a PAT it accepted at the
+// collection level. HTTP failures come back in their usual categories.
 func (g *globals) verify(ctx context.Context, cfg *config.Config) (string, error) {
 	// The request carries no api-version, whatever the config file says:
 	// connectionData has no released version, so a version pinned for the
