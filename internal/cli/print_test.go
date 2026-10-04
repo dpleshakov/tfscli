@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/dpleshakov/tfscli/internal/wiql"
 	"github.com/dpleshakov/tfscli/internal/workitem"
 )
 
@@ -282,5 +283,123 @@ func TestPrintWorkItemsMatchesPrintWorkItemForOne(t *testing.T) {
 
 	if got, want := batchMarkdown(t, &workitem.Batch{WorkItems: []*workitem.WorkItem{wi}}), markdown(t, wi); got != want {
 		t.Errorf("printWorkItems() wrote:\n%s\nprintWorkItem() wrote:\n%s", got, want)
+	}
+}
+
+func wiqlMarkdown(t *testing.T, result *wiql.Result) string {
+	t.Helper()
+	var buf bytes.Buffer
+	if err := printWiqlResult(&buf, result); err != nil {
+		t.Fatalf("printWiqlResult() returned error: %v", err)
+	}
+	return buf.String()
+}
+
+func TestPrintWiqlResultFlat(t *testing.T) {
+	result := &wiql.Result{
+		QueryType: "flat",
+		AsOf:      "2026-10-04T10:15:00.483Z",
+		Columns:   []string{"System.Id", "System.Title", "System.State"},
+		WorkItems: []int{300, 297, 299},
+	}
+
+	want := strings.Join([]string{
+		"# WIQL query (flat, as of 2026-10-04T10:15:00Z)",
+		"",
+		"Columns: System.Id,System.Title,System.State",
+		"Work items: 300,297,299",
+		"",
+	}, "\n")
+
+	if got := wiqlMarkdown(t, result); got != want {
+		t.Errorf("printWiqlResult() wrote:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestPrintWiqlResultLink(t *testing.T) {
+	result := &wiql.Result{
+		QueryType: "oneHop",
+		AsOf:      "2026-10-04T10:15:00Z",
+		Columns:   []string{"System.Id"},
+		Link:      true,
+		Relations: []wiql.Relation{
+			{Target: 297},
+			{Source: 297, HasSource: true, Target: 299, Rel: "System.LinkTypes.Related"},
+			{Source: 297, HasSource: true, Target: 300},
+		},
+	}
+
+	want := strings.Join([]string{
+		"# WIQL query (oneHop, as of 2026-10-04T10:15:00Z)",
+		"",
+		"Columns: System.Id",
+		"Relations:",
+		"- 297",
+		"- 297 -> 299 (System.LinkTypes.Related)",
+		"- 297 -> 300",
+		"",
+	}, "\n")
+
+	if got := wiqlMarkdown(t, result); got != want {
+		t.Errorf("printWiqlResult() wrote:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestPrintWiqlResultEmpty(t *testing.T) {
+	tests := []struct {
+		name   string
+		result *wiql.Result
+		want   string
+	}{
+		{
+			name:   "flat",
+			result: &wiql.Result{QueryType: "flat", AsOf: "2026-10-04T10:15:00Z", Columns: []string{"System.Id"}},
+			want:   "# WIQL query (flat, as of 2026-10-04T10:15:00Z)\n\nColumns: System.Id\nWork items: none\n",
+		},
+		{
+			name:   "link",
+			result: &wiql.Result{QueryType: "tree", AsOf: "2026-10-04T10:15:00Z", Columns: []string{"System.Id"}, Link: true},
+			want:   "# WIQL query (tree, as of 2026-10-04T10:15:00Z)\n\nColumns: System.Id\nRelations: none\n",
+		},
+		{
+			name:   "nothing but the lists",
+			result: &wiql.Result{},
+			want:   "# WIQL query\n\nColumns: none\nWork items: none\n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := wiqlMarkdown(t, tt.result); got != tt.want {
+				t.Errorf("printWiqlResult() wrote:\n%s\nwant:\n%s", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestPrintWiqlResultMatchesPlan checks the example of a link query recorded
+// in the tasks file byte for byte.
+func TestPrintWiqlResultMatchesPlan(t *testing.T) {
+	result := &wiql.Result{
+		QueryType: "tree",
+		AsOf:      "2026-10-04T10:15:00Z",
+		Columns:   []string{"System.Id", "System.Title"},
+		Link:      true,
+		Relations: []wiql.Relation{
+			{Target: 297},
+			{Source: 297, HasSource: true, Target: 299, Rel: "System.LinkTypes.Hierarchy-Forward"},
+			{Source: 297, HasSource: true, Target: 300, Rel: "System.LinkTypes.Hierarchy-Forward"},
+		},
+	}
+
+	want := "# WIQL query (tree, as of 2026-10-04T10:15:00Z)\n" +
+		"\n" +
+		"Columns: System.Id,System.Title\n" +
+		"Relations:\n" +
+		"- 297\n" +
+		"- 297 -> 299 (System.LinkTypes.Hierarchy-Forward)\n" +
+		"- 297 -> 300 (System.LinkTypes.Hierarchy-Forward)\n"
+
+	if got := wiqlMarkdown(t, result); got != want {
+		t.Errorf("printWiqlResult() wrote:\n%s\nwant:\n%s", got, want)
 	}
 }

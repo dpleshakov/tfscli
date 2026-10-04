@@ -109,7 +109,7 @@ then `Work items:` or `Relations:`, with `none` for an empty list. As with
 `printWorkItem`, the output is assembled in memory before it is written.
 **Definition of done:** Unit tests cover a flat result, a link result, both
 empty cases, and the example in Context byte for byte; `make check` passes.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-03 `cli-wit-wiql-query-by-wiql`
 **Description:** Add `tfscli wit wiql query-by-wiql` under the area command
