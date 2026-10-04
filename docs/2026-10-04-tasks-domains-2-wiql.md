@@ -100,7 +100,7 @@ be absent. A malformed response is reported in the `server` category, as in
 including a team name with a space, the body and the query for each
 combination of parameters, a flat response, a link response with a root that
 has no source, empty lists, and a malformed response; `make check` passes.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-02 `print-wiql`
 **Description:** Add a printer to `internal/cli` for the result of
