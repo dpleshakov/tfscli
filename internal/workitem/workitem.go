@@ -128,6 +128,27 @@ func List(ctx context.Context, client APIClient, project string, req BatchReques
 	return parseBatch(body, req)
 }
 
+// GetBatch retrieves several work items with Get Work Items Batch, a POST
+// carrying the parameters in a JSON body. It exists for requests whose query
+// string would be too long for List, and needs Azure DevOps Server 2019 or
+// later.
+func GetBatch(ctx context.Context, client APIClient, project string, req BatchRequest) (*Batch, error) {
+	// Omitted parameters are left out of the body rather than sent empty, so
+	// that the server's defaults apply as they do for List.
+	body := struct {
+		IDs         []int    `json:"ids"`
+		Fields      []string `json:"fields,omitempty"`
+		AsOf        string   `json:"asOf,omitempty"`
+		ErrorPolicy string   `json:"errorPolicy,omitempty"`
+	}{req.IDs, req.Fields, req.AsOf, req.ErrorPolicy}
+
+	resp, err := client.Post(ctx, project+"/_apis/wit/workitemsbatch", nil, body)
+	if err != nil {
+		return nil, err
+	}
+	return parseBatch(resp, req)
+}
+
 func joinIDs(ids []int) string {
 	parts := make([]string, len(ids))
 	for i, id := range ids {

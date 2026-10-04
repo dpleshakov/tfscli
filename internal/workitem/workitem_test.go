@@ -2,6 +2,7 @@ package workitem
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/url"
 	"os"
@@ -268,6 +269,27 @@ func TestGetAcceptsResponseWithoutFields(t *testing.T) {
 	}
 }
 
+// readers are the two operations that read several work items. They share
+// the response handling, so every response case is checked against both.
+var readers = []struct {
+	name string
+	read func(context.Context, APIClient, string, BatchRequest) (*Batch, error)
+}{
+	{"List", List},
+	{"GetBatch", GetBatch},
+}
+
+func eachReader(t *testing.T, test func(t *testing.T, read func(*fakeClient, BatchRequest) (*Batch, error))) {
+	t.Helper()
+	for _, r := range readers {
+		t.Run(r.name, func(t *testing.T) {
+			test(t, func(client *fakeClient, req BatchRequest) (*Batch, error) {
+				return r.read(context.Background(), client, "MyProject", req)
+			})
+		})
+	}
+}
+
 func list(t *testing.T, client *fakeClient, req BatchRequest) *Batch {
 	t.Helper()
 	batch, err := List(context.Background(), client, "MyProject", req)
@@ -353,40 +375,51 @@ func TestListSendsOnlyGivenParameters(t *testing.T) {
 	}
 }
 
-func TestListReturnsEveryWorkItem(t *testing.T) {
-	client := &fakeClient{body: []byte(threeItems)}
+func TestBatchReturnsEveryWorkItem(t *testing.T) {
+	eachReader(t, func(t *testing.T, read func(*fakeClient, BatchRequest) (*Batch, error)) {
+		client := &fakeClient{body: []byte(threeItems)}
 
-	batch := list(t, client, BatchRequest{IDs: []int{297, 299, 300}})
+		batch, err := read(client, BatchRequest{IDs: []int{297, 299, 300}})
+		if err != nil {
+			t.Fatalf("returned error: %v", err)
+		}
 
-	if got, want := ids(batch), []int{297, 299, 300}; !slices.Equal(got, want) {
-		t.Errorf("work items %v, want %v", got, want)
-	}
-	if len(batch.Missing) != 0 {
-		t.Errorf("missing %v, want none", batch.Missing)
-	}
-	if got := field(t, batch.WorkItems[1], "System.Title").Value; got != "JavaScript implementation" {
-		t.Errorf("title of 299 = %#v, want the value from the response", got)
-	}
-	if batch.WorkItems[1].Rev != 7 {
-		t.Errorf("rev of 299 = %d, want 7", batch.WorkItems[1].Rev)
-	}
+		if got, want := ids(batch), []int{297, 299, 300}; !slices.Equal(got, want) {
+			t.Errorf("work items %v, want %v", got, want)
+		}
+		if len(batch.Missing) != 0 {
+			t.Errorf("missing %v, want none", batch.Missing)
+		}
+		if got := field(t, batch.WorkItems[1], "System.Title").Value; got != "JavaScript implementation" {
+			t.Errorf("title of 299 = %#v, want the value from the response", got)
+		}
+		if batch.WorkItems[1].Rev != 7 {
+			t.Errorf("rev of 299 = %d, want 7", batch.WorkItems[1].Rev)
+		}
+	})
 }
 
-func TestListKeepsResponseOrder(t *testing.T) {
-	client := &fakeClient{body: []byte(threeItems)}
+func TestBatchKeepsResponseOrder(t *testing.T) {
+	eachReader(t, func(t *testing.T, read func(*fakeClient, BatchRequest) (*Batch, error)) {
+		client := &fakeClient{body: []byte(threeItems)}
 
-	batch := list(t, client, BatchRequest{IDs: []int{300, 299, 297}})
+		batch, err := read(client, BatchRequest{IDs: []int{300, 299, 297}})
+		if err != nil {
+			t.Fatalf("returned error: %v", err)
+		}
 
-	if got, want := ids(batch), []int{297, 299, 300}; !slices.Equal(got, want) {
-		t.Errorf("work items %v, want the response order %v", got, want)
-	}
-	if len(batch.Missing) != 0 {
-		t.Errorf("missing %v, want none: every requested ID was returned", batch.Missing)
-	}
+		if got, want := ids(batch), []int{297, 299, 300}; !slices.Equal(got, want) {
+			t.Errorf("work items %v, want the response order %v", got, want)
+		}
+		if len(batch.Missing) != 0 {
+			t.Errorf("missing %v, want none: every requested ID was returned", batch.Missing)
+		}
+	})
 }
 
-func TestListReportsOmittedWorkItemsAsMissing(t *testing.T) {
-	client := &fakeClient{body: []byte(`{
+func TestBatchReportsOmittedWorkItemsAsMissing(t *testing.T) {
+	eachReader(t, func(t *testing.T, read func(*fakeClient, BatchRequest) (*Batch, error)) {
+		client := &fakeClient{body: []byte(`{
 		"count": 4,
 		"value": [
 			{"id": 297, "rev": 1, "fields": {"System.Title": "Customer can sign in"}},
@@ -396,65 +429,144 @@ func TestListReportsOmittedWorkItemsAsMissing(t *testing.T) {
 		]
 	}`)}
 
-	// 298 is asked for twice and must be reported once.
-	batch := list(t, client, BatchRequest{IDs: []int{301, 297, 298, 300, 298}, ErrorPolicy: "omit"})
+		// 298 is asked for twice and must be reported once.
+		batch, err := read(client, BatchRequest{IDs: []int{301, 297, 298, 300, 298}, ErrorPolicy: "omit"})
+		if err != nil {
+			t.Fatalf("returned error: %v", err)
+		}
 
-	if got, want := ids(batch), []int{297, 300}; !slices.Equal(got, want) {
-		t.Errorf("work items %v, want %v", got, want)
-	}
-	if want := []int{301, 298}; !slices.Equal(batch.Missing, want) {
-		t.Errorf("missing %v, want %v in request order", batch.Missing, want)
-	}
+		if got, want := ids(batch), []int{297, 300}; !slices.Equal(got, want) {
+			t.Errorf("work items %v, want %v", got, want)
+		}
+		if want := []int{301, 298}; !slices.Equal(batch.Missing, want) {
+			t.Errorf("missing %v, want %v in request order", batch.Missing, want)
+		}
+	})
 }
 
-func TestListOrdersFieldsAsRequested(t *testing.T) {
-	client := &fakeClient{body: []byte(`{
+func TestBatchOrdersFieldsAsRequested(t *testing.T) {
+	eachReader(t, func(t *testing.T, read func(*fakeClient, BatchRequest) (*Batch, error)) {
+		client := &fakeClient{body: []byte(`{
 		"count": 1,
 		"value": [
 			{"id": 297, "rev": 1, "fields": {"System.State": "New", "System.Title": "Customer can sign in"}}
 		]
 	}`)}
 
-	batch := list(t, client, BatchRequest{IDs: []int{297}, Fields: []string{"System.Title", "System.State"}})
+		batch, err := read(client, BatchRequest{IDs: []int{297}, Fields: []string{"System.Title", "System.State"}})
+		if err != nil {
+			t.Fatalf("returned error: %v", err)
+		}
 
-	if got := batch.WorkItems[0].Fields[0].Name; got != "System.Title" {
-		t.Errorf("first field is %q, want System.Title as requested", got)
-	}
+		if got := batch.WorkItems[0].Fields[0].Name; got != "System.Title" {
+			t.Errorf("first field is %q, want System.Title as requested", got)
+		}
+	})
 }
 
-func TestListPropagatesClientError(t *testing.T) {
-	want := &tfserr.Error{Category: tfserr.NotFound, Message: "resource not found", HTTPStatus: 404}
-	client := &fakeClient{err: want}
+func TestBatchPropagatesClientError(t *testing.T) {
+	eachReader(t, func(t *testing.T, read func(*fakeClient, BatchRequest) (*Batch, error)) {
+		want := &tfserr.Error{Category: tfserr.NotFound, Message: "resource not found", HTTPStatus: 404}
+		client := &fakeClient{err: want}
 
-	_, err := List(context.Background(), client, "MyProject", BatchRequest{IDs: []int{297}})
+		_, err := read(client, BatchRequest{IDs: []int{297}})
 
-	if !errors.Is(err, error(want)) {
-		t.Fatalf("List() returned %v, want the client error unchanged", err)
-	}
+		if !errors.Is(err, error(want)) {
+			t.Fatalf("returned %v, want the client error unchanged", err)
+		}
+	})
 }
 
-func TestListRejectsMalformedResponse(t *testing.T) {
-	for _, tt := range []struct {
+func TestBatchRejectsMalformedResponse(t *testing.T) {
+	eachReader(t, func(t *testing.T, read func(*fakeClient, BatchRequest) (*Batch, error)) {
+		for _, tt := range []struct {
+			name string
+			body string
+		}{
+			{name: "not JSON", body: "<html>Gateway timeout</html>"},
+			{name: "no value", body: `{"count": 0}`},
+			{name: "value is not an array", body: `{"count": 1, "value": {}}`},
+			{name: "element is not an object", body: `{"count": 1, "value": [42]}`},
+			{name: "fields is not an object", body: `{"count": 1, "value": [{"id": 297, "rev": 1, "fields": []}]}`},
+		} {
+			t.Run(tt.name, func(t *testing.T) {
+				client := &fakeClient{body: []byte(tt.body)}
+
+				_, err := read(client, BatchRequest{IDs: []int{297}})
+
+				var te *tfserr.Error
+				if !errors.As(err, &te) {
+					t.Fatalf("returned %v, want a *tfserr.Error", err)
+				}
+				if te.Category != tfserr.Server {
+					t.Errorf("category = %q, want %q", te.Category, tfserr.Server)
+				}
+			})
+		}
+	})
+}
+
+func TestGetBatchSendsOnlyGivenParameters(t *testing.T) {
+	tests := []struct {
 		name string
-		body string
+		req  BatchRequest
+		want string
 	}{
-		{name: "not JSON", body: "<html>Gateway timeout</html>"},
-		{name: "no value", body: `{"count": 0}`},
-		{name: "value is not an array", body: `{"count": 1, "value": {}}`},
-		{name: "element is not an object", body: `{"count": 1, "value": [42]}`},
-		{name: "fields is not an object", body: `{"count": 1, "value": [{"id": 297, "rev": 1, "fields": []}]}`},
-	} {
+		{
+			name: "ids only",
+			req:  BatchRequest{IDs: []int{297, 299, 300}},
+			want: `{"ids":[297,299,300]}`,
+		},
+		{
+			name: "fields",
+			req:  BatchRequest{IDs: []int{297}, Fields: []string{"System.Title", "System.State"}},
+			want: `{"ids":[297],"fields":["System.Title","System.State"]}`,
+		},
+		{
+			name: "asOf",
+			req:  BatchRequest{IDs: []int{297}, AsOf: "2014-12-29T20:49:22.103Z"},
+			want: `{"ids":[297],"asOf":"2014-12-29T20:49:22.103Z"}`,
+		},
+		{
+			name: "errorPolicy",
+			req:  BatchRequest{IDs: []int{297}, ErrorPolicy: "omit"},
+			want: `{"ids":[297],"errorPolicy":"omit"}`,
+		},
+		{
+			name: "everything",
+			req: BatchRequest{
+				IDs:         []int{297, 299},
+				Fields:      []string{"System.Title"},
+				AsOf:        "2014-12-29T20:49:22.103Z",
+				ErrorPolicy: "fail",
+			},
+			want: `{"ids":[297,299],"fields":["System.Title"],"asOf":"2014-12-29T20:49:22.103Z","errorPolicy":"fail"}`,
+		},
+	}
+
+	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client := &fakeClient{body: []byte(tt.body)}
+			client := &fakeClient{body: []byte(threeItems)}
 
-			_, err := List(context.Background(), client, "MyProject", BatchRequest{IDs: []int{297}})
-
-			var te *tfserr.Error
-			if !errors.As(err, &te) {
-				t.Fatalf("List() returned %v, want a *tfserr.Error", err)
+			if _, err := GetBatch(context.Background(), client, "MyProject", tt.req); err != nil {
+				t.Fatalf("GetBatch() returned error: %v", err)
 			}
-			if te.Category != tfserr.Server {
-				t.Errorf("category = %q, want %q", te.Category, tfserr.Server)
+
+			if client.method != "POST" {
+				t.Errorf("method %s, want POST", client.method)
+			}
+			if want := "MyProject/_apis/wit/workitemsbatch"; client.path != want {
+				t.Errorf("requested path %q, want %q", client.path, want)
+			}
+			if len(client.query) != 0 {
+				t.Errorf("query = %v, want none: the parameters belong in the body", client.query)
+			}
+			sent, err := json.Marshal(client.sent)
+			if err != nil {
+				t.Fatalf("cannot encode the body sent: %v", err)
+			}
+			if string(sent) != tt.want {
+				t.Errorf("body = %s, want %s", sent, tt.want)
 			}
 		})
 	}
