@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/dpleshakov/tfscli/internal/htmlmd"
 	"github.com/dpleshakov/tfscli/internal/tfserr"
+	"github.com/dpleshakov/tfscli/internal/wiql"
 	"github.com/dpleshakov/tfscli/internal/workitem"
 )
 
@@ -152,4 +154,66 @@ func formatTimestamp(value string) string {
 		return value
 	}
 	return t.UTC().Format(time.RFC3339)
+}
+
+// printWiqlResult writes the result of a WIQL query as markdown: a heading
+// with the query type and the time of the result, the columns in the form
+// --fields takes, and either the work item IDs in the form --ids takes or one
+// list item per link relation. An empty list reads "none", so that an empty
+// result cannot be mistaken for truncated output.
+//
+// As with printWorkItem, the document is assembled in memory first.
+func printWiqlResult(w io.Writer, result *wiql.Result) error {
+	var buf bytes.Buffer
+
+	var about []string
+	if result.QueryType != "" {
+		about = append(about, result.QueryType)
+	}
+	if result.AsOf != "" {
+		about = append(about, "as of "+formatTimestamp(result.AsOf))
+	}
+	buf.WriteString("# WIQL query")
+	if len(about) > 0 {
+		fmt.Fprintf(&buf, " (%s)", strings.Join(about, ", "))
+	}
+	buf.WriteString("\n\n")
+
+	fmt.Fprintf(&buf, "Columns: %s\n", orNone(strings.Join(result.Columns, ",")))
+
+	switch {
+	case !result.Link:
+		fmt.Fprintf(&buf, "Work items: %s\n", orNone(joinInts(result.WorkItems)))
+	case len(result.Relations) == 0:
+		buf.WriteString("Relations: none\n")
+	default:
+		buf.WriteString("Relations:\n")
+	}
+	for _, r := range result.Relations {
+		switch {
+		case !r.HasSource:
+			fmt.Fprintf(&buf, "- %d\n", r.Target)
+		case r.Rel == "":
+			fmt.Fprintf(&buf, "- %d -> %d\n", r.Source, r.Target)
+		default:
+			fmt.Fprintf(&buf, "- %d -> %d (%s)\n", r.Source, r.Target, r.Rel)
+		}
+	}
+	_, err := w.Write(buf.Bytes())
+	return err
+}
+
+func orNone(s string) string {
+	if s == "" {
+		return "none"
+	}
+	return s
+}
+
+func joinInts(ns []int) string {
+	parts := make([]string, len(ns))
+	for i, n := range ns {
+		parts[i] = strconv.Itoa(n)
+	}
+	return strings.Join(parts, ",")
 }
