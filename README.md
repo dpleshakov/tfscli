@@ -105,7 +105,11 @@ plain markdown under a short YAML header.
 
 ## Authentication
 
-A personal access token is issued for one collection, so the server URL, the collection, and the token are stored together, and the token is only ever sent to the URL and the collection stored with it. Store them once per machine:
+A personal access token is issued for one collection, so the server URL, the collection, and the token are stored together, and the token is only ever sent to the URL and the collection stored with it.
+
+Issue the token in the TFS web interface for the collection you will log in to. tfscli only reads work items, so the **Work Items (Read)** scope is all it needs; leave every other scope off. A scope limits what the token can do but does not extend what its owner can do: a work item in a project or area the user has no access to is refused with a `forbidden` error whatever the scope.
+
+Store them once per machine:
 
 ```
 $ tfscli auth login
