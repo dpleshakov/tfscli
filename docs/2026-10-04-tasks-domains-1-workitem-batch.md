@@ -99,7 +99,7 @@ output is assembled in memory before it is written.
 **Definition of done:** Unit tests cover several work items, missing IDs
 after the returned ones, a result with only missing IDs, and output identical
 to `printWorkItem` for a single work item; `make check` passes.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-05 `cli-workitem-list`
 **Description:** Add `tfscli workitem list` with `-p`, `--ids` (required,

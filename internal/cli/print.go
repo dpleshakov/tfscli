@@ -20,7 +20,45 @@ import (
 // convert leaves nothing half-written on stdout.
 func printWorkItem(w io.Writer, wi *workitem.WorkItem) error {
 	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "# Work item %d (rev %d)\n", wi.ID, wi.Rev)
+	if err := writeWorkItem(&buf, wi); err != nil {
+		return err
+	}
+	_, err := w.Write(buf.Bytes())
+	return err
+}
+
+// notReturned is the note printed in place of a work item the server omitted.
+// It sits in the parentheses of the heading, where "rev" already marks
+// metadata, so that it cannot be read as work item content.
+const notReturned = "not returned: it does not exist, or the PAT has no access to it"
+
+// printWorkItems writes the work items of a batch exactly as printWorkItem
+// writes each, separated by a blank line and in the order of the batch,
+// followed by a heading line for each ID the server did not return.
+func printWorkItems(w io.Writer, batch *workitem.Batch) error {
+	var buf bytes.Buffer
+	for _, wi := range batch.WorkItems {
+		if buf.Len() > 0 {
+			buf.WriteString("\n")
+		}
+		if err := writeWorkItem(&buf, wi); err != nil {
+			return err
+		}
+	}
+	for _, id := range batch.Missing {
+		if buf.Len() > 0 {
+			buf.WriteString("\n")
+		}
+		fmt.Fprintf(&buf, "# Work item %d (%s)\n", id, notReturned)
+	}
+
+	_, err := w.Write(buf.Bytes())
+	return err
+}
+
+// writeWorkItem appends one work item to buf; see printWorkItem.
+func writeWorkItem(buf *bytes.Buffer, wi *workitem.WorkItem) error {
+	fmt.Fprintf(buf, "# Work item %d (rev %d)\n", wi.ID, wi.Rev)
 
 	afterLine := false // the previous field printed as a "Name: value" line
 	for _, f := range wi.Fields {
@@ -30,19 +68,17 @@ func printWorkItem(w io.Writer, wi *workitem.WorkItem) error {
 		}
 
 		if isSection(f, text) {
-			fmt.Fprintf(&buf, "\n## %s\n\n%s\n", f.Name, text)
+			fmt.Fprintf(buf, "\n## %s\n\n%s\n", f.Name, text)
 			afterLine = false
 			continue
 		}
 		if !afterLine {
 			buf.WriteString("\n")
 		}
-		fmt.Fprintf(&buf, "%s\n", strings.TrimRight(f.Name+": "+text, " "))
+		fmt.Fprintf(buf, "%s\n", strings.TrimRight(f.Name+": "+text, " "))
 		afterLine = true
 	}
-
-	_, err := w.Write(buf.Bytes())
-	return err
+	return nil
 }
 
 // render turns one field value into the text to print, per its kind.
