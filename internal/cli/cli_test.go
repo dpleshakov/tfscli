@@ -570,13 +570,8 @@ const listResponse = `{
 // their flags, checks, and output, so those cases are run against both.
 var batchCommands = []string{"list", "get-batch"}
 
-// listArgs is a complete `workitem list` invocation, with every required
-// setting other than the credential passed as a flag.
-func listArgs(extra ...string) []string {
-	return batchArgs("list", extra...)
-}
-
-// batchArgs is the same invocation of the command named.
+// batchArgs is a complete invocation of the command named, with every
+// required setting other than the credential passed as a flag.
 func batchArgs(command string, extra ...string) []string {
 	return append([]string{"workitem", command, "-p", "MyProject", "--ids", "12345,299,297"}, extra...)
 }
@@ -650,7 +645,7 @@ func TestWorkItemListRequest(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			s := newServer(t, http.StatusOK, listResponse)
 
-			_, stderr, code := execute(t, s, listArgs(tt.extra...)...)
+			_, stderr, code := execute(t, s, batchArgs("list", tt.extra...)...)
 
 			if code != 0 {
 				t.Fatalf("exit code = %d, want 0 (stderr: %s)", code, stderr)
@@ -802,5 +797,32 @@ func TestWorkItemGetBatchRequest(t *testing.T) {
 				t.Errorf("body = %s, want %s", s.sent, tt.want)
 			}
 		})
+	}
+}
+
+func TestWorkItemGetBatchNamesTheServerItNeedsOnABare404(t *testing.T) {
+	for _, body := range []string{"", "<html><body>404 - File or directory not found.</body></html>"} {
+		s := newServer(t, http.StatusNotFound, body)
+
+		_, stderr, code := execute(t, s, batchArgs("get-batch")...)
+
+		if code != 1 {
+			t.Errorf("exit code = %d, want 1", code)
+		}
+		want := "Error [not_found]: resource not found (Get Work Items Batch needs Azure DevOps Server 2019 or later; " +
+			"on an older server use tfscli workitem list) (HTTP 404)\n"
+		if stderr != want {
+			t.Errorf("stderr = %q, want %q", stderr, want)
+		}
+	}
+}
+
+func TestWorkItemListLeavesABare404Alone(t *testing.T) {
+	s := newServer(t, http.StatusNotFound, "")
+
+	_, stderr, _ := execute(t, s, batchArgs("list")...)
+
+	if want := "Error [not_found]: resource not found (HTTP 404)\n"; stderr != want {
+		t.Errorf("stderr = %q, want %q", stderr, want)
 	}
 }

@@ -159,8 +159,9 @@ the URL, `get-batch` in the body of a POST. Use `list`. Use `get-batch` when
 `list` fails because the URL is too long — many ids with a long `--fields`.
 The web server in front of TFS refuses such a request without a TFS message of
 its own, typically with HTTP 404 from IIS request filtering, or with 414.
-`get-batch` needs Azure DevOps Server 2019 or later; on an older server it
-fails, typically with `not_found`, and `list` is the only choice.
+`get-batch` needs Azure DevOps Server 2019 or later. On an older server it
+fails, typically with `not_found` and a message that says so; `list` is then
+the only choice.
 
 The ids go in `--ids`, not as arguments; every id is checked locally, as for
 `workitem get`.

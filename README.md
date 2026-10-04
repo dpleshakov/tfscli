@@ -204,7 +204,7 @@ Print several work items, at most 200, with one request:
 tfscli workitem list -p MyProject --ids 297,299,300
 ```
 
-The two commands are the two operations the REST API offers for this, and take the same flags. `workitem list` is Work Items - List, a GET that carries the ids in the URL. `workitem get-batch` is Get Work Items Batch, a POST that carries them in the request body, so it is not limited by the length of the URL; it needs Azure DevOps Server 2019 or later.
+The two commands are the two operations the REST API offers for this, and take the same flags. `workitem list` is Work Items - List, a GET that carries the ids in the URL. `workitem get-batch` is Get Work Items Batch, a POST that carries them in the request body, so it is not limited by the length of the URL; it needs Azure DevOps Server 2019 or later, and a 404 without a message from the server says so and names `workitem list` instead.
 
 | Flag | API parameter | Effect |
 |---|---|---|
