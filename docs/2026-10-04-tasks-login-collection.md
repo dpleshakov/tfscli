@@ -79,7 +79,7 @@ removed from the URL.
 **Definition of done:** `make check` passes; tests cover a URL ending in the
 collection with different letter case, a URL not ending in it, and a URL
 whose path consists of the collection only.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-03 `login-not-found-message`
 **Description:** In `auth login`, map a 404 from the verification request to
