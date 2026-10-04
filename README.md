@@ -6,7 +6,7 @@ Every invocation hits the server: there is no daemon, no background process, and
 
 ## Status
 
-Pre-release, and **not yet run against a live TFS instance**. One command exists — `workitem get`. It is covered by tests that drive the full command tree against a stub HTTP server, so the request shape, the output format, and the error contract behave as documented; what has not been exercised is a real server with real work items. Expect the first live runs to surface discrepancies, particularly in rich-text rendering.
+Pre-release. One command exists — `workitem get`. It is covered by tests that drive the full command tree against a stub HTTP server, so the request shape, the output format, and the error contract behave as documented. Against a live TFS instance, release 0.0.5 has been checked for the main path only: `auth login` with a valid PAT and `workitem get` succeed. The error paths and rich-text rendering of a variety of real work items have not been exercised yet; expect discrepancies there, particularly in rich-text rendering.
 
 Available now:
 
