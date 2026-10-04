@@ -17,12 +17,22 @@ type fakeClient struct {
 	body []byte
 	err  error
 
-	path  string
-	query url.Values
+	method string
+	path   string
+	query  url.Values
+	sent   any
 }
 
 func (c *fakeClient) Get(_ context.Context, path string, query url.Values) ([]byte, error) {
-	c.path, c.query = path, query
+	c.method, c.path, c.query = "GET", path, query
+	if c.err != nil {
+		return nil, c.err
+	}
+	return c.body, nil
+}
+
+func (c *fakeClient) Post(_ context.Context, path string, query url.Values, body any) ([]byte, error) {
+	c.method, c.path, c.query, c.sent = "POST", path, query, body
 	if c.err != nil {
 		return nil, c.err
 	}
