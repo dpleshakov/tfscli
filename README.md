@@ -6,12 +6,12 @@ Every invocation hits the server: there is no daemon, no background process, and
 
 ## Status
 
-Pre-release. Three read commands exist — `workitem get`, `workitem list`, and `workitem get-batch`. They are covered by tests that drive the full command tree against a stub HTTP server, so the request shape, the output format, and the error contract behave as documented. Against a live TFS instance, release 0.0.5 has been checked for the main path only: `auth login` with a valid PAT and `workitem get` succeed. `workitem list` and `workitem get-batch` have not been run against a live server yet. The error paths and rich-text rendering of a variety of real work items have not been exercised yet; expect discrepancies there, particularly in rich-text rendering.
+Pre-release. Three read commands exist — `wit work-items get`, `wit work-items list`, and `wit work-items get-batch`. They are covered by tests that drive the full command tree against a stub HTTP server, so the request shape, the output format, and the error contract behave as documented. Against a live TFS instance, release 0.0.5 has been checked for the main path only: `auth login` with a valid PAT and reading one work item, the command now named `wit work-items get`, succeed. `wit work-items list` and `wit work-items get-batch` have not been run against a live server yet. The error paths and rich-text rendering of a variety of real work items have not been exercised yet; expect discrepancies there, particularly in rich-text rendering.
 
 Available now:
 
-- `workitem get` — one work item as markdown, whole or narrowed by `--fields`
-- `workitem list` and `workitem get-batch` — several work items by id in one request
+- `wit work-items get` — one work item as markdown, whole or narrowed by `--fields`
+- `wit work-items list` and `wit work-items get-batch` — several work items by id in one request
 - `auth login` — store the server URL, the collection, and a PAT, checked against the server
 - Configuration through a file, environment variables, and flags
 - `--verbose` request logging and the full error contract
@@ -173,43 +173,45 @@ Two settings are accepted in the config file only, so that relaxing TLS is alway
 ## Usage
 
 ```
-tfscli <resource> <action> [flags] [arguments]
+tfscli <area> <resource> <action> [flags] [arguments]
 ```
+
+Commands are named after the REST API reference: the area and the resource are the segments of the operation's page path, so Get Work Item, documented under `.../wit/work-items/get-work-item`, is `wit work-items get`. `auth login` is local to tfscli and has no counterpart in the API.
 
 `tfscli --version` prints the version and the commit it was built from; `tfscli --help`, and `--help` on any command, lists the flags.
 
-### `workitem get`
+### `wit work-items get`
 
 Print one work item as markdown:
 
 ```
-tfscli workitem get -p MyProject 12345
+tfscli wit work-items get -p MyProject 12345
 ```
 
 Request a subset of fields. They are printed in the order they were asked for:
 
 ```
-tfscli workitem get -p MyProject 12345 --fields System.Title,System.State,System.Description
+tfscli wit work-items get -p MyProject 12345 --fields System.Title,System.State,System.Description
 ```
 
 Without `--fields`, every field of the work item is printed in the order the server returned it.
 
 `-p` is required unless `project` is set in the config file or `TFSCLI_PROJECT` is exported.
 
-### `workitem list` and `workitem get-batch`
+### `wit work-items list` and `wit work-items get-batch`
 
 Print several work items, at most 200, with one request:
 
 ```
-tfscli workitem list -p MyProject --ids 297,299,300
+tfscli wit work-items list -p MyProject --ids 297,299,300
 ```
 
-The two commands are the two operations the REST API offers for this, and take the same flags. `workitem list` is Work Items - List, a GET that carries the ids in the URL. `workitem get-batch` is Get Work Items Batch, a POST that carries them in the request body, so it is not limited by the length of the URL; it needs Azure DevOps Server 2019 or later, and a 404 without a message from the server says so and names `workitem list` instead.
+The two commands are the two operations the REST API offers for this, and take the same flags. `wit work-items list` is Work Items - List, a GET that carries the ids in the URL. `wit work-items get-batch` is Get Work Items Batch, a POST that carries them in the request body, so it is not limited by the length of the URL; it needs Azure DevOps Server 2019 or later, and a 404 without a message from the server says so and names `wit work-items list` instead.
 
 | Flag | API parameter | Effect |
 |---|---|---|
 | `--ids` | `ids` | Comma-separated work item ids. Required. |
-| `--fields` | `fields` | Comma-separated field names, as for `workitem get`. |
+| `--fields` | `fields` | Comma-separated field names, as for `wit work-items get`. |
 | `--as-of` | `asOf` | Read the work items as they were at this UTC time, e.g. `2026-06-14T09:00:00Z`. |
 | `--error-policy` | `errorPolicy` | `fail` or `omit`. With `fail`, the server's default, a work item that does not exist or cannot be read fails the whole request; with `omit`, the others are returned. |
 
@@ -233,7 +235,7 @@ A **partial** refund sends no email.
 
 Field names are the raw TFS reference names — the same strings `--fields` accepts.
 
-`workitem list` and `workitem get-batch` print each work item exactly as `workitem get` does, one after another, separated by a blank line, in the order the server returned them, which need not be the order of `--ids`. With `--error-policy omit`, each id the server did not return is printed after them as a heading with no body; the server does not say whether the work item does not exist or cannot be read:
+`wit work-items list` and `wit work-items get-batch` print each work item exactly as `wit work-items get` does, one after another, separated by a blank line, in the order the server returned them, which need not be the order of `--ids`. With `--error-policy omit`, each id the server did not return is printed after them as a heading with no body; the server does not say whether the work item does not exist or cannot be read:
 
 ```markdown
 # Work item 298 (not returned: it does not exist, or the PAT has no access to it)
@@ -244,7 +246,7 @@ Field names are the raw TFS reference names — the same strings `--fields` acce
 `--verbose` writes one line per request to stderr — method, URL, status, duration — leaving stdout clean for the markdown. Headers and bodies are never logged, so the PAT cannot leak through it. A failed round trip is logged with status `0`.
 
 ```
-$ tfscli workitem get -p MyProject 12345 --verbose
+$ tfscli wit work-items get -p MyProject 12345 --verbose
 GET https://tfs.company.com:8080/tfs/DefaultCollection/MyProject/_apis/wit/workitems/12345 200 86.4512ms
 ```
 
@@ -270,22 +272,22 @@ The `(HTTP status)` part is omitted for errors that did not come from an HTTP re
 Examples:
 
 ```
-$ tfscli workitem get -p MyProject 12345
+$ tfscli wit work-items get -p MyProject 12345
 Error [config]: not logged in: no credential at C:\Users\you\.local\share\tfscli\auth.json (run "tfscli auth login", or set TFSCLI_AUTH)
 
-$ tfscli workitem get 12345
+$ tfscli wit work-items get 12345
 Error [config]: project is not set (pass -p, set TFSCLI_PROJECT, or add "project" to the config file)
 
-$ tfscli workitem get -p MyProject abc
+$ tfscli wit work-items get -p MyProject abc
 Error [config]: work item id "abc" is not a positive integer
 
-$ tfscli workitem list -p MyProject 297 299
+$ tfscli wit work-items list -p MyProject 297 299
 Error [config]: list takes no arguments; pass the work item ids with --ids, e.g. --ids 297,299
 
-$ tfscli workitem get -p MyProject 12345
+$ tfscli wit work-items get -p MyProject 12345
 Error [config]: The requested REST API version of 7.2 is out of range for this server. The latest REST API version this server supports is 7.1. (api-version "7.2" is set by TFSCLI_API_VERSION; remove it to let the server choose the version, or set one the server supports) (HTTP 400)
 
-$ tfscli workitem get -p MyProject 12345
+$ tfscli wit work-items get -p MyProject 12345
 Error [network]: cannot reach https://tfs.company.com:8080
 ```
 

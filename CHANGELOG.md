@@ -3,11 +3,12 @@
 ## [Unreleased]
 
 ### Added
-- `tfscli workitem list` prints several work items by id with one request, taking the ids in `--ids` and the optional `--fields`, `--as-of`, and `--error-policy`.
-- `tfscli workitem get-batch` does the same with a POST request, for lists of ids too long for the URL of `workitem list`, on Azure DevOps Server 2019 or later.
+- `tfscli wit work-items list` prints several work items by id with one request, taking the ids in `--ids` and the optional `--fields`, `--as-of`, and `--error-policy`.
+- `tfscli wit work-items get-batch` does the same with a POST request, for lists of ids too long for the URL of `wit work-items list`, on Azure DevOps Server 2019 or later.
 - `--error-policy omit` on both commands prints the work items that exist and lists each id the server did not return, instead of failing the command.
 ### Fixed
 ### Changed
+- `tfscli workitem get` is now `tfscli wit work-items get`: commands are named by the REST API area, the resource, and the operation, as the paths of the REST API reference name them, and the old name is no longer accepted.
 ### Removed
 
 ---

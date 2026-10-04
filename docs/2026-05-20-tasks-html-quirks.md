@@ -1,7 +1,7 @@
 ## 2026-05-20-tasks-html-quirks.md
 
 **Status:** Active
-**Trigger:** A decision to collect rich-text samples from a live TFS instance. The work in this file is deliberately deferred until then — see the "HTML quirks" decision in the conversation that produced the Architecture section of `architecture.md`. A live connection is no longer the blocker: release 0.0.5 ran `auth login` and `workitem get` successfully against a live server.
+**Trigger:** A decision to collect rich-text samples from a live TFS instance. The work in this file is deliberately deferred until then — see the "HTML quirks" decision in the conversation that produced the Architecture section of `architecture.md`. A live connection is no longer the blocker: release 0.0.5 ran `auth login` and the single work item read (now `wit work-items get`) successfully against a live server.
 
 ### Contracts
 

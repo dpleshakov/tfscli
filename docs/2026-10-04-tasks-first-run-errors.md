@@ -89,7 +89,7 @@ cobra errors end with a pointer to the command's `--help`. Tests cover both.
 **Status:** Pending
 
 ### TASK-06 `project-optional-research`
-**Description:** `workitem get` requires a project (`-p`, `TFSCLI_PROJECT`,
+**Description:** `wit work-items get` requires a project (`-p`, `TFSCLI_PROJECT`,
 or the config file), and the request path includes it
 (`{project}/_apis/wit/workitems/{id}` in `internal/workitem/workitem.go`).
 Unverified: the Get Work Item documentation lists the project as optional,
@@ -104,7 +104,7 @@ with its source; anything not confirmed is marked as unverified.
 
 ### TASK-07 `project-optional-decide`
 **Description:** Using the findings on the project in the request path, decide whether `-p` becomes
-optional for `workitem get`, taking server compatibility into account.
+optional for `wit work-items get`, taking server compatibility into account.
 **Definition of done:** The decision and the rejected options are recorded in
 the Context section, and implementation tasks for the decision are added to
 this file.

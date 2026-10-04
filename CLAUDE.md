@@ -10,7 +10,7 @@ Note: tasks files created before the move to skills (e.g. `docs/2026-05-20-tasks
 
 ## Project state
 
-The MVP is implemented: `tfscli wit work-items get` works end to end, `tfscli wit work-items list` and `tfscli wit work-items get-batch` read several work items by id, and the module has one package per architecture module (see the "Project Structure" section of `docs/architecture.md`). Release 0.0.5 has been run against a live TFS instance, where these commands were still named `workitem get`, `workitem list`, and `workitem get-batch`: `auth login` and `get` work there; `list` and `get-batch` have not been run against a live server yet; the error paths and rich-text rendering on real data have not been checked yet — see the "Status" and "Known limitations" sections of `README.md`. Further work goes through tasks files per the `tasks` skill.
+The MVP is implemented: `tfscli wit work-items get` works end to end, `tfscli wit work-items list` and `tfscli wit work-items get-batch` read several work items by id, and the module has one package per architecture module (see the "Project Structure" section of `docs/architecture.md`). Release 0.0.5, which predates the current command names, has been run against a live TFS instance: `auth login` and reading one work item (`get`) work there; `list` and `get-batch` have not been run against a live server yet; the error paths and rich-text rendering on real data have not been checked yet — see the "Status" and "Known limitations" sections of `README.md`. Further work goes through tasks files per the `tasks` skill.
 
 Three documents drive everything:
 
