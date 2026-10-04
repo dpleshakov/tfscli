@@ -112,8 +112,12 @@ how to proceed rather than reconstructing the process from the summary below.
 
 ## Commits and branches
 
-`main` is the only branch. CI runs `make check` on pushes to it and on pull requests
-against it. Commit messages follow what the history already does:
+`main` is protected by a repository ruleset: every change reaches it through a pull
+request, merged only when the `check` job of `.github/workflows/ci.yml` is green. The
+`Release` workflow is the sole exception — it pushes the release commit and the tag to
+`main` directly, as the ruleset's only bypass actor.
+
+Commit messages follow what the history already does:
 
 - A subject in the imperative, with no type prefix or scope — `Implement workitem package
   (TASK-06)`, `Add build, lint, and release automation`.
@@ -140,8 +144,8 @@ binary built without them reports `dev (unknown)`.
 
 ### Steps
 
-1. Everything going into the release is on `main` and recorded under `## [Unreleased]` in
-   `CHANGELOG.md`.
+1. Everything going into the release is merged into `main` and recorded under
+   `## [Unreleased]` in `CHANGELOG.md`.
 2. `skills/tfscli/SKILL.md` still describes the tool as it now is: the command tree and
    the flags in `internal/cli`, the error categories in `internal/tfserr`, and the
    environment variables in `internal/config`. Nothing verifies this, and the file ships
@@ -178,7 +182,7 @@ goreleaser skips the changelog step entirely for a snapshot. To see the body, ru
 ### When it goes wrong
 
 Everything that can be checked is checked before the push, and a failure there leaves the
-repository exactly as it was — fix it on `main` and run the workflow again:
+repository exactly as it was — fix it through a pull request and run the workflow again:
 
 - `make check` is red on the commit being released;
 - the version is not of the form `X.Y.Z`, or the changelog already has a section for it;
@@ -186,14 +190,13 @@ repository exactly as it was — fix it on `main` and run the workflow again:
 
 After the push the failure to expect is a release body that is wrong rather than
 unusable — the wrong entries under `[Unreleased]`, say. The release is a draft, so delete
-it on GitHub and undo the rest:
+it on GitHub, delete the tag, and revert the release commit through a pull request:
 
 ```
 git push origin --delete vX.Y.Z
 git tag -d vX.Y.Z
-git revert <the Release X.Y.Z commit>
 ```
 
-The revert restores `[Unreleased]`, so the workflow can be run again with the same
+The merged revert restores `[Unreleased]`, so the workflow can be run again with the same
 version. A release that has already been published is not withdrawn this way — issue the
 next patch version instead.
