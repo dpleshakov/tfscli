@@ -82,8 +82,8 @@ func TestAuthLoginStoresTheCredential(t *testing.T) {
 	if want := "/_apis/connectionData"; s.path != want {
 		t.Errorf("requested path %q, want %q", s.path, want)
 	}
-	if got, want := s.query.Get("api-version"), "7.2-preview"; got != want {
-		t.Errorf("api-version = %q, want %q", got, want)
+	if _, ok := s.query["api-version"]; ok {
+		t.Errorf("query = %v, want no api-version", s.query)
 	}
 	if want := "Basic " + base64.StdEncoding.EncodeToString([]byte(":secret-token")); s.auth != want {
 		t.Errorf("Authorization = %q, want %q", s.auth, want)
@@ -131,12 +131,13 @@ func TestAuthLoginReplacesTheCredential(t *testing.T) {
 	}
 }
 
-func TestAuthLoginUsesTheConfigFile(t *testing.T) {
+func TestAuthLoginIgnoresTheConfiguredAPIVersion(t *testing.T) {
 	s := newServer(t, http.StatusOK, connectionDataResponse)
 	isolate(t)
 	cfgHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("TFSCLI_API_VERSION", "7.0")
 	writeTestFile(t, filepath.Join(cfgHome, "tfscli", "config.json"), `{"apiVersion": "6.0"}`)
 
 	var out, errOut bytes.Buffer
@@ -145,8 +146,33 @@ func TestAuthLoginUsesTheConfigFile(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0 (stderr: %s)", code, errOut.String())
 	}
-	if got, want := s.query.Get("api-version"), "6.0-preview"; got != want {
-		t.Errorf("api-version = %q, want %q", got, want)
+	if _, ok := s.query["api-version"]; ok {
+		t.Errorf("query = %v, want no api-version", s.query)
+	}
+}
+
+func TestAuthLoginRefusesTheAPIVersionFlag(t *testing.T) {
+	s := newServer(t, http.StatusOK, connectionDataResponse)
+	isolate(t)
+	data := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", data)
+
+	var out, errOut bytes.Buffer
+	code := run(testBuild, []string{"auth", "login", "--api-version", "6.0"},
+		typist{line: s.URL, secret: "secret-token"}, &out, &errOut)
+
+	if code != 1 {
+		t.Errorf("exit code = %d, want 1", code)
+	}
+	want := "Error [config]: --api-version does not apply to tfscli auth login, which sends its check without an API version (remove the flag)\n"
+	if errOut.String() != want {
+		t.Errorf("stderr = %q, want %q", errOut.String(), want)
+	}
+	if s.calls != 0 {
+		t.Errorf("the server was called %d times, want 0", s.calls)
+	}
+	if _, err := os.Stat(filepath.Join(data, "tfscli", "auth.json")); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("auth file stat error = %v, want it to be absent", err)
 	}
 }
 

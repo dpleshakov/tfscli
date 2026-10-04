@@ -12,8 +12,11 @@ invocation performs one HTTP request against the server.
 The request it issues for a work item is:
 
 ```
-GET <url>/<collection>/<project>/_apis/wit/workitems/<id>?api-version=<version>
+GET <url>/<collection>/<project>/_apis/wit/workitems/<id>
 ```
+
+with `api-version=<version>` added to the query only when a version is
+configured.
 
 Authentication is a personal access token sent as HTTP Basic with an empty user
 name. Output is markdown on stdout; errors are one line on stderr.
@@ -73,7 +76,8 @@ point tfscli at another one.
 the token with echo turned off and refuses to run without an interactive
 terminal. Do not run it, and do not write `auth.json` or set `TFSCLI_AUTH` on
 the user's behalf. When a command reports `not logged in`, tell the user to
-run `tfscli auth login`.
+run `tfscli auth login`. The login check is sent without an API version; the
+API version settings below do not apply to it.
 
 ## Configuration
 
@@ -86,13 +90,17 @@ OS), environment variables, command-line flags.
 |---|---|---|---|---|---|
 | Collection | `collection` | `TFSCLI_COLLECTION` | `--collection` | — | yes |
 | Team project | `project` | `TFSCLI_PROJECT` | `-p`, `--project` | — | per command |
-| REST API version | `apiVersion` | `TFSCLI_API_VERSION` | `--api-version` | `7.2` | no |
+| REST API version | `apiVersion` | `TFSCLI_API_VERSION` | `--api-version` | none | no |
 | Request logging | — | `TFSCLI_VERBOSE=1` | `--verbose` | off | no |
 
 Two further keys are accepted in the config file only, with no environment
 variable and no flag: `caBundle` (path to a PEM bundle appended to the system
 root pool, for an internal CA) and `insecureSkipVerify` (disables certificate
 verification entirely).
+
+Without a configured API version no `api-version` is sent, and the server
+answers at the version it chooses. A configured version is sent unchanged. Do
+not set one unless the user asks for it.
 
 The config file is optional. Environment variables and flags alone are enough,
 so `--collection` and `-p` can carry everything a call needs.

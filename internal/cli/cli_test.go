@@ -160,24 +160,53 @@ func TestWorkItemGetRequest(t *testing.T) {
 	if got, want := s.query.Get("fields"), "System.Title,System.State"; got != want {
 		t.Errorf("fields = %q, want %q — spaces around the comma are trimmed", got, want)
 	}
-	if got, want := s.query.Get("api-version"), "7.2"; got != want {
-		t.Errorf("api-version = %q, want the built-in default %q", got, want)
+	if _, ok := s.query["api-version"]; ok {
+		t.Errorf("query = %v, want no api-version when none is configured", s.query)
 	}
 	if want := "Basic " + base64.StdEncoding.EncodeToString([]byte(":secret-token")); s.auth != want {
 		t.Errorf("Authorization = %q, want %q", s.auth, want)
 	}
 }
 
-func TestWorkItemGetAPIVersionFlag(t *testing.T) {
-	s := newServer(t, http.StatusOK, workItemResponse)
-
-	_, stderr, code := execute(t, s, getArgs("--api-version", "5.0")...)
-
-	if code != 0 {
-		t.Fatalf("exit code = %d, want 0 (stderr: %s)", code, stderr)
+func TestWorkItemGetConfiguredAPIVersion(t *testing.T) {
+	tests := []struct {
+		name string
+		flag string
+		env  string
+		file string
+		want string
+	}{
+		{name: "flag", flag: "5.0", want: "5.0"},
+		{name: "environment", env: "6.0-preview.3", want: "6.0-preview.3"},
+		{name: "config file", file: `{"apiVersion": "4.1"}`, want: "4.1"},
 	}
-	if got := s.query.Get("api-version"); got != "5.0" {
-		t.Errorf("api-version = %q, want the flag value %q", got, "5.0")
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := newServer(t, http.StatusOK, workItemResponse)
+			isolate(t)
+			t.Setenv("TFSCLI_AUTH", authFor(s))
+			t.Setenv("TFSCLI_API_VERSION", tt.env)
+			if tt.file != "" {
+				cfgHome := t.TempDir()
+				t.Setenv("XDG_CONFIG_HOME", cfgHome)
+				writeTestFile(t, filepath.Join(cfgHome, "tfscli", "config.json"), tt.file)
+			}
+			args := getArgs()
+			if tt.flag != "" {
+				args = getArgs("--api-version", tt.flag)
+			}
+
+			var out, errOut bytes.Buffer
+			code := run(testBuild, args, noTerminal{}, &out, &errOut)
+
+			if code != 0 {
+				t.Fatalf("exit code = %d, want 0 (stderr: %s)", code, errOut.String())
+			}
+			if got := s.query.Get("api-version"); got != tt.want {
+				t.Errorf("api-version = %q, want %q unchanged", got, tt.want)
+			}
+		})
 	}
 }
 

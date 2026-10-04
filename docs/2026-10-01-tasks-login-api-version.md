@@ -455,7 +455,7 @@ with a `config` error. Tests cover each case. No document outside
 `docs/archive/`, earlier `CHANGELOG.md` releases, and the Context section of
 this file describes `7.2` as the default or says that `auth login` reads the
 API version. `make check` passes.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-05 `version-error-step`
 **Description:** Implement decision 3. Record in `internal/config` which

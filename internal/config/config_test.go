@@ -121,17 +121,16 @@ func TestLoadPrecedence(t *testing.T) {
 			},
 		},
 		{
-			name: "api version falls back to the built-in default",
+			name: "no api version is set by default",
 			file: `{"collection": "FileCollection"}`,
 			want: Config{
 				URL:        "https://file.example.com/tfs",
 				PAT:        "file-pat",
 				Collection: "FileCollection",
-				APIVersion: DefaultAPIVersion,
 			},
 		},
 		{
-			name:      "an empty api version flag falls back to the built-in default",
+			name:      "an empty api version flag clears the configured version",
 			file:      fullConfig,
 			overrides: Overrides{APIVersion: new("")},
 			want: Config{
@@ -139,7 +138,6 @@ func TestLoadPrecedence(t *testing.T) {
 				PAT:        "file-pat",
 				Collection: "FileCollection",
 				Project:    "FileProject",
-				APIVersion: DefaultAPIVersion,
 			},
 		},
 		{
@@ -165,7 +163,6 @@ func TestLoadPrecedence(t *testing.T) {
 				URL:        "https://file.example.com/tfs",
 				PAT:        "file-pat",
 				Collection: "EnvCollection",
-				APIVersion: DefaultAPIVersion,
 			},
 		},
 		{
@@ -175,7 +172,6 @@ func TestLoadPrecedence(t *testing.T) {
 				URL:        "https://file.example.com/tfs",
 				PAT:        "file-pat",
 				Collection: "FileCollection",
-				APIVersion: DefaultAPIVersion,
 			},
 		},
 	}
@@ -261,12 +257,12 @@ func TestLoadReportsCredentialErrorsFirst(t *testing.T) {
 	assertConfigError(t, err, "not logged in")
 }
 
-func TestLoadFileDefaults(t *testing.T) {
+func TestLoadFileAbsent(t *testing.T) {
 	got, err := LoadFile(missingFile(t, "config.json"))
 	if err != nil {
 		t.Fatalf("LoadFile() error = %v, want nil", err)
 	}
-	if want := (Config{APIVersion: DefaultAPIVersion}); *got != want {
+	if want := (Config{}); *got != want {
 		t.Errorf("LoadFile() = %+v, want %+v", *got, want)
 	}
 }

@@ -78,17 +78,20 @@ func New(cfg *config.Config, logger log.Logger) (*Client, error) {
 }
 
 // Get performs a GET request against path, which is appended to the base URL
-// (server URL plus collection). The api-version parameter is added here, so
-// callers pass only their own query parameters. On a non-2xx response or a
-// transport failure the error is a *tfserr.Error carrying the matching
-// category.
+// (server URL plus collection). The api-version parameter is added here when
+// a version is configured, so callers pass only their own query parameters;
+// without one the server answers at the version it chooses. On a non-2xx
+// response or a transport failure the error is a *tfserr.Error carrying the
+// matching category.
 func (c *Client) Get(ctx context.Context, path string, query url.Values) ([]byte, error) {
 	u := c.base.JoinPath(path)
 	q := maps.Clone(query)
 	if q == nil {
 		q = url.Values{}
 	}
-	q.Set("api-version", c.apiVersion)
+	if c.apiVersion != "" {
+		q.Set("api-version", c.apiVersion)
+	}
 	u.RawQuery = q.Encode()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)

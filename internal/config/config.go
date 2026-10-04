@@ -11,10 +11,6 @@ import (
 	"github.com/dpleshakov/tfscli/internal/tfserr"
 )
 
-// DefaultAPIVersion is used when neither the config file, the environment, nor
-// a flag specifies an API version.
-const DefaultAPIVersion = "7.2"
-
 // Config is the effective configuration after merging the credential, the
 // config file, environment variables, and command-line flags.
 type Config struct {
@@ -26,6 +22,8 @@ type Config struct {
 
 	Collection string `json:"collection"`
 	Project    string `json:"project"`
+	// APIVersion is sent as api-version when set. Empty means no version is
+	// sent and the server answers at the version it chooses.
 	APIVersion string `json:"apiVersion"`
 
 	// InsecureSkipVerify disables TLS certificate verification. Config file
@@ -78,7 +76,7 @@ func xdgDir(env string, fallback ...string) (string, error) {
 
 // Load resolves the credential (TFSCLI_AUTH, or the auth file at authPath),
 // reads the config file at path, overlays environment variables, overlays
-// explicitly-set flag values, applies built-in defaults, and validates the
+// explicitly-set flag values, and validates the
 // fields every command needs. The config file is optional: the environment
 // and flags can supply everything it holds.
 //
@@ -99,11 +97,6 @@ func Load(path, authPath string, ov Overrides) (*Config, error) {
 	applyEnv(cfg)
 	applyOverrides(cfg, ov)
 
-	// An explicit --api-version "" falls back to the default rather than
-	// sending an empty api-version parameter.
-	if cfg.APIVersion == "" {
-		cfg.APIVersion = DefaultAPIVersion
-	}
 	if cfg.Collection == "" {
 		return nil, &tfserr.Error{
 			Category: tfserr.Config,
@@ -126,9 +119,9 @@ func (c *Config) RequireProject() error {
 	return nil
 }
 
-// LoadFile reads the config file at path and applies the built-in defaults,
-// without the credential, the environment, or flags. An absent file yields
-// the defaults and no error. It serves on its own the commands that run
+// LoadFile reads the config file at path, without the credential, the
+// environment, or flags. An absent file yields an empty configuration and no
+// error. It serves on its own the commands that run
 // before a credential exists.
 func LoadFile(path string) (*Config, error) {
 	cfg := &Config{}
@@ -151,9 +144,6 @@ func LoadFile(path string) (*Config, error) {
 		}
 	}
 
-	if cfg.APIVersion == "" {
-		cfg.APIVersion = DefaultAPIVersion
-	}
 	return cfg, nil
 }
 

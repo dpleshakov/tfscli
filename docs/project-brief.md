@@ -30,7 +30,7 @@ An AI agent can call `tfscli`, read work item content, and use it meaningfully i
 
 - **Platform:** primary target is Windows (most on-prem TFS environments). Cross-compilation to Linux/macOS is a bonus enabled by Go, not a priority.
 - **API coverage in MVP:** Work Items → Get Work Item (single ID). Get Work Items Batch (multiple IDs) if supported by the target API version. Fields selectable via `--fields` parameter; all fields returned by default.
-- **Target API version:** Azure DevOps Server (latest, REST API 7.2). API version is configurable (default in config, overridable per call) to support older TFS installations.
+- **Target API version:** none by default. Requests carry no `api-version`, so the server answers at the version it chooses, and the same configuration works with older TFS installations and with the latest Azure DevOps Server alike. A version can be pinned in the config file, the environment, or per call, and is then sent unchanged.
 - **Authentication:** PAT only. No SSPI or NTLM. The server URL and the PAT are stored together and always come from the same source, so the token is never sent to any other server: either `$XDG_DATA_HOME/tfscli/auth.json` (default `~/.local/share/tfscli/auth.json`, on every OS), written only by `tfscli auth login`, or the `TFSCLI_AUTH` environment variable holding the same JSON, which takes precedence and serves CI. `auth.json` holds exactly one server, is written with mode `0600` (directory `0700`), and stores the token in plaintext. No flag, separate environment variable, or config key supplies the URL or the token. See "Authentication" below.
 - **No OS keychain.** Against code running as the same user a keychain adds no protection; other users are excluded by file permissions, and stolen disks by disk encryption. A keychain is reconsidered only if an organisation requires secrets to be kept in the system store, and would then be a second storage backend behind the same `auth login`.
 - **Output:** Markdown by default. JSON as optional flag in future versions.
@@ -56,7 +56,7 @@ An AI agent can call `tfscli`, read work item content, and use it meaningfully i
 
 ## Authentication
 
-`tfscli auth login` takes no flags. It refuses to run when stdin is not a terminal, asks for the server URL, then for the PAT with echo turned off, verifies the pair with a request to `{url}/_apis/connectionData`, and writes `auth.json` only if the request succeeds. Verification failures are reported in the error categories below. The URL is normalised before it is stored: lower-case scheme and host, no trailing slash. TLS settings and the API version for the verification request come from the config file when it exists.
+`tfscli auth login` takes no flags. It refuses to run when stdin is not a terminal, asks for the server URL, then for the PAT with echo turned off, verifies the pair with a request to `{url}/_apis/connectionData`, and writes `auth.json` only if the request succeeds. Verification failures are reported in the error categories below. The URL is normalised before it is stored: lower-case scheme and host, no trailing slash. TLS settings come from the config file when it exists. The verification request carries no `api-version`, whatever the config file, `TFSCLI_API_VERSION`, or `--api-version` say: `connectionData` has no released version, and the request reads no data whose shape a version would fix. `--api-version` given to `auth login` is refused with a `config` error.
 
 ```json
 {
@@ -74,12 +74,11 @@ File: `$XDG_CONFIG_HOME/tfscli/config.json`, defaulting to `~/.config/tfscli/con
 ```json
 {
   "collection": "DefaultCollection",
-  "project": "MyProject",
-  "apiVersion": "7.2"
+  "project": "MyProject"
 }
 ```
 
-All values overridable via environment variables (`TFSCLI_COLLECTION`, `TFSCLI_PROJECT`, `TFSCLI_API_VERSION`) and command-line flags (`--collection`, `-p`, `--api-version`). The TLS settings `caBundle` and `insecureSkipVerify` are accepted in the config file only.
+All values overridable via environment variables (`TFSCLI_COLLECTION`, `TFSCLI_PROJECT`, `TFSCLI_API_VERSION`) and command-line flags (`--collection`, `-p`, `--api-version`). The API version is set with `apiVersion` in the config file, and has no default: without it no `api-version` is sent. The TLS settings `caBundle` and `insecureSkipVerify` are accepted in the config file only.
 
 Priority: CLI flag > environment variable > config file > built-in default.
 

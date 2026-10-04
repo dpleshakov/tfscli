@@ -83,10 +83,18 @@ func newAuthLoginCmd(g *globals) *cobra.Command {
 			"The token is typed with echo off and is never accepted as an argument. The\n" +
 			"command needs an interactive terminal; where there is none, such as in CI,\n" +
 			"set TFSCLI_AUTH to {\"url\": \"…\", \"pat\": \"…\"} instead.\n\n" +
-			"The TLS settings (caBundle, insecureSkipVerify) and apiVersion are taken from\n" +
-			"the config file when it exists.",
+			"The TLS settings (caBundle, insecureSkipVerify) are taken from the config\n" +
+			"file when it exists. The API version settings (--api-version,\n" +
+			"TFSCLI_API_VERSION, apiVersion) do not apply: the check is sent without an\n" +
+			"API version, and the server chooses one.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if cmd.Flags().Changed("api-version") {
+				return &tfserr.Error{
+					Category: tfserr.Config,
+					Message:  "--api-version does not apply to tfscli auth login, which sends its check without an API version (remove the flag)",
+				}
+			}
 			return g.login(cmd.Context())
 		},
 	}
@@ -176,11 +184,11 @@ func inputError(what string, err error) error {
 // server level and returns the display name of the user the token belongs
 // to. HTTP failures come back in their usual categories.
 func (g *globals) verify(ctx context.Context, cfg *config.Config) (string, error) {
-	// connectionData is a preview resource: a released api-version is refused
-	// for it, a preview qualifier is accepted.
-	if !strings.Contains(cfg.APIVersion, "-preview") {
-		cfg.APIVersion += "-preview"
-	}
+	// The request carries no api-version, whatever the config file says:
+	// connectionData has no released version, so a version pinned for the
+	// other commands would be refused for it, and without one the server
+	// answers at its latest preview version.
+	cfg.APIVersion = ""
 	client, err := apiclient.New(cfg, g.logger())
 	if err != nil {
 		return "", err

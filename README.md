@@ -114,7 +114,7 @@ Personal access token:
 Logged in to https://tfs.company.com:8080/tfs as Jane Doe
 ```
 
-The token is typed with echo turned off, and the pair is checked against the server (`_apis/connectionData`) before anything is written. A rejected token is reported in the usual error format and leaves nothing behind. The URL is stored with a lower-case scheme and host and without a trailing slash. The command takes no flags and needs an interactive terminal; it reads `caBundle`, `insecureSkipVerify`, and `apiVersion` from the config file when there is one, so a server behind an internal CA can be reached during login too. On Windows under Git Bash (mintty), stdin is not a console; run the command from Windows Terminal, PowerShell, or `cmd`, or prefix it with `winpty`.
+The token is typed with echo turned off, and the pair is checked against the server (`_apis/connectionData`) before anything is written. A rejected token is reported in the usual error format and leaves nothing behind. The URL is stored with a lower-case scheme and host and without a trailing slash. The command takes no flags and needs an interactive terminal; it reads `caBundle` and `insecureSkipVerify` from the config file when there is one, so a server behind an internal CA can be reached during login too. The API version settings do not apply to it: the check is sent without `api-version`, whatever the config file or `TFSCLI_API_VERSION` say, and `--api-version` is refused. On Windows under Git Bash (mintty), stdin is not a console; run the command from Windows Terminal, PowerShell, or `cmd`, or prefix it with `winpty`.
 
 The credential is written to `$XDG_DATA_HOME/tfscli/auth.json`, or `~/.local/share/tfscli/auth.json` when `XDG_DATA_HOME` is not set — the same location on every OS. The file is created with mode `0600` and its directory with `0700`; on Windows it inherits the permissions of the user profile. It holds exactly one server: running `auth login` again replaces it.
 
@@ -142,8 +142,7 @@ The config file is optional: every setting it holds, except the TLS ones below, 
 ```json
 {
   "collection": "DefaultCollection",
-  "project": "MyProject",
-  "apiVersion": "7.2"
+  "project": "MyProject"
 }
 ```
 
@@ -151,10 +150,12 @@ The config file is optional: every setting it holds, except the TLS ones below, 
 |---|---|---|---|---|---|
 | Collection | `collection` | `TFSCLI_COLLECTION` | `--collection` | — | yes |
 | Team project | `project` | `TFSCLI_PROJECT` | `-p`, `--project` | — | per command |
-| REST API version | `apiVersion` | `TFSCLI_API_VERSION` | `--api-version` | `7.2` | no |
+| REST API version | `apiVersion` | `TFSCLI_API_VERSION` | `--api-version` | none | no |
 | Request logging | — | `TFSCLI_VERBOSE=1` | `--verbose` | off | no |
 
 Every flag in the table is global except `-p` / `--project`, which belongs to the commands that need a project.
+
+By default no `api-version` is sent, and the server answers at the version it chooses, so tfscli needs no setting to work with any server release. Set a version only to pin the shape of the response. It must not exceed the highest version the server supports, which follows from its release: 7.1 for Azure DevOps Server 2022.1, 7.0 for 2022, 6.0 for 2020, 5.0 for 2019, and 4.1 for TFS 2018 Update 2 (see "API and TFS version mapping" in the [REST API reference](https://learn.microsoft.com/en-us/rest/api/azure/devops/)). The value is sent unchanged, so a resource that exists only in preview at that version needs the `-preview` suffix. `auth login` does not use this setting.
 
 ### TLS
 
@@ -215,7 +216,7 @@ Field names are the raw TFS reference names — the same strings `--fields` acce
 
 ```
 $ tfscli workitem get -p MyProject 12345 --verbose
-GET https://tfs.company.com:8080/tfs/DefaultCollection/MyProject/_apis/wit/workitems/12345?api-version=7.2 200 86.4512ms
+GET https://tfs.company.com:8080/tfs/DefaultCollection/MyProject/_apis/wit/workitems/12345 200 86.4512ms
 ```
 
 ## Errors
