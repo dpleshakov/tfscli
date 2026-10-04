@@ -83,7 +83,7 @@ func execute(t *testing.T, s *server, args ...string) (stdout, stderr string, co
 
 // authFor is the credential JSON for s.
 func authFor(s *server) string {
-	return `{"url": "` + s.URL + `", "pat": "secret-token"}`
+	return `{"url": "` + s.URL + `", "collection": "DefaultCollection", "pat": "secret-token"}`
 }
 
 // isolate cuts the test off from the developer's own environment: a real
@@ -97,7 +97,7 @@ func isolate(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", "")
 	t.Setenv("XDG_DATA_HOME", "")
 	for _, name := range []string{
-		"TFSCLI_AUTH", "TFSCLI_COLLECTION",
+		"TFSCLI_AUTH",
 		"TFSCLI_PROJECT", "TFSCLI_API_VERSION", "TFSCLI_VERBOSE",
 	} {
 		t.Setenv(name, "")
@@ -109,7 +109,6 @@ func isolate(t *testing.T) {
 func getArgs(extra ...string) []string {
 	args := []string{
 		"workitem", "get",
-		"--collection", "DefaultCollection",
 		"-p", "MyProject",
 	}
 	return append(append(args, extra...), "12345")
@@ -269,7 +268,7 @@ func TestWorkItemGetProjectFromEnvironment(t *testing.T) {
 
 	var out, errOut bytes.Buffer
 	code := run(testBuild, []string{
-		"workitem", "get", "--collection", "DefaultCollection", "12345",
+		"workitem", "get", "12345",
 	}, noTerminal{}, &out, &errOut)
 
 	if code != 0 {
@@ -376,7 +375,7 @@ func TestWorkItemGetRejectsBadInputBeforeCalling(t *testing.T) {
 			s := newServer(t, http.StatusOK, workItemResponse)
 
 			args := []string{
-				"workitem", "get", "--collection", "DefaultCollection",
+				"workitem", "get",
 				"-p", "MyProject", "--", tt.id,
 			}
 			stdout, stderr, code := execute(t, s, args...)
@@ -400,7 +399,7 @@ func TestWorkItemGetRejectsBadInputBeforeCalling(t *testing.T) {
 func TestWorkItemGetRequiresProject(t *testing.T) {
 	s := newServer(t, http.StatusOK, workItemResponse)
 
-	args := []string{"workitem", "get", "--collection", "DefaultCollection", "12345"}
+	args := []string{"workitem", "get", "12345"}
 	_, stderr, code := execute(t, s, args...)
 
 	if code != 1 {
@@ -446,7 +445,7 @@ func TestWorkItemGetReadsTheAuthFile(t *testing.T) {
 }
 
 func TestCredentialFlagsAreGone(t *testing.T) {
-	for _, flag := range []string{"--url", "--pat"} {
+	for _, flag := range []string{"--url", "--collection", "--pat"} {
 		t.Run(flag, func(t *testing.T) {
 			s := newServer(t, http.StatusOK, workItemResponse)
 

@@ -23,18 +23,35 @@ func (noTerminal) IsTerminal() bool            { return false }
 func (noTerminal) ReadLine() (string, error)   { return "", io.EOF }
 func (noTerminal) ReadSecret() (string, error) { return "", io.EOF }
 
-// typist is a terminal with a person typing the given answers.
+// typist is a terminal with a person typing the given answers: lines for the
+// visible prompts in order, then secret for the hidden one. When err is set,
+// every visible prompt fails with it.
 type typist struct {
-	line   string
+	lines  []string
 	secret string
 	err    error
 }
 
-func (typist) IsTerminal() bool { return true }
+// typed is a typist answering the URL, the collection, and the token prompts.
+func typed(url, collection, secret string) *typist {
+	return &typist{lines: []string{url, collection}, secret: secret}
+}
 
-func (t typist) ReadLine() (string, error) { return t.line, t.err }
+func (*typist) IsTerminal() bool { return true }
 
-func (t typist) ReadSecret() (string, error) { return t.secret, nil }
+func (t *typist) ReadLine() (string, error) {
+	if t.err != nil {
+		return "", t.err
+	}
+	if len(t.lines) == 0 {
+		return "", io.EOF
+	}
+	line := t.lines[0]
+	t.lines = t.lines[1:]
+	return line, nil
+}
+
+func (t *typist) ReadSecret() (string, error) { return t.secret, nil }
 
 const connectionDataResponse = `{
   "authenticatedUser": {
@@ -62,24 +79,26 @@ func login(t *testing.T, in prompter) (authPath, stdout, stderr string, code int
 func TestAuthLoginStoresTheCredential(t *testing.T) {
 	s := newServer(t, http.StatusOK, connectionDataResponse)
 	// Mixed case and a trailing slash, as a URL pasted from a browser may be.
-	typed := strings.Replace(s.URL, "http://", "HTTP://", 1) + "/"
+	pasted := strings.Replace(s.URL, "http://", "HTTP://", 1) + "/"
 
-	authPath, stdout, stderr, code := login(t, typist{line: typed, secret: "secret-token"})
+	authPath, stdout, stderr, code := login(t, typed(pasted, " DefaultCollection ", "secret-token"))
 
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0 (stderr: %s)", code, stderr)
 	}
-	if want := "Logged in to " + s.URL + " as Jane Doe\n"; stdout != want {
+	if want := "Logged in to " + s.URL + ", collection DefaultCollection, as Jane Doe\n"; stdout != want {
 		t.Errorf("stdout = %q, want %q", stdout, want)
 	}
-	if !strings.Contains(stderr, "Server URL") || !strings.Contains(stderr, "Personal access token") {
-		t.Errorf("stderr = %q, want both prompts", stderr)
+	for _, prompt := range []string{"Server URL", "Collection", "Personal access token"} {
+		if !strings.Contains(stderr, prompt) {
+			t.Errorf("stderr = %q, want the %q prompt", stderr, prompt)
+		}
 	}
 	if strings.Contains(stderr, "secret-token") {
 		t.Error("stderr contains the PAT")
 	}
 
-	if want := "/_apis/connectionData"; s.path != want {
+	if want := "/DefaultCollection/_apis/connectionData"; s.path != want {
 		t.Errorf("requested path %q, want %q", s.path, want)
 	}
 	if _, ok := s.query["api-version"]; ok {
@@ -97,7 +116,8 @@ func TestAuthLoginStoresTheCredential(t *testing.T) {
 	if err := json.Unmarshal(data, &stored); err != nil {
 		t.Fatalf("auth file is not JSON: %v\n%s", err, data)
 	}
-	if want := map[string]string{"url": s.URL, "pat": "secret-token"}; !maps.Equal(stored, want) {
+	want := map[string]string{"url": s.URL, "collection": "DefaultCollection", "pat": "secret-token"}
+	if !maps.Equal(stored, want) {
 		t.Errorf("auth file = %v, want %v", stored, want)
 	}
 
@@ -117,7 +137,7 @@ func TestAuthLoginReplacesTheCredential(t *testing.T) {
 	writeTestFile(t, authPath, `{"url": "https://old.example.com", "pat": "old-token"}`)
 
 	var out, errOut bytes.Buffer
-	code := run(testBuild, []string{"auth", "login"}, typist{line: s.URL, secret: "new-token"}, &out, &errOut)
+	code := run(testBuild, []string{"auth", "login"}, typed(s.URL, "DefaultCollection", "new-token"), &out, &errOut)
 
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0 (stderr: %s)", code, errOut.String())
@@ -141,7 +161,7 @@ func TestAuthLoginIgnoresTheConfiguredAPIVersion(t *testing.T) {
 	writeTestFile(t, filepath.Join(cfgHome, "tfscli", "config.json"), `{"apiVersion": "6.0"}`)
 
 	var out, errOut bytes.Buffer
-	code := run(testBuild, []string{"auth", "login"}, typist{line: s.URL, secret: "secret-token"}, &out, &errOut)
+	code := run(testBuild, []string{"auth", "login"}, typed(s.URL, "DefaultCollection", "secret-token"), &out, &errOut)
 
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0 (stderr: %s)", code, errOut.String())
@@ -159,7 +179,7 @@ func TestAuthLoginRefusesTheAPIVersionFlag(t *testing.T) {
 
 	var out, errOut bytes.Buffer
 	code := run(testBuild, []string{"auth", "login", "--api-version", "6.0"},
-		typist{line: s.URL, secret: "secret-token"}, &out, &errOut)
+		typed(s.URL, "DefaultCollection", "secret-token"), &out, &errOut)
 
 	if code != 1 {
 		t.Errorf("exit code = %d, want 1", code)
@@ -189,7 +209,7 @@ func TestAuthLoginFailuresWriteNothing(t *testing.T) {
 		{
 			name:   "rejected token",
 			status: http.StatusUnauthorized,
-			in:     func(url string) prompter { return typist{line: url, secret: "bad-token"} },
+			in:     func(url string) prompter { return typed(url, "DefaultCollection", "bad-token") },
 			want:   "Error [auth]: PAT is invalid or expired (HTTP 401)\n",
 			calls:  1,
 		},
@@ -197,7 +217,7 @@ func TestAuthLoginFailuresWriteNothing(t *testing.T) {
 			name:   "anonymous answer",
 			status: http.StatusOK,
 			body:   `{"authenticatedUser": {}}`,
-			in:     func(url string) prompter { return typist{line: url, secret: "bad-token"} },
+			in:     func(url string) prompter { return typed(url, "DefaultCollection", "bad-token") },
 			want:   "Error [auth]: TFS did not identify a user for the PAT\n",
 			calls:  1,
 		},
@@ -205,14 +225,14 @@ func TestAuthLoginFailuresWriteNothing(t *testing.T) {
 			name:   "unexpected answer",
 			status: http.StatusOK,
 			body:   `<html>proxy login page</html>`,
-			in:     func(url string) prompter { return typist{line: url, secret: "secret-token"} },
+			in:     func(url string) prompter { return typed(url, "DefaultCollection", "secret-token") },
 			want:   "Error [server]: TFS returned an unexpected response to the login check\n",
 			calls:  1,
 		},
 		{
 			name:   "unreachable server",
 			closed: true,
-			in:     func(url string) prompter { return typist{line: url, secret: "secret-token"} },
+			in:     func(url string) prompter { return typed(url, "DefaultCollection", "secret-token") },
 			want:   "Error [network]: cannot reach ",
 		},
 		{
@@ -222,17 +242,27 @@ func TestAuthLoginFailuresWriteNothing(t *testing.T) {
 		},
 		{
 			name: "url without a scheme",
-			in:   func(string) prompter { return typist{line: "tfs.company.com/tfs", secret: "secret-token"} },
+			in:   func(string) prompter { return typed("tfs.company.com/tfs", "DefaultCollection", "secret-token") },
 			want: "Error [config]: url \"tfs.company.com/tfs\" must start with http:// or https://\n",
 		},
 		{
+			name: "empty collection",
+			in:   func(url string) prompter { return typed(url, "  ", "secret-token") },
+			want: "Error [config]: the collection is empty\n",
+		},
+		{
+			name: "input closed at the collection",
+			in:   func(url string) prompter { return &typist{lines: []string{url}} },
+			want: "Error [config]: cannot read the collection\n",
+		},
+		{
 			name: "empty token",
-			in:   func(url string) prompter { return typist{line: url, secret: "  "} },
+			in:   func(url string) prompter { return typed(url, "DefaultCollection", "  ") },
 			want: "Error [config]: the personal access token is empty\n",
 		},
 		{
 			name: "input closed",
-			in:   func(string) prompter { return typist{err: io.EOF} },
+			in:   func(string) prompter { return &typist{err: io.EOF} },
 			want: "Error [config]: cannot read the server URL\n",
 		},
 	}

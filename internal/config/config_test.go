@@ -14,7 +14,6 @@ import (
 // from a known-empty environment regardless of the developer's own settings.
 var envNames = []string{
 	"TFSCLI_AUTH",
-	"TFSCLI_COLLECTION",
 	"TFSCLI_PROJECT",
 	"TFSCLI_API_VERSION",
 }
@@ -57,7 +56,6 @@ func missingFile(t *testing.T, name string) string {
 }
 
 const fullConfig = `{
-  "collection": "FileCollection",
   "project": "FileProject",
   "apiVersion": "6.0"
 }`
@@ -66,7 +64,7 @@ const fullConfig = `{
 // table, whose path is known only once the test has written the file.
 const fileSource = "<config file>"
 
-const fileAuth = `{"url": "https://file.example.com/tfs", "pat": "file-pat"}`
+const fileAuth = `{"url": "https://file.example.com/tfs", "collection": "AuthCollection", "pat": "file-pat"}`
 
 func TestLoadPrecedence(t *testing.T) {
 	tests := []struct {
@@ -81,8 +79,8 @@ func TestLoadPrecedence(t *testing.T) {
 			file: fullConfig,
 			want: Config{
 				URL:              "https://file.example.com/tfs",
+				Collection:       "AuthCollection",
 				PAT:              "file-pat",
-				Collection:       "FileCollection",
 				Project:          "FileProject",
 				APIVersion:       "6.0",
 				APIVersionSource: fileSource,
@@ -92,14 +90,13 @@ func TestLoadPrecedence(t *testing.T) {
 			name: "env overrides file",
 			file: fullConfig,
 			env: map[string]string{
-				"TFSCLI_COLLECTION":  "EnvCollection",
 				"TFSCLI_PROJECT":     "EnvProject",
 				"TFSCLI_API_VERSION": "7.0",
 			},
 			want: Config{
 				URL:              "https://file.example.com/tfs",
+				Collection:       "AuthCollection",
 				PAT:              "file-pat",
-				Collection:       "EnvCollection",
 				Project:          "EnvProject",
 				APIVersion:       "7.0",
 				APIVersionSource: "TFSCLI_API_VERSION",
@@ -109,19 +106,17 @@ func TestLoadPrecedence(t *testing.T) {
 			name: "flag overrides env and file",
 			file: fullConfig,
 			env: map[string]string{
-				"TFSCLI_COLLECTION":  "EnvCollection",
 				"TFSCLI_PROJECT":     "EnvProject",
 				"TFSCLI_API_VERSION": "7.0",
 			},
 			overrides: Overrides{
-				Collection: new("FlagCollection"),
 				Project:    new("FlagProject"),
 				APIVersion: new("7.1"),
 			},
 			want: Config{
 				URL:              "https://file.example.com/tfs",
+				Collection:       "AuthCollection",
 				PAT:              "file-pat",
-				Collection:       "FlagCollection",
 				Project:          "FlagProject",
 				APIVersion:       "7.1",
 				APIVersionSource: "--api-version",
@@ -129,11 +124,12 @@ func TestLoadPrecedence(t *testing.T) {
 		},
 		{
 			name: "no api version is set by default",
-			file: `{"collection": "FileCollection"}`,
+			file: `{"project": "FileProject"}`,
 			want: Config{
 				URL:        "https://file.example.com/tfs",
+				Collection: "AuthCollection",
 				PAT:        "file-pat",
-				Collection: "FileCollection",
+				Project:    "FileProject",
 			},
 		},
 		{
@@ -142,23 +138,20 @@ func TestLoadPrecedence(t *testing.T) {
 			overrides: Overrides{APIVersion: new("")},
 			want: Config{
 				URL:        "https://file.example.com/tfs",
+				Collection: "AuthCollection",
 				PAT:        "file-pat",
-				Collection: "FileCollection",
 				Project:    "FileProject",
 			},
 		},
 		{
-			name: "each source wins for its own field",
-			file: fullConfig,
-			env: map[string]string{
-				"TFSCLI_COLLECTION": "EnvCollection",
-				"TFSCLI_PROJECT":    "EnvProject",
-			},
+			name:      "each source wins for its own field",
+			file:      fullConfig,
+			env:       map[string]string{"TFSCLI_PROJECT": "EnvProject"},
 			overrides: Overrides{Project: new("FlagProject")},
 			want: Config{
 				URL:              "https://file.example.com/tfs",
+				Collection:       "AuthCollection",
 				PAT:              "file-pat",
-				Collection:       "EnvCollection",
 				Project:          "FlagProject",
 				APIVersion:       "6.0",
 				APIVersionSource: fileSource,
@@ -166,20 +159,20 @@ func TestLoadPrecedence(t *testing.T) {
 		},
 		{
 			name: "no config file is needed",
-			env:  map[string]string{"TFSCLI_COLLECTION": "EnvCollection"},
 			want: Config{
 				URL:        "https://file.example.com/tfs",
+				Collection: "AuthCollection",
 				PAT:        "file-pat",
-				Collection: "EnvCollection",
 			},
 		},
 		{
-			name: "url and pat in the config file are ignored",
-			file: `{"url": "https://attacker.example", "pat": "config-pat", "collection": "FileCollection"}`,
+			name: "credential fields in the config file and the environment are ignored",
+			file: `{"url": "https://attacker.example", "collection": "FileCollection", "pat": "config-pat"}`,
+			env:  map[string]string{"TFSCLI_COLLECTION": "EnvCollection"},
 			want: Config{
 				URL:        "https://file.example.com/tfs",
+				Collection: "AuthCollection",
 				PAT:        "file-pat",
-				Collection: "FileCollection",
 			},
 		},
 	}
@@ -218,15 +211,14 @@ func TestLoadEmptyEnvDoesNotOverride(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() error = %v, want nil", err)
 	}
-	if got.Collection != "FileCollection" {
-		t.Errorf("Collection = %q, want the config file value", got.Collection)
+	if got.Project != "FileProject" {
+		t.Errorf("Project = %q, want the config file value", got.Project)
 	}
 }
 
 func TestLoadReadsTLSFieldsFromFile(t *testing.T) {
 	clearEnv(t)
 	path := writeConfig(t, `{
-	  "collection": "FileCollection",
 	  "insecureSkipVerify": true,
 	  "caBundle": "C:/certs/corp.pem"
 	}`)
@@ -245,19 +237,10 @@ func TestLoadReadsTLSFieldsFromFile(t *testing.T) {
 
 func TestLoadMalformedJSON(t *testing.T) {
 	clearEnv(t)
-	path := writeConfig(t, `{"collection": "FileCollection",`)
+	path := writeConfig(t, `{"project": "FileProject",`)
 
 	_, err := Load(path, writeAuth(t, fileAuth), Overrides{})
 	assertConfigError(t, err, "config file at "+path+" is not valid JSON")
-}
-
-func TestLoadMissingCollection(t *testing.T) {
-	clearEnv(t)
-	path := missingFile(t, "config.json")
-
-	_, err := Load(path, writeAuth(t, fileAuth), Overrides{})
-	assertConfigError(t, err,
-		`collection is not set (pass --collection, set TFSCLI_COLLECTION, or add "collection" to `+path+")")
 }
 
 func TestLoadReportsCredentialErrorsFirst(t *testing.T) {

@@ -14,14 +14,15 @@ import (
 // Config is the effective configuration after merging the credential, the
 // config file, environment variables, and command-line flags.
 type Config struct {
-	// URL and PAT come only from the credential (auth.json or TFSCLI_AUTH),
-	// never from the config file or a flag, so that the token cannot be
-	// paired with a server it was not stored for.
-	URL string `json:"-"`
-	PAT string `json:"-"`
+	// URL, Collection, and PAT come only from the credential (auth.json or
+	// TFSCLI_AUTH), never from the config file, the environment, or a flag,
+	// so that the token cannot be paired with a server or a collection it was
+	// not stored for.
+	URL        string `json:"-"`
+	Collection string `json:"-"`
+	PAT        string `json:"-"`
 
-	Collection string `json:"collection"`
-	Project    string `json:"project"`
+	Project string `json:"project"`
 	// APIVersion is sent as api-version when set. Empty means no version is
 	// sent and the server answers at the version it chooses.
 	APIVersion string `json:"apiVersion"`
@@ -45,7 +46,6 @@ type Config struct {
 // not set and must not override anything; the caller fills only the flags the
 // user actually passed.
 type Overrides struct {
-	Collection *string
 	Project    *string
 	APIVersion *string
 }
@@ -82,9 +82,9 @@ func xdgDir(env string, fallback ...string) (string, error) {
 
 // Load resolves the credential (TFSCLI_AUTH, or the auth file at authPath),
 // reads the config file at path, overlays environment variables, overlays
-// explicitly-set flag values, and validates the
-// fields every command needs. The config file is optional: the environment
-// and flags can supply everything it holds.
+// explicitly-set flag values. The config file is optional: the environment
+// and flags can supply everything it holds, and the credential carries the
+// rest.
 //
 // Project is not validated here; commands that need it call RequireProject.
 func Load(path, authPath string, ov Overrides) (*Config, error) {
@@ -98,6 +98,7 @@ func Load(path, authPath string, ov Overrides) (*Config, error) {
 		return nil, err
 	}
 	cfg.URL = auth.URL
+	cfg.Collection = auth.Collection
 	cfg.PAT = auth.PAT
 
 	applyEnv(cfg)
@@ -105,14 +106,6 @@ func Load(path, authPath string, ov Overrides) (*Config, error) {
 	// An empty --api-version clears the version, and with it the source.
 	if cfg.APIVersion == "" {
 		cfg.APIVersionSource = ""
-	}
-
-	if cfg.Collection == "" {
-		return nil, &tfserr.Error{
-			Category: tfserr.Config,
-			Message: fmt.Sprintf("collection is not set (pass --collection, set TFSCLI_COLLECTION, or add \"collection\" to %s)",
-				path),
-		}
 	}
 	return cfg, nil
 }
@@ -161,7 +154,6 @@ func LoadFile(path string) (*Config, error) {
 }
 
 func applyEnv(cfg *Config) {
-	setFromEnv(&cfg.Collection, "TFSCLI_COLLECTION")
 	setFromEnv(&cfg.Project, "TFSCLI_PROJECT")
 	if setFromEnv(&cfg.APIVersion, "TFSCLI_API_VERSION") {
 		cfg.APIVersionSource = "TFSCLI_API_VERSION"
@@ -181,7 +173,6 @@ func setFromEnv(dst *string, name string) bool {
 }
 
 func applyOverrides(cfg *Config, ov Overrides) {
-	setFromFlag(&cfg.Collection, ov.Collection)
 	setFromFlag(&cfg.Project, ov.Project)
 	if setFromFlag(&cfg.APIVersion, ov.APIVersion) {
 		cfg.APIVersionSource = "--api-version"
