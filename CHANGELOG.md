@@ -4,8 +4,17 @@
 
 ### Added
 ### Fixed
+- `tfscli auth login` now succeeds on servers that accept a personal access token only within its collection, where it used to fail with an `auth` error for a valid token.
+
 ### Changed
+- The collection is now part of the credential: `tfscli auth login` asks for it between the server URL and the token, `auth.json` and `TFSCLI_AUTH` require a `collection` field, and the token is sent only to the URL and the collection stored with it.
+- `tfscli auth login` now removes the collection from the end of the server URL when the URL was entered with it, and says which server URL it uses instead.
+- `tfscli auth login` now prints the stored collection together with the server URL and the user name.
+- A server URL or collection that leads nowhere during `tfscli auth login` is now reported with the address they made up and a request to check both, instead of `resource not found`.
+- An HTTP 401 is now reported as the server not accepting the token, followed by its possible causes, including IIS Basic Authentication on the server, instead of `PAT is invalid or expired`.
+
 ### Removed
+- `--collection`, `TFSCLI_COLLECTION`, and the `collection` key of the config file no longer exist; the collection comes from `tfscli auth login` or `TFSCLI_AUTH`.
 
 ---
 

@@ -123,7 +123,7 @@ message), Fixed (`auth login` on servers that do not accept the PAT at server
 level).
 **Definition of done:** the entries are present under the unreleased section
 in the format the `changelog` process prescribes; `make check` passes.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-07 `live-check`
 **Description:** Run `tfscli auth login` and `tfscli workitem get` against
