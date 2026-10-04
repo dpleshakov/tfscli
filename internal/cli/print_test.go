@@ -196,3 +196,91 @@ func markdown(t *testing.T, wi *workitem.WorkItem) string {
 	}
 	return buf.String()
 }
+
+func batchMarkdown(t *testing.T, batch *workitem.Batch) string {
+	t.Helper()
+	var buf bytes.Buffer
+	if err := printWorkItems(&buf, batch); err != nil {
+		t.Fatalf("printWorkItems() returned error: %v", err)
+	}
+	return buf.String()
+}
+
+func titled(id, rev int, title string) *workitem.WorkItem {
+	return &workitem.WorkItem{ID: id, Rev: rev, Fields: []workitem.Field{
+		{Name: "System.Title", Kind: workitem.FieldPlain, Value: title},
+		{Name: "System.Description", Kind: workitem.FieldHTML, Value: "<p>" + title + " in detail.</p>"},
+	}}
+}
+
+func TestPrintWorkItemsSeparatesWorkItemsByABlankLine(t *testing.T) {
+	batch := &workitem.Batch{WorkItems: []*workitem.WorkItem{
+		titled(299, 7, "JavaScript implementation"),
+		titled(297, 1, "Customer can sign in"),
+	}}
+
+	want := strings.Join([]string{
+		"# Work item 299 (rev 7)",
+		"",
+		"System.Title: JavaScript implementation",
+		"",
+		"## System.Description",
+		"",
+		"JavaScript implementation in detail.",
+		"",
+		"# Work item 297 (rev 1)",
+		"",
+		"System.Title: Customer can sign in",
+		"",
+		"## System.Description",
+		"",
+		"Customer can sign in in detail.",
+		"",
+	}, "\n")
+
+	if got := batchMarkdown(t, batch); got != want {
+		t.Errorf("printWorkItems() wrote:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestPrintWorkItemsListsMissingAfterReturned(t *testing.T) {
+	batch := &workitem.Batch{
+		WorkItems: []*workitem.WorkItem{{ID: 297, Rev: 1, Fields: []workitem.Field{
+			{Name: "System.Title", Kind: workitem.FieldPlain, Value: "Customer can sign in"},
+		}}},
+		Missing: []int{301, 298},
+	}
+
+	want := strings.Join([]string{
+		"# Work item 297 (rev 1)",
+		"",
+		"System.Title: Customer can sign in",
+		"",
+		"# Work item 301 (not returned: it does not exist, or the PAT has no access to it)",
+		"",
+		"# Work item 298 (not returned: it does not exist, or the PAT has no access to it)",
+		"",
+	}, "\n")
+
+	if got := batchMarkdown(t, batch); got != want {
+		t.Errorf("printWorkItems() wrote:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestPrintWorkItemsWithOnlyMissing(t *testing.T) {
+	batch := &workitem.Batch{Missing: []int{298}}
+
+	want := "# Work item 298 (not returned: it does not exist, or the PAT has no access to it)\n"
+
+	if got := batchMarkdown(t, batch); got != want {
+		t.Errorf("printWorkItems() wrote %q, want %q", got, want)
+	}
+}
+
+func TestPrintWorkItemsMatchesPrintWorkItemForOne(t *testing.T) {
+	wi := titled(297, 1, "Customer can sign in")
+
+	if got, want := batchMarkdown(t, &workitem.Batch{WorkItems: []*workitem.WorkItem{wi}}), markdown(t, wi); got != want {
+		t.Errorf("printWorkItems() wrote:\n%s\nprintWorkItem() wrote:\n%s", got, want)
+	}
+}
