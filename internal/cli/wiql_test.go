@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -134,8 +135,8 @@ func TestWiqlQueryByWiqlRequest(t *testing.T) {
 			if !reflect.DeepEqual(s.query, tt.query) {
 				t.Errorf("query = %v, want %v", s.query, tt.query)
 			}
-			want := `{"query":"SELECT [System.Id] FROM WorkItems WHERE [System.State] = 'Active'"}`
-			if s.sent != want {
+			want, _ := json.Marshal(map[string]string{"query": testWiql})
+			if s.sent != string(want) {
 				t.Errorf("body = %s, want %s", s.sent, want)
 			}
 		})
@@ -169,9 +170,16 @@ func TestWiqlQueryByWiqlRejectsBadInputBeforeCalling(t *testing.T) {
 			want: `Error [config]: query-by-wiql takes no arguments; pass the query with --query, e.g. --query "SELECT [System.Id] FROM WorkItems"` + "\n",
 		},
 		{
+			// An unquoted query leaves its first word in --query and the
+			// rest in the arguments; the suggestion keeps them all.
+			name: "unquoted query after --query",
+			args: []string{"wit", "wiql", "query-by-wiql", "-p", "MyProject", "--query", "SELECT", "[System.Id]", "FROM", "WorkItems"},
+			want: `Error [config]: query-by-wiql takes no arguments; pass the query with --query, e.g. --query "SELECT [System.Id] FROM WorkItems"` + "\n",
+		},
+		{
 			name: "team without a project",
 			args: wiqlArgs("--team", "Web"),
-			want: `Error [config]: --team needs a project, and the project is not set (pass -p, set TFSCLI_PROJECT, or add "project" to the config file)` + "\n",
+			want: `Error [config]: --team needs a project, and project is not set (pass -p, set TFSCLI_PROJECT, or add "project" to the config file)` + "\n",
 		},
 	}
 

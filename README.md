@@ -158,7 +158,7 @@ The config file is optional: every setting it holds, except the TLS ones below, 
 | REST API version | `apiVersion` | `TFSCLI_API_VERSION` | `--api-version` | none | no |
 | Request logging | — | `TFSCLI_VERBOSE=1` | `--verbose` | off | no |
 
-Every flag in the table is global except `-p` / `--project`, which belongs to the commands that need a project.
+Every flag in the table is global except `-p` / `--project`, which belongs to the commands that act within a project: it is required for the `wit work-items` commands and optional for `wit wiql query-by-wiql`.
 
 By default no `api-version` is sent, and the server answers at the version it chooses, so tfscli needs no setting to work with any server release. Set a version only to pin the shape of the response. It must not exceed the highest version the server supports, which follows from its release: 7.1 for Azure DevOps Server 2022.1, 7.0 for 2022, 6.0 for 2020, 5.0 for 2019, and 4.1 for TFS 2018 Update 2 (see "API and TFS version mapping" in the [REST API reference](https://learn.microsoft.com/en-us/rest/api/azure/devops/)). The value is sent unchanged, so a resource that exists only in preview at that version needs the `-preview` suffix. `auth login` does not use this setting.
 
@@ -329,7 +329,7 @@ $ tfscli wit work-items list -p MyProject 297 299
 Error [config]: list takes no arguments; pass the work item ids with --ids, e.g. --ids 297,299
 
 $ tfscli wit wiql query-by-wiql --team Web --query "SELECT [System.Id] FROM WorkItems"
-Error [config]: --team needs a project, and the project is not set (pass -p, set TFSCLI_PROJECT, or add "project" to the config file)
+Error [config]: --team needs a project, and project is not set (pass -p, set TFSCLI_PROJECT, or add "project" to the config file)
 
 $ tfscli wit work-items get -p MyProject 12345
 Error [config]: The requested REST API version of 7.2 is out of range for this server. The latest REST API version this server supports is 7.1. (api-version "7.2" is set by TFSCLI_API_VERSION; remove it to let the server choose the version, or set one the server supports) (HTTP 400)

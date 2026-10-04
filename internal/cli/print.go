@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"strconv"
 	"strings"
 	"time"
 
@@ -196,7 +195,7 @@ func printWiqlResult(w io.Writer, result *wiql.Result) error {
 
 	switch {
 	case !result.Link:
-		fmt.Fprintf(&buf, "Work items: %s\n", orNone(joinInts(result.WorkItems)))
+		fmt.Fprintf(&buf, "Work items: %s\n", orNone(workitem.JoinIDs(result.WorkItems)))
 	case len(result.Relations) == 0:
 		buf.WriteString("Relations: none\n")
 	default:
@@ -221,12 +220,4 @@ func orNone(s string) string {
 		return "none"
 	}
 	return s
-}
-
-func joinInts(ns []int) string {
-	parts := make([]string, len(ns))
-	for i, n := range ns {
-		parts[i] = strconv.Itoa(n)
-	}
-	return strings.Join(parts, ",")
 }

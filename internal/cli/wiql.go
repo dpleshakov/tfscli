@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -48,12 +49,18 @@ func newWiqlQueryByWiqlCmd(g *globals) *cobra.Command {
 		Example: "  tfscli wit wiql query-by-wiql -p MyProject --query \"" + exampleWiql + "\"\n" +
 			"  tfscli wit wiql query-by-wiql -p MyProject --team \"Web Team\" --top 20 --query \"SELECT [System.Id] FROM WorkItems WHERE [System.IterationPath] = @CurrentIteration\"",
 		// A query given as an argument is the likely mistake; the error says
-		// where it goes instead.
+		// where it goes instead. Flags are parsed by now, so a query left
+		// unquoted after --query has its first word there and the rest in
+		// args; the suggestion puts it back together.
 		Args: func(_ *cobra.Command, args []string) error {
 			if len(args) > 0 {
+				words := args
+				if query != "" {
+					words = append([]string{query}, args...)
+				}
 				return &tfserr.Error{
 					Category: tfserr.Config,
-					Message:  fmt.Sprintf("query-by-wiql takes no arguments; pass the query with --query, e.g. --query %q", strings.Join(args, " ")),
+					Message:  fmt.Sprintf("query-by-wiql takes no arguments; pass the query with --query, e.g. --query %q", strings.Join(words, " ")),
 				}
 			}
 			return nil
@@ -75,11 +82,12 @@ func newWiqlQueryByWiqlCmd(g *globals) *cobra.Command {
 				return err
 			}
 			// The team follows the project in the path, so it cannot be used
-			// on its own.
-			if team != "" && cfg.Project == "" {
-				return &tfserr.Error{
-					Category: tfserr.Config,
-					Message:  "--team needs a project, and the project is not set (pass -p, set TFSCLI_PROJECT, or add \"project\" to the config file)",
+			// on its own. The missing-project error is reused so that the
+			// sources of the project are named in one place.
+			if team != "" {
+				var te *tfserr.Error
+				if err := cfg.RequireProject(); errors.As(err, &te) {
+					return &tfserr.Error{Category: te.Category, Message: "--team needs a project, and " + te.Message, Cause: err}
 				}
 			}
 

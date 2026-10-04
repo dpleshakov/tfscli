@@ -151,8 +151,8 @@ This section describes the conceptual module structure, their responsibilities, 
                  │ raw JSON / *tfserr.Error
                  ▼
         ┌──────────────────┐
-        │  workitem, wiql  │   json.Unmarshal + tag FieldKind
-        │  (domain)        │   (HTML field allowlist lives here)
+        │  workitem, wiql  │   json.Unmarshal; workitem also tags FieldKind
+        │  (domain)        │   (its HTML field allowlist lives there)
         └────────┬─────────┘
                  │ *WorkItem / *Batch / *wiql.Result
                  ▼

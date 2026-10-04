@@ -16,7 +16,7 @@ Key properties:
 - **PAT authentication.** No SSPI, no NTLM. PAT provides both simplicity and server-side access control (read-only scopes).
 - **Markdown output.** HTML fields (Description, ReproSteps, etc.) are converted to markdown to save tokens and improve readability for AI agents. JSON output planned for future versions as an optional flag.
 - **Mirrors TFS API structure.** Command hierarchy, parameters, and behavior follow TFS REST API conventions. Any deviation must be explicitly justified by usability. Users (including AI) should not need to learn a new mental model.
-- **Extensible by design.** Architecture supports adding new API domains (WIQL, Repos, Builds, etc.) and new API versions without restructuring.
+- **Extensible by design.** Architecture supports adding new API domains (Repos, Builds, Work Item Comments, etc.) and new API versions without restructuring.
 
 ## Target Audience
 
