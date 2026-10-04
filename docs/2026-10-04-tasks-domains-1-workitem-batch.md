@@ -67,7 +67,7 @@ of parameters, a response with every work item returned, a response with
 `null` entries yielding the missing IDs, a response in an order different from
 the request, and a malformed response reported in the `server` category;
 `make check` passes.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-02 `apiclient-post`
 **Description:** Add `Post` to `internal/apiclient` for a request with a JSON

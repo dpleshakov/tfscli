@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/dpleshakov/tfscli/internal/tfserr"
@@ -254,5 +255,197 @@ func TestGetAcceptsResponseWithoutFields(t *testing.T) {
 
 	if len(wi.Fields) != 0 {
 		t.Errorf("got %d fields, want none", len(wi.Fields))
+	}
+}
+
+func list(t *testing.T, client *fakeClient, req BatchRequest) *Batch {
+	t.Helper()
+	batch, err := List(context.Background(), client, "MyProject", req)
+	if err != nil {
+		t.Fatalf("List() returned error: %v", err)
+	}
+	return batch
+}
+
+func ids(batch *Batch) []int {
+	var got []int
+	for _, wi := range batch.WorkItems {
+		got = append(got, wi.ID)
+	}
+	return got
+}
+
+const threeItems = `{
+	"count": 3,
+	"value": [
+		{"id": 297, "rev": 1, "fields": {"System.Title": "Customer can sign in"}},
+		{"id": 299, "rev": 7, "fields": {"System.Title": "JavaScript implementation"}},
+		{"id": 300, "rev": 1, "fields": {"System.Title": "Unit testing"}}
+	]
+}`
+
+func TestListSendsOnlyGivenParameters(t *testing.T) {
+	tests := []struct {
+		name string
+		req  BatchRequest
+		want url.Values
+	}{
+		{
+			name: "ids only",
+			req:  BatchRequest{IDs: []int{297, 299, 300}},
+			want: url.Values{"ids": {"297,299,300"}},
+		},
+		{
+			name: "fields",
+			req:  BatchRequest{IDs: []int{297}, Fields: []string{"System.Title", "System.State"}},
+			want: url.Values{"ids": {"297"}, "fields": {"System.Title,System.State"}},
+		},
+		{
+			name: "asOf",
+			req:  BatchRequest{IDs: []int{297}, AsOf: "2014-12-29T20:49:22.103Z"},
+			want: url.Values{"ids": {"297"}, "asOf": {"2014-12-29T20:49:22.103Z"}},
+		},
+		{
+			name: "errorPolicy",
+			req:  BatchRequest{IDs: []int{297}, ErrorPolicy: "omit"},
+			want: url.Values{"ids": {"297"}, "errorPolicy": {"omit"}},
+		},
+		{
+			name: "everything",
+			req: BatchRequest{
+				IDs:         []int{297, 299},
+				Fields:      []string{"System.Title"},
+				AsOf:        "2014-12-29T20:49:22.103Z",
+				ErrorPolicy: "fail",
+			},
+			want: url.Values{
+				"ids":         {"297,299"},
+				"fields":      {"System.Title"},
+				"asOf":        {"2014-12-29T20:49:22.103Z"},
+				"errorPolicy": {"fail"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := &fakeClient{body: []byte(threeItems)}
+
+			list(t, client, tt.req)
+
+			if want := "MyProject/_apis/wit/workitems"; client.path != want {
+				t.Errorf("requested path %q, want %q", client.path, want)
+			}
+			if got, want := client.query.Encode(), tt.want.Encode(); got != want {
+				t.Errorf("query = %q, want %q", got, want)
+			}
+		})
+	}
+}
+
+func TestListReturnsEveryWorkItem(t *testing.T) {
+	client := &fakeClient{body: []byte(threeItems)}
+
+	batch := list(t, client, BatchRequest{IDs: []int{297, 299, 300}})
+
+	if got, want := ids(batch), []int{297, 299, 300}; !slices.Equal(got, want) {
+		t.Errorf("work items %v, want %v", got, want)
+	}
+	if len(batch.Missing) != 0 {
+		t.Errorf("missing %v, want none", batch.Missing)
+	}
+	if got := field(t, batch.WorkItems[1], "System.Title").Value; got != "JavaScript implementation" {
+		t.Errorf("title of 299 = %#v, want the value from the response", got)
+	}
+	if batch.WorkItems[1].Rev != 7 {
+		t.Errorf("rev of 299 = %d, want 7", batch.WorkItems[1].Rev)
+	}
+}
+
+func TestListKeepsResponseOrder(t *testing.T) {
+	client := &fakeClient{body: []byte(threeItems)}
+
+	batch := list(t, client, BatchRequest{IDs: []int{300, 299, 297}})
+
+	if got, want := ids(batch), []int{297, 299, 300}; !slices.Equal(got, want) {
+		t.Errorf("work items %v, want the response order %v", got, want)
+	}
+	if len(batch.Missing) != 0 {
+		t.Errorf("missing %v, want none: every requested ID was returned", batch.Missing)
+	}
+}
+
+func TestListReportsOmittedWorkItemsAsMissing(t *testing.T) {
+	client := &fakeClient{body: []byte(`{
+		"count": 4,
+		"value": [
+			{"id": 297, "rev": 1, "fields": {"System.Title": "Customer can sign in"}},
+			null,
+			{"id": 300, "rev": 1, "fields": {"System.Title": "Unit testing"}},
+			null
+		]
+	}`)}
+
+	// 298 is asked for twice and must be reported once.
+	batch := list(t, client, BatchRequest{IDs: []int{301, 297, 298, 300, 298}, ErrorPolicy: "omit"})
+
+	if got, want := ids(batch), []int{297, 300}; !slices.Equal(got, want) {
+		t.Errorf("work items %v, want %v", got, want)
+	}
+	if want := []int{301, 298}; !slices.Equal(batch.Missing, want) {
+		t.Errorf("missing %v, want %v in request order", batch.Missing, want)
+	}
+}
+
+func TestListOrdersFieldsAsRequested(t *testing.T) {
+	client := &fakeClient{body: []byte(`{
+		"count": 1,
+		"value": [
+			{"id": 297, "rev": 1, "fields": {"System.State": "New", "System.Title": "Customer can sign in"}}
+		]
+	}`)}
+
+	batch := list(t, client, BatchRequest{IDs: []int{297}, Fields: []string{"System.Title", "System.State"}})
+
+	if got := batch.WorkItems[0].Fields[0].Name; got != "System.Title" {
+		t.Errorf("first field is %q, want System.Title as requested", got)
+	}
+}
+
+func TestListPropagatesClientError(t *testing.T) {
+	want := &tfserr.Error{Category: tfserr.NotFound, Message: "resource not found", HTTPStatus: 404}
+	client := &fakeClient{err: want}
+
+	_, err := List(context.Background(), client, "MyProject", BatchRequest{IDs: []int{297}})
+
+	if !errors.Is(err, error(want)) {
+		t.Fatalf("List() returned %v, want the client error unchanged", err)
+	}
+}
+
+func TestListRejectsMalformedResponse(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		body string
+	}{
+		{name: "not JSON", body: "<html>Gateway timeout</html>"},
+		{name: "no value", body: `{"count": 0}`},
+		{name: "value is not an array", body: `{"count": 1, "value": {}}`},
+		{name: "element is not an object", body: `{"count": 1, "value": [42]}`},
+		{name: "fields is not an object", body: `{"count": 1, "value": [{"id": 297, "rev": 1, "fields": []}]}`},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := &fakeClient{body: []byte(tt.body)}
+
+			_, err := List(context.Background(), client, "MyProject", BatchRequest{IDs: []int{297}})
+
+			var te *tfserr.Error
+			if !errors.As(err, &te) {
+				t.Fatalf("List() returned %v, want a *tfserr.Error", err)
+			}
+			if te.Category != tfserr.Server {
+				t.Errorf("category = %q, want %q", te.Category, tfserr.Server)
+			}
+		})
 	}
 }
