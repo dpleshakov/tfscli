@@ -1,6 +1,6 @@
 # 2026-10-04-tasks-command-areas.md
 
-**Status:** Active
+**Status:** Archived
 
 ## Context
 
@@ -65,4 +65,4 @@ command names in the active tasks files
 and `2026-10-04-tasks-domains-2-wiql.md`.
 **Definition of done:** No document outside `docs/archive/` names the old
 commands; `make check` passes.
-**Status:** Pending
+**Status:** Done
