@@ -154,7 +154,7 @@ This section describes the conceptual module structure, their responsibilities, 
         │  workitem        │   json.Unmarshal + tag FieldKind
         │  (domain)        │   (HTML field allowlist lives here)
         └────────┬─────────┘
-                 │ *WorkItem
+                 │ *WorkItem / *Batch
                  ▼
         ┌──────────────────┐      ┌────────────────────┐
         │  cli printer     │─────►│  htmlmd            │
@@ -170,7 +170,7 @@ This section describes the conceptual module structure, their responsibilities, 
 
 ### Modules and responsibilities
 
-- **cli** — cobra commands; persistent flags (`--verbose`, config overrides); orchestrates the chain config → apiclient → domain → printer → exit. Owns the markdown printer functions (one per resource) plus small per-kind scalar formatters for identity and datetime values used by those printers. No `Renderer` interface in v1 — printers are plain functions. When `--json` is added later, the interface and a second renderer can be introduced here without touching the domain layer.
+- **cli** — cobra commands; persistent flags (`--verbose`, config overrides); orchestrates the chain config → apiclient → domain → printer → exit. Owns the markdown printer functions (one per resource and shape, such as a single work item and several) plus small per-kind scalar formatters for identity and datetime values used by those printers. No `Renderer` interface in v1 — printers are plain functions. When `--json` is added later, the interface and a second renderer can be introduced here without touching the domain layer.
 - **config** — resolves the credential (`URL`, `Collection`, and `PAT`; a PAT is issued for one collection) from `TFSCLI_AUTH` or `$XDG_DATA_HOME/tfscli/auth.json`, never from a mix of sources; loads the optional `$XDG_CONFIG_HOME/tfscli/config.json`, applies environment overrides (`TFSCLI_*`), applies cobra flag overrides; validates that all required fields are set for the command being run. Writes `auth.json` for `auth login` (mode `0600`, directory `0700`). Holds `URL`, `Collection`, `PAT`, `Project`, `APIVersion`, `InsecureSkipVerify`, `CABundle`. Never logs PAT.
 - **apiclient** — wraps `net/http`. Builds URLs from `Config.URL + Collection + path`, adding `api-version` only when `APIVersion` is set; without it the server answers at the version it chooses. Sets `Authorization: Basic base64(":<PAT>")` on every request. Configures TLS using `CABundle` (appended to system root pool) and `InsecureSkipVerify`. Hooks the logger via a `RoundTripper` — that transport is the single call site of `LogRequest`, so every outgoing request is logged exactly once and no other module logs HTTP traffic. Classifies HTTP outcomes into the stable error categories defined in the brief (`auth`, `not_found`, `forbidden`, `server`, `config`, `network`).
 - **workitem** — domain logic for Work Items: Get Work Item, Work Items - List, and Get Work Items Batch. Owns the `WorkItem`/`Field` types, the `BatchRequest`/`Batch` types for reading several work items, and the allowlist of fields known to contain HTML (`System.Description`, `Microsoft.VSTS.TCM.ReproSteps`, `Microsoft.VSTS.TCM.SystemInfo`, `Microsoft.VSTS.Common.AcceptanceCriteria`, …). After unmarshalling, tags each field with its `FieldKind`. For several work items, keeps the server's order and reports the requested ids the server did not return. Returns raw values — does not perform markdown conversion.

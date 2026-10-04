@@ -29,7 +29,7 @@ An AI agent can call `tfscli`, read work item content, and use it meaningfully i
 ## Constraints
 
 - **Platform:** primary target is Windows (most on-prem TFS environments). Cross-compilation to Linux/macOS is a bonus enabled by Go, not a priority.
-- **API coverage in MVP:** Work Items → Get Work Item (single ID). Get Work Items Batch (multiple IDs) if supported by the target API version. Fields selectable via `--fields` parameter; all fields returned by default.
+- **API coverage in MVP:** Work Items → Get Work Item (single ID); Work Items - List and Get Work Items Batch (multiple IDs; the latter, a POST, needs Azure DevOps Server 2019 or later). Fields selectable via `--fields` parameter; all fields returned by default.
 - **Target API version:** none by default. Requests carry no `api-version`, so the server answers at the version it chooses, and the same configuration works with older TFS installations and with the latest Azure DevOps Server alike. A version can be pinned in the config file, the environment, or per call, and is then sent unchanged.
 - **Authentication:** PAT only. No SSPI or NTLM. A PAT is issued for one collection, so the collection is part of the credential. The server URL, the collection, and the PAT are stored together and always come from the same source, so the token is never sent to any other server or collection: either `$XDG_DATA_HOME/tfscli/auth.json` (default `~/.local/share/tfscli/auth.json`, on every OS), written only by `tfscli auth login`, or the `TFSCLI_AUTH` environment variable holding the same JSON, which takes precedence and serves CI. `auth.json` holds exactly one credential, is written with mode `0600` (directory `0700`), and stores the token in plaintext. No flag, separate environment variable, or config key supplies the URL, the collection, or the token. See "Authentication" below.
 - **No OS keychain.** Against code running as the same user a keychain adds no protection; other users are excluded by file permissions, and stolen disks by disk encryption. A keychain is reconsidered only if an organisation requires secrets to be kept in the system store, and would then be a second storage backend behind the same `auth login`.
@@ -91,11 +91,13 @@ Priority: CLI flag > environment variable > config file > built-in default.
 tfscli <resource> <action> [flags] [arguments]
 ```
 
-MVP command:
+Commands:
 
 ```
 tfscli workitem get -p MyProject 12345
 tfscli workitem get -p MyProject 12345 --fields System.Title,System.State,System.Description
+tfscli workitem list -p MyProject --ids 297,299,300
+tfscli workitem get-batch -p MyProject --ids 297,299,300
 tfscli auth login
 ```
 
