@@ -19,6 +19,23 @@ research in `docs/2026-10-01-tasks-login-api-version.md` if it replaces the
 verification request.
 **Added:** 2026-10-01, in a pre-push review of the unpushed commits
 
+#### TD-02 `tls-1.2-minimum`
+**Problem:** tfscli connects only with TLS 1.2 or later: `MinVersion` is set
+to TLS 1.2 when `caBundle` or `insecureSkipVerify` is configured
+(`internal/apiclient/apiclient.go`, `newTLSConfig`), and the Go client default
+is the same otherwise. A server that offers only TLS 1.0 or 1.1, such as an
+older TFS on an older Windows Server without TLS 1.2 enabled, cannot be
+reached. This restricts server compatibility, and the "Server compatibility
+is preserved" principle in `docs/project-brief.md` requires such a restriction
+to be recorded with its justification.
+**Why deferred:** TLS 1.0 and 1.1 are deprecated and insecure, and the token
+travels in every request; accepting them would weaken every connection for
+the sake of servers that are not known to exist among the users. No such
+server has been reported.
+**Trigger:** a user reports a server that cannot negotiate TLS 1.2.
+**Added:** 2026-10-04, in a conversation reviewing the repository against the
+server compatibility and out-of-the-box principles
+
 ---
 
 ### Closed

@@ -30,11 +30,22 @@ command.
 **Description:** Establish how `_apis/connectionData` behaves across TFS and
 Azure DevOps Server versions: with no `api-version` at all, with a released
 version, with a `-preview` version, and with a version newer than the server
-supports. Compare candidate replacement requests, such as
+supports. Also establish:
+- whether the response carries `authenticatedUser.id` in the same shape on
+  older servers, since `verify` in `internal/cli/auth.go` relies on it (see
+  TD-01 in `docs/tech-debt.md` for the anonymous case);
+- whether `connectionData` also answers when the URL entered at login already
+  contains a collection, such as `https://tfs.company.com:8080/tfs/DefaultCollection`.
+  If it does, login accepts and stores that URL, every later command appends
+  the collection a second time, and the user receives a bare `not_found` with
+  no hint at the cause.
+
+Compare candidate replacement requests, such as
 `{collection}/_apis/projects?$top=1`, by availability across server versions,
-by whether they need a collection, and by whether they distinguish an invalid
-PAT from anonymous access. Sources: Microsoft documentation, the official
-client SDKs, and a live server where one is available.
+by whether they need a collection, by whether they distinguish an invalid
+PAT from anonymous access, and by whether they distinguish a server URL from
+a collection URL. Sources: Microsoft documentation, the official client SDKs,
+and a live server where one is available.
 **Definition of done:** The findings are recorded in the Context section,
 each with its source; anything not confirmed is marked as unverified.
 **Status:** Pending
@@ -69,6 +80,9 @@ and contradictions known at planning time:
 - The paths and the response shape used by `workitem get`, including the
   project segment in `_apis/wit/workitems`, have not been checked against
   any server older than the default version.
+- Neither `README.md` nor `skills/tfscli/SKILL.md` tells the user how to find
+  the API version their server supports or how it relates to the server
+  release; both list only the default `7.2`.
 - Alternatives to compare: no `api-version` at all; no version by default,
   with `--api-version`, `TFSCLI_API_VERSION`, and `apiVersion` as overrides;
   the lowest version all target servers support as the default; on an
@@ -87,8 +101,14 @@ shape, and whether tfscli works with no configuration.
 version. Options known at planning time: send no `api-version` for the
 verification request; honour `--api-version` and `TFSCLI_API_VERSION` as other
 commands do; try without a version first and with one second; replace the
-verification request. Record the decision and the rejected options with their
-reasons in the Context section.
+verification request. The decision has to satisfy the "Server compatibility
+is preserved" and "Works out of the box; errors lead the way" principles in
+`docs/project-brief.md`. In particular, an API version the server does not
+support must produce an error that names the next step, and that step must
+work for the command that failed: today the error for an out-of-range version
+carries only the server's message, and for `auth login` the only working fix,
+the config file, is named nowhere. Record the decision and the rejected
+options with their reasons in the Context section.
 **Definition of done:** The decision and the rejected options are recorded in
 the Context section, and implementation tasks for the decision are added to
 this file.
