@@ -110,11 +110,11 @@ func isolate(t *testing.T) {
 	}
 }
 
-// getArgs is a complete `workitem get` invocation, with every required
+// getArgs is a complete `wit work-items get` invocation, with every required
 // setting other than the credential passed as a flag.
 func getArgs(extra ...string) []string {
 	args := []string{
-		"workitem", "get",
+		"wit", "work-items", "get",
 		"-p", "MyProject",
 	}
 	return append(append(args, extra...), "12345")
@@ -274,7 +274,7 @@ func TestWorkItemGetProjectFromEnvironment(t *testing.T) {
 
 	var out, errOut bytes.Buffer
 	code := run(testBuild, []string{
-		"workitem", "get", "12345",
+		"wit", "work-items", "get", "12345",
 	}, noTerminal{}, &out, &errOut)
 
 	if code != 0 {
@@ -381,7 +381,7 @@ func TestWorkItemGetRejectsBadInputBeforeCalling(t *testing.T) {
 			s := newServer(t, http.StatusOK, workItemResponse)
 
 			args := []string{
-				"workitem", "get",
+				"wit", "work-items", "get",
 				"-p", "MyProject", "--", tt.id,
 			}
 			stdout, stderr, code := execute(t, s, args...)
@@ -405,7 +405,7 @@ func TestWorkItemGetRejectsBadInputBeforeCalling(t *testing.T) {
 func TestWorkItemGetRequiresProject(t *testing.T) {
 	s := newServer(t, http.StatusOK, workItemResponse)
 
-	args := []string{"workitem", "get", "12345"}
+	args := []string{"wit", "work-items", "get", "12345"}
 	_, stderr, code := execute(t, s, args...)
 
 	if code != 1 {
@@ -486,10 +486,10 @@ func TestUsageErrorsCarryACategory(t *testing.T) {
 		name string
 		args []string
 	}{
-		{name: "unknown flag", args: []string{"workitem", "get", "--nope", "12345"}},
+		{name: "unknown flag", args: []string{"wit", "work-items", "get", "--nope", "12345"}},
 		{name: "unknown command", args: []string{"nosuchthing"}},
-		{name: "no id", args: []string{"workitem", "get", "-p", "MyProject"}},
-		{name: "two ids", args: []string{"workitem", "get", "-p", "MyProject", "1", "2"}},
+		{name: "no id", args: []string{"wit", "work-items", "get", "-p", "MyProject"}},
+		{name: "two ids", args: []string{"wit", "work-items", "get", "-p", "MyProject", "1", "2"}},
 	}
 
 	for _, tt := range tests {
@@ -503,6 +503,27 @@ func TestUsageErrorsCarryACategory(t *testing.T) {
 				t.Errorf("stderr = %q, want the contract format with a category", stderr)
 			}
 		})
+	}
+}
+
+// The commands were named workitem get, list, and get-batch before they were
+// placed in the area wit; the old names are gone without aliases.
+func TestOldWorkItemCommandIsUnknown(t *testing.T) {
+	s := newServer(t, http.StatusOK, workItemResponse)
+
+	stdout, stderr, code := execute(t, s, "workitem", "get", "-p", "MyProject", "12345")
+
+	if code != 1 {
+		t.Errorf("exit code = %d, want 1", code)
+	}
+	if want := `Error [config]: unknown command "workitem" for "tfscli"`; !strings.HasPrefix(stderr, want) {
+		t.Errorf("stderr = %q, want it to start with %q", stderr, want)
+	}
+	if stdout != "" {
+		t.Errorf("stdout = %q, want nothing", stdout)
+	}
+	if s.calls != 0 {
+		t.Errorf("the server was called %d times, want no call at all", s.calls)
 	}
 }
 
@@ -540,7 +561,7 @@ func TestVersionFlagPrintsTheBuildStamp(t *testing.T) {
 }
 
 func TestHelpGoesToStdoutWithoutError(t *testing.T) {
-	stdout, stderr, code := execute(t, nil, "workitem", "get", "--help")
+	stdout, stderr, code := execute(t, nil, "wit", "work-items", "get", "--help")
 
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0 (stderr: %s)", code, stderr)
@@ -573,7 +594,7 @@ var batchCommands = []string{"list", "get-batch"}
 // batchArgs is a complete invocation of the command named, with every
 // required setting other than the credential passed as a flag.
 func batchArgs(command string, extra ...string) []string {
-	return append([]string{"workitem", command, "-p", "MyProject", "--ids", "12345,299,297"}, extra...)
+	return append([]string{"wit", "work-items", command, "-p", "MyProject", "--ids", "12345,299,297"}, extra...)
 }
 
 func TestWorkItemBatchPrintsMarkdown(t *testing.T) {
@@ -695,32 +716,32 @@ func TestWorkItemBatchRejectsBadInputBeforeCalling(t *testing.T) {
 			}{
 				{
 					name: "no --ids",
-					args: []string{"workitem", command, "-p", "MyProject"},
+					args: []string{"wit", "work-items", command, "-p", "MyProject"},
 					want: "Error [config]: no work item ids given (pass them with --ids, e.g. --ids 297,299,300)\n",
 				},
 				{
 					name: "only commas",
-					args: []string{"workitem", command, "-p", "MyProject", "--ids", " , ,"},
+					args: []string{"wit", "work-items", command, "-p", "MyProject", "--ids", " , ,"},
 					want: "Error [config]: no work item ids given (pass them with --ids, e.g. --ids 297,299,300)\n",
 				},
 				{
 					name: "an id is not a number",
-					args: []string{"workitem", command, "-p", "MyProject", "--ids", "297,twelve"},
+					args: []string{"wit", "work-items", command, "-p", "MyProject", "--ids", "297,twelve"},
 					want: "Error [config]: work item id \"twelve\" is not a positive integer\n",
 				},
 				{
 					name: "an id is zero",
-					args: []string{"workitem", command, "-p", "MyProject", "--ids", "0,297"},
+					args: []string{"wit", "work-items", command, "-p", "MyProject", "--ids", "0,297"},
 					want: "Error [config]: work item id \"0\" is not a positive integer\n",
 				},
 				{
 					name: "ids as arguments",
-					args: []string{"workitem", command, "-p", "MyProject", "297", "299"},
+					args: []string{"wit", "work-items", command, "-p", "MyProject", "297", "299"},
 					want: "Error [config]: " + command + " takes no arguments; pass the work item ids with --ids, e.g. --ids 297,299\n",
 				},
 				{
 					name: "no project",
-					args: []string{"workitem", command, "--ids", "297"},
+					args: []string{"wit", "work-items", command, "--ids", "297"},
 				},
 			}
 
@@ -810,7 +831,7 @@ func TestWorkItemGetBatchNamesTheServerItNeedsOnABare404(t *testing.T) {
 			t.Errorf("exit code = %d, want 1", code)
 		}
 		want := "Error [not_found]: resource not found (Get Work Items Batch needs Azure DevOps Server 2019 or later; " +
-			"on an older server use tfscli workitem list) (HTTP 404)\n"
+			"on an older server use tfscli wit work-items list) (HTTP 404)\n"
 		if stderr != want {
 			t.Errorf("stderr = %q, want %q", stderr, want)
 		}

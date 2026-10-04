@@ -54,7 +54,7 @@ message that names a command, such as the `bareNotFound` message of
 **Definition of done:** The command tests run against
 `tfscli wit work-items ...`; a test checks that `tfscli workitem get` is
 reported as an unknown command; `make check` passes.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-03 `docs`
 **Description:** Update `README.md`, `skills/tfscli/SKILL.md`, and

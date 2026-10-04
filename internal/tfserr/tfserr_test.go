@@ -58,7 +58,7 @@ func TestPrintWithoutHTTPStatus(t *testing.T) {
 
 func TestPrintWrappedError(t *testing.T) {
 	inner := &Error{Category: Network, Message: "cannot reach server"}
-	wrapped := fmt.Errorf("running workitem get: %w", inner)
+	wrapped := fmt.Errorf("running wit work-items get: %w", inner)
 
 	var sb strings.Builder
 	Print(wrapped, &sb)
