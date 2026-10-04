@@ -111,7 +111,7 @@ func Get(ctx context.Context, client APIClient, project string, id int, fields [
 // IDs in the query string.
 func List(ctx context.Context, client APIClient, project string, req BatchRequest) (*Batch, error) {
 	query := url.Values{}
-	query.Set("ids", joinIDs(req.IDs))
+	query.Set("ids", JoinIDs(req.IDs))
 	if len(req.Fields) > 0 {
 		query.Set("fields", strings.Join(req.Fields, ","))
 	}
@@ -150,7 +150,9 @@ func GetBatch(ctx context.Context, client APIClient, project string, req BatchRe
 	return parseBatch(resp, req)
 }
 
-func joinIDs(ids []int) string {
+// JoinIDs writes work item ids comma-separated, the form List sends and the
+// --ids flag of the commands that read several work items takes.
+func JoinIDs(ids []int) string {
 	parts := make([]string, len(ids))
 	for i, id := range ids {
 		parts[i] = strconv.Itoa(id)
