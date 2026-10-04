@@ -17,10 +17,7 @@ import (
 // newWorkItemsCmd is the resource Work Items of the area wit, named after the
 // path of its operations in the REST API reference (wit/work-items).
 func newWorkItemsCmd(g *globals) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "work-items",
-		Short: "Work items: get one or several by id",
-	}
+	cmd := newGroupCmd("work-items", "Work items: get one or several by id")
 	cmd.AddCommand(newWorkItemGetCmd(g))
 	cmd.AddCommand(newWorkItemListCmd(g))
 	cmd.AddCommand(newWorkItemGetBatchCmd(g))

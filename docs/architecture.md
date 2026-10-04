@@ -276,7 +276,7 @@ type Batch struct {
 
 ### Notes for future evolution
 
-- **New API domain** (repos, builds, wiql): add a new domain module and register a cobra subcommand. No edits to `apiclient`, `config`, or `tfserr`.
+- **New API domain** (repos, builds, wiql): add a new domain module and register its resource command under the area command, adding the area command (e.g. `git`) if it does not exist yet. No edits to `apiclient`, `config`, or `tfserr`.
 - **`--json` output**: introduce a `Renderer` interface in the cli layer; add a `JSONRenderer` that consumes `*WorkItem` directly. The markdown printer becomes the other implementation. Local refactor confined to the cli layer.
 - **TFS-specific HTML quirks** (mentions, attachment links, Word paste leftovers): add rules in `htmlmd` plus golden tests on real samples. Tracked in `2026-05-20-tasks-html-quirks.md`.
 

@@ -527,6 +527,71 @@ func TestOldWorkItemCommandIsUnknown(t *testing.T) {
 	}
 }
 
+// Below the root, cobra itself would print the group's help and exit 0 for an
+// unknown subcommand; newGroupCmd turns that into an error.
+func TestUnknownCommandBelowTheRootIsAnError(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{
+			name: "resource close to an existing one",
+			args: []string{"wit", "workitems", "get", "-p", "MyProject", "12345"},
+			want: "Error [config]: unknown command \"workitems\" for \"tfscli wit\" (did you mean \"work-items\"?)\n",
+		},
+		{
+			name: "action close to an existing one",
+			args: []string{"wit", "work-items", "gte", "12345"},
+			want: "Error [config]: unknown command \"gte\" for \"tfscli wit work-items\" (did you mean \"get\"?)\n",
+		},
+		{
+			name: "resource like no other",
+			args: []string{"wit", "frobnicate"},
+			want: "Error [config]: unknown command \"frobnicate\" for \"tfscli wit\" (run \"tfscli wit --help\" for the available commands)\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := newServer(t, http.StatusOK, workItemResponse)
+
+			stdout, stderr, code := execute(t, s, tt.args...)
+
+			if code != 1 {
+				t.Errorf("exit code = %d, want 1", code)
+			}
+			if stderr != tt.want {
+				t.Errorf("stderr = %q, want %q", stderr, tt.want)
+			}
+			if stdout != "" {
+				t.Errorf("stdout = %q, want nothing", stdout)
+			}
+			if s.calls != 0 {
+				t.Errorf("the server was called %d times, want no call at all", s.calls)
+			}
+		})
+	}
+}
+
+func TestGroupWithoutSubcommandPrintsHelp(t *testing.T) {
+	for _, args := range [][]string{{"wit"}, {"wit", "work-items"}} {
+		t.Run(strings.Join(args, " "), func(t *testing.T) {
+			stdout, stderr, code := execute(t, nil, args...)
+
+			if code != 0 {
+				t.Fatalf("exit code = %d, want 0 (stderr: %s)", code, stderr)
+			}
+			if stderr != "" {
+				t.Errorf("stderr = %q, want nothing", stderr)
+			}
+			if !strings.Contains(stdout, "Available Commands:") {
+				t.Errorf("stdout = %q, want the help listing the subcommands", stdout)
+			}
+		})
+	}
+}
+
 func TestVerboseLogsTheRequestToStderr(t *testing.T) {
 	s := newServer(t, http.StatusOK, workItemResponse)
 

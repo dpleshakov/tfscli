@@ -7,6 +7,7 @@
 - `tfscli wit work-items get-batch` does the same with a POST request, for lists of ids too long for the URL of `wit work-items list`, on Azure DevOps Server 2019 or later.
 - `--error-policy omit` on both commands prints the work items that exist and lists each id the server did not return, instead of failing the command.
 ### Fixed
+- A mistyped command name after the area, such as `tfscli wit workitems get`, is now reported as a `config` error that suggests the closest command, instead of printing help and exiting with 0.
 ### Changed
 - `tfscli workitem get` is now `tfscli wit work-items get`: commands are named by the REST API area, the resource, and the operation, as the paths of the REST API reference name them, and the old name is no longer accepted.
 ### Removed
