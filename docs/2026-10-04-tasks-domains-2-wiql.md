@@ -125,7 +125,7 @@ sent with each flag, a flag that is not given not being sent, a request
 without a project, the three local errors, a 400 response with a server
 message reported in the `config` category, and the printed output;
 `make check` passes.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-04 `docs`
 **Description:** Describe the command in `README.md` and

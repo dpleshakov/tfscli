@@ -44,9 +44,11 @@ type server struct {
 	calls  int
 	method string
 	path   string
-	query  url.Values
-	auth   string
-	sent   string
+	// rawPath is the path as it was sent, before percent-decoding.
+	rawPath string
+	query   url.Values
+	auth    string
+	sent    string
 }
 
 func newServer(t *testing.T, status int, body string) *server {
@@ -56,6 +58,7 @@ func newServer(t *testing.T, status int, body string) *server {
 		s.calls++
 		s.method = r.Method
 		s.path = r.URL.Path
+		s.rawPath = r.URL.EscapedPath()
 		s.query = r.URL.Query()
 		s.auth = r.Header.Get("Authorization")
 		sent, _ := io.ReadAll(r.Body)
