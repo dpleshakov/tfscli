@@ -184,7 +184,7 @@ removed or renamed, though new ones may appear.
 
 | Category | Cause | What to do |
 |---|---|---|
-| `auth` | HTTP 401 — the PAT is invalid or expired. | Do not retry, and do not try another token. Tell the user the PAT needs to be renewed and stored again with `tfscli auth login`. |
+| `auth` | HTTP 401 — the server did not accept the PAT: it is invalid, expired, or revoked, or IIS Basic Authentication is enabled on the server. | Do not retry, and do not try another token. Tell the user the PAT needs to be renewed and stored again with `tfscli auth login`, or, if the PAT is known to be valid, that a server administrator has to turn IIS Basic Authentication off. |
 | `forbidden` | HTTP 403 — authenticated, but access denied. | Do not retry. The PAT lacks the scope, or the project is closed to this user. Report it. |
 | `not_found` | HTTP 404 — no such work item, project, or collection. | Check the id and the project spelling against what the user gave. Do not scan ids looking for a match. |
 | `server` | HTTP 5xx, or a response that could not be parsed. | One retry is reasonable. If it repeats, report the server as unavailable. |
@@ -198,7 +198,7 @@ Error [config]: not logged in: no credential at C:\Users\you\.local\share\tfscli
 Error [config]: project is not set (pass -p, set TFSCLI_PROJECT, or add "project" to the config file)
 Error [config]: work item id "abc" is not a positive integer
 Error [config]: The requested REST API version of 7.2 is out of range for this server. The latest REST API version this server supports is 7.1. (api-version "7.2" is set by TFSCLI_API_VERSION; remove it to let the server choose the version, or set one the server supports) (HTTP 400)
-Error [auth]: PAT is invalid or expired (HTTP 401)
+Error [auth]: the server did not accept the PAT (it may be invalid, expired, or revoked; if it is valid, IIS Basic Authentication may be enabled on the server, which only an administrator can turn off) (HTTP 401)
 Error [network]: cannot reach https://tfs.company.com:8080
 ```
 

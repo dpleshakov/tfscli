@@ -231,7 +231,7 @@ The `(HTTP status)` part is omitted for errors that did not come from an HTTP re
 
 | Category | Meaning |
 |---|---|
-| `auth` | The PAT is invalid or expired (HTTP 401). |
+| `auth` | The server did not accept the PAT (HTTP 401): it is invalid, expired, or revoked, or IIS Basic Authentication is enabled on the server. |
 | `forbidden` | Authenticated, but access was denied (HTTP 403). |
 | `not_found` | The work item, project, or collection does not exist (HTTP 404). |
 | `server` | TFS failed or returned an unparseable response (HTTP 5xx). |

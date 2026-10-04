@@ -98,7 +98,7 @@ an administrator can turn off)". Update the tests that assert the old text
 and the `auth` row of the error table in `README.md`.
 **Definition of done:** `make check` passes; no occurrence of "PAT is invalid
 or expired" remains outside `CHANGELOG.md` and `docs/archive/`.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-05 `contract-docs`
 **Description:** Update the documents that describe the configuration and
@@ -106,7 +106,9 @@ credential contract: `docs/project-brief.md` (minimal configuration, config
 example, overridable variables and flags), `CLAUDE.md` (credential and config
 precedence constraints), `README.md` (settings table, `auth login`,
 `TFSCLI_AUTH` format, examples), `docs/architecture.md` (config flow and
-`Config` description), and `docs/release-footer.md`.
+`Config` description), `docs/release-footer.md`, and the agent skill
+`skills/tfscli/SKILL.md` (credential, settings table, how a call carries its
+settings).
 **Definition of done:** no document outside `CHANGELOG.md` and
 `docs/archive/` mentions `--collection`, `TFSCLI_COLLECTION`, or a
 `collection` config key; every description of the credential names the URL,

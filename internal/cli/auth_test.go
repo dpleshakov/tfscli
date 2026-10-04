@@ -290,7 +290,7 @@ func TestAuthLoginFailuresWriteNothing(t *testing.T) {
 			name:   "rejected token",
 			status: http.StatusUnauthorized,
 			in:     func(url string) prompter { return typed(url, "DefaultCollection", "bad-token") },
-			want:   "Error [auth]: PAT is invalid or expired (HTTP 401)\n",
+			want:   "Error [auth]: the server did not accept the PAT (it may be invalid, expired, or revoked; if it is valid, IIS Basic Authentication may be enabled on the server, which only an administrator can turn off) (HTTP 401)\n",
 			calls:  1,
 		},
 		{
