@@ -120,7 +120,7 @@ that the command needs Azure DevOps Server 2019 or later and exists for
 requests too long for `workitem list`.
 **Definition of done:** Command tests cover the same cases as TASK-05 for the
 POST request; `make check` passes.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-07 `docs`
 **Description:** Describe both commands in `README.md` and
