@@ -43,7 +43,7 @@ func TestWiqlQueryByWiqlPrintsMarkdown(t *testing.T) {
 		t.Errorf("stderr = %q, want nothing", stderr)
 	}
 	want := strings.Join([]string{
-		"# WIQL query (tree, as of 2026-10-04T10:15:00Z)",
+		"# WIQL query (tree, as of 2026-10-04T10:15:00.483Z)",
 		"",
 		"Columns: System.Id,System.Title",
 		"Relations:",

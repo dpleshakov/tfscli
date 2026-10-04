@@ -295,6 +295,11 @@ Relations:
 An empty result reads `Work items: none` or `Relations: none`: the query
 matched nothing, and the output is not truncated.
 
+The time after `as of` is the moment the server evaluated the query, in UTC
+with the precision the server sent. When the work items have to match the
+query result exactly — a state or an assignee the query filtered on — pass it
+unchanged to `wit work-items list --as-of`.
+
 ## Errors
 
 Failures go to stderr in one stable format, and the exit code is non-zero — 1

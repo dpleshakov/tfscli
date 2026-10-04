@@ -144,6 +144,19 @@ func formatIdentity(identity workitem.Identity) string {
 	}
 }
 
+// formatAsOf puts the time of a query result in UTC but, unlike
+// formatTimestamp, keeps its sub-second precision: the value is meant to be
+// passed on to --as-of, and a time rounded down would read the work items as
+// they were before changes the query already saw. A value that does not parse
+// is printed unchanged.
+func formatAsOf(value string) string {
+	t, err := time.Parse(time.RFC3339Nano, value)
+	if err != nil {
+		return value
+	}
+	return t.UTC().Format(time.RFC3339Nano)
+}
+
 // formatTimestamp drops sub-second precision and keeps the instant in UTC:
 // rendering it in the local zone would make the same work item print
 // differently depending on the machine that ran the command. A value that does
@@ -171,7 +184,7 @@ func printWiqlResult(w io.Writer, result *wiql.Result) error {
 		about = append(about, result.QueryType)
 	}
 	if result.AsOf != "" {
-		about = append(about, "as of "+formatTimestamp(result.AsOf))
+		about = append(about, "as of "+formatAsOf(result.AsOf))
 	}
 	buf.WriteString("# WIQL query")
 	if len(about) > 0 {

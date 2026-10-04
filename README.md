@@ -283,7 +283,7 @@ Relations:
 - 297 -> 300 (System.LinkTypes.Hierarchy-Forward)
 ```
 
-An empty result reads `Work items: none` or `Relations: none`.
+An empty result reads `Work items: none` or `Relations: none`. The time of the result is printed in UTC with the precision the server sent, unlike the timestamps of work items, so that it can be passed to `--as-of` of `wit work-items list` to read the work items as the query saw them.
 
 ### Request logging
 
