@@ -30,6 +30,7 @@ These come from `project-brief.md` and override casual feature requests. If a ch
 - **Stable error contract.** Error categories (`auth`, `not_found`, `forbidden`, `server`, `config`, `network`) are a contract: existing categories are never removed or renamed. New ones may be added. Format: `Error [category]: message (HTTP status)` to stderr, non-zero exit.
 - **Config precedence:** CLI flag > env var (`TFSCLI_COLLECTION`, `TFSCLI_PROJECT`, `TFSCLI_API_VERSION`) > config file (optional) > built-in default. The credential is outside this chain (see above).
 - **Target is on-prem Azure DevOps Server (REST API 7.2 default, configurable).** Cloud Azure DevOps Services may work incidentally but is not tested or supported.
+- **Do not narrow server compatibility.** A change must not stop tfscli from working with a TFS / Azure DevOps Server version it worked with before, unless that is an explicitly discussed and recorded decision (see "Server compatibility is preserved" in `project-brief.md`).
 - **Minimal dependencies.** Total external deps are intentionally three: `cobra`, `html-to-markdown/v2`, and `golang.org/x/term` (hidden PAT input for `auth login`). HTTP via `net/http`, JSON via `encoding/json`, config via `encoding/json`. Don't pull in `viper`, `resty`, retry libraries, or YAML/TOML parsers without a strong reason and explicit discussion.
 
 ## Command shape
