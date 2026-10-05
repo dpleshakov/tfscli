@@ -38,6 +38,34 @@ Decisions taken for the release notes:
   already implemented; an external action would add a dependency and its author's
   format assumptions without a benefit.
 
+Decisions taken for `make clean`:
+
+- **`git clean` replaces `tools/rm.go`.** Once the release targets leave the Makefile,
+  the only local artifacts are `tfscli`, `tfscli.exe`, and `coverage.out`.
+  `git clean -fX -- <paths>` removes them on every platform: `-X` limits it to ignored
+  files and the pathspec to exactly these paths, so `config.json`, IDE settings, and
+  untracked work are never touched. Git is already required everywhere, so the rule that
+  no recipe assumes a Unix shell still holds. The target is kept rather than dropped, so
+  that nobody falls back to an unrestricted `git clean -fdX`.
+
+Decisions taken for the module files check:
+
+- **`go mod tidy -diff` replaces `go mod tidy` followed by `git diff --exit-code`.** The
+  final line of `check` existed only because `lint` rewrote `go.mod` and `go.sum`.
+  `-diff` (Go 1.23 and later) prints the required changes and fails without writing
+  anything, so the check lives in one target, a red run leaves the working tree as it
+  was, and `make lint` alone catches the drift. Fixing it becomes a deliberate
+  `go mod tidy` by hand. The intent from `a043988` — module files that drift from the
+  imports fail the check — is unchanged.
+
+Considered and left as is:
+
+- **Tests and vet run twice in `check`.** `build` runs `go vet` and `go test ./...`,
+  then `lint` runs `govet` and `test` runs the same tests with coverage — about four
+  seconds of duplication in CI. Removing it would not remove a file or a mechanism and
+  would make `check` stop being a superset of `build`, so `check` keeps depending on
+  `build`.
+
 ---
 
 ### TASK-01 `changelog-format`
@@ -79,4 +107,28 @@ to preview the archives.
 `docs/release-footer.md`, `make release-notes`, `make release`, or
 `make release-publish`. Running `go run tools/release-notes.go 0.0.6 CHANGELOG.md
 <temp file>` writes exactly the entries of `[0.0.6]`, and a nonexistent version fails.
+**Status:** Pending
+
+### TASK-03 `clean-without-rm-tool`
+**Description:** Make the `clean` target run `git clean -fX -- tfscli tfscli.exe
+coverage.out` and delete `tools/rm.go`. Update every description of `clean` and of the
+`tools/` helpers to match: the comments in the `Makefile`, the quick reference and the
+"No recipe may assume a Unix shell" rule in `CONTRIBUTING.md`, and the build section of
+`CLAUDE.md`, which no longer name file removal among the jobs of `tools/`.
+**Definition of done:** `make check` passes. With `tfscli.exe`, `coverage.out`, and a
+`config.json` present in the repository root, `make clean` removes the first two and
+leaves `config.json`; run again with nothing to remove, it succeeds. No file outside
+`docs/archive/` refers to `tools/rm.go`.
+**Status:** Pending
+
+### TASK-04 `tidy-diff`
+**Description:** In the `Makefile`, make `lint` run `go mod tidy -diff` instead of
+`go mod tidy`, and remove `git diff --exit-code go.mod go.sum` from `check` together
+with the comments that explain it. Update the descriptions of `lint` and `check` in
+`CONTRIBUTING.md` (quick reference) and anywhere else they mention that `lint` runs
+`go mod tidy` or that `check` compares the module files afterwards.
+**Definition of done:** `make check` passes. With a requirement removed from `go.mod`
+by hand, `make lint` fails, prints the diff, and leaves `go.mod` and `go.sum` exactly as
+they were. No file outside `docs/archive/` describes `check` as running `git diff` on
+the module files.
 **Status:** Pending
