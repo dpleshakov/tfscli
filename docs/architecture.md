@@ -1,9 +1,6 @@
 # Architecture — tfscli
 
-This document records the technology stack, the architecture, and the project structure
-of tfscli, with their rationale and the alternatives rejected. It changes when the stack,
-the modules, their interactions, or the top-level structure change. The behaviour of
-individual features is documented in `README.md`, not here.
+This document records the technology stack, the architecture, and the project structure of tfscli, with their rationale and the alternatives rejected. It changes when the stack, the modules, their interactions, or the top-level structure change. The behaviour of individual features is documented in `README.md`, not here.
 
 ## Tech Stack
 
@@ -343,5 +340,6 @@ Standard Go CLI layout: a single binary entry point under `cmd/`, all implementa
 | `internal/` | All implementation packages, one per architecture module. Tests sit next to the code (`_test.go`); fixtures live in per-package `testdata/` directories. |
 | `docs/` | Design documents (`project-brief.md`, `architecture.md`), tasks files, tech-debt register. Not part of the shipped binary. |
 | `skills/` | The agent skill shipped beside the binary, `skills/tfscli/SKILL.md`, in the Agent Skills format. Copied into the archive by goreleaser and installed by copying the directory into an agent's skills path. |
+| `.claude/` | Claude Code project settings and the process skills in `.claude/skills/` (tasks, changelog, tech-debt). Not shipped, and unrelated to `skills/`, which holds the skill for users of tfscli. |
 
 Deliberately absent: `pkg/` (nothing is exported), `vendor/` (dependencies resolve through the module proxy), a separate `test/` tree (Go convention keeps tests beside the code they test).

@@ -1,6 +1,6 @@
 ---
 name: changelog
-description: Maintain CHANGELOG.md for users, not developers — Keep a Changelog format, behaviour-visible changes only, the six standard sections, strict entry format, and the release procedure.
+description: Maintain CHANGELOG.md for users, not developers — Keep a Changelog format, user-visible changes only, the six standard sections, strict entry format, and the release procedure.
 argument-hint: "[change to record | release X.Y.Z]"
 ---
 
@@ -77,8 +77,8 @@ surrounded by spaces, and the release date in ISO 8601 format.
 
 Use exactly these six section names, in this order. A section heading appears only
 when it has at least one entry — in `[Unreleased]` as well as in released versions.
-When `[Unreleased]` has no entries, it consists of its heading alone; the first entry
-of a kind adds its section heading in its place in the order.
+When `[Unreleased]` has no entries, it consists of its heading alone. The first entry
+for a section adds that section's heading at its position in the order below.
 
 | Section | Use for |
 |---------|---------|

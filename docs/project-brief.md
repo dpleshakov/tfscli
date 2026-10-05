@@ -1,8 +1,6 @@
 # Project Brief — tfscli
 
-This document records the purpose, audience, scope, constraints, non-goals, and design
-principles of tfscli. It changes only when one of these decisions changes. The behaviour
-of individual features is documented in `README.md`, not here.
+This document records the purpose, audience, scope, constraints, non-goals, and design principles of tfscli. It changes only when one of these decisions changes. The behaviour of individual features is documented in `README.md`, not here.
 
 ## Problem
 

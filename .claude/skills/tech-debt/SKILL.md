@@ -4,9 +4,9 @@ description: Record and track consciously deferred problems in tech-debt.md — 
 argument-hint: "[problem to record | TD-NN to close]"
 ---
 
-Maintenance is not a separate development loop — it is a single living document
-(`tech-debt.md`) and a simple rule for how to handle known problems. The skill makes
-no assumptions about the project beyond the presence of a repository.
+This skill maintains `tech-debt.md`, a single document that records known problems
+deliberately deferred, and defines how entries are added and closed. It assumes
+nothing about the project beyond the presence of a repository.
 
 ## Project version first
 
@@ -32,7 +32,7 @@ create it in the directory where the project keeps its documentation, or in `doc
 - Something that requires design or architectural thinking before implementation
 
 **What does not go here:**
-- A bug — fix it now or plan it as regular work
+- A bug with no decision to defer it — fix it now or plan it as regular work
 - A small cosmetic fix — either fix it immediately or ignore it
 
 **Practical test:** if during a code review you would write "this is an intentional
@@ -49,7 +49,7 @@ fix it.
 ### TD-03 `short name`
 **Problem:** what is wrong
 **Why deferred:** reasoning
-**Trigger:** what would make us fix this (new feature, performance issue, etc.)
+**Trigger:** the event that makes the fix necessary (a new feature, a performance issue)
 **Added:** YYYY-MM-DD, in <where the decision was made>
 
 ---
@@ -66,10 +66,12 @@ fix it.
 Numbers (`TD-NN`) are assigned sequentially and never reused. The **Added** line
 names where the decision was made — a review, a plan of work, or a conversation.
 
-## How it gets populated
+## Adding an item
 
-During a review, if a non-critical problem is found and the decision is made to defer
-it — it is added to `tech-debt.md` in the same commit as the review fixes.
+When a problem is deliberately deferred — during a review, while planning or doing
+work, or in a discussion — add an entry under Active with the next free number. The
+entry goes into the same commit as the change that led to the decision, such as the
+review fixes, or into a commit of its own when there is no such change.
 
 ## Closing an item
 
@@ -86,4 +88,4 @@ Either way, the item moves to the Closed section, keeping its number and short n
 and its body is replaced with the **Closed** line. The original reasoning remains in
 the repository history.
 
-`tech-debt.md` is never archived — it accumulates a Closed section over time.
+`tech-debt.md` is never moved or split; closed entries stay in its Closed section.

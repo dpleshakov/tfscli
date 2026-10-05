@@ -32,14 +32,15 @@ work found necessary at that point:
 `docs/archive/2026-10-04-tasks-release-bypass.md`
 
 ### TD-08 `brief-describes-feature-behaviour`
-**Problem:** `docs/project-brief.md` now states that it records the purpose, scope,
-constraints, non-goals, and design principles of tfscli, and that feature behaviour is
-documented in `README.md`. Several of its sections predate that statement and describe
-current behaviour instead: the login sequence under "Authentication", the details
-under "Configuration", the list of commands under "Command Format", the sample
-messages under "Error Format", and "Key Dependencies". The same content is kept in
+**Problem:** The preamble of `docs/project-brief.md` states that it records the purpose,
+scope, constraints, non-goals, and design principles of tfscli, and that feature
+behaviour is documented in `README.md`. Several of its sections predate that statement
+and describe current behaviour instead: the login sequence under "Authentication",
+the details under "Configuration", the list of commands under "Command Format", the
+sample messages under "Error Format", and "Key Dependencies". The same content is kept in
 `README.md`, `CLAUDE.md`, `skills/tfscli/SKILL.md`, and `docs/architecture.md`, so
-every feature has had to update the brief as one more copy.
+every feature change also has to update the brief, which duplicates content kept
+elsewhere.
 **Why deferred:** Moving the content is a separate review of each section — what is a
 principle and stays, what is behaviour and is already covered elsewhere — and is not
 needed to state the purpose of the document.

@@ -106,7 +106,8 @@ Each document has one job, and new information goes to the document whose job it
 ## Process
 
 Work is planned and tracked with three process skills kept in the repository. Each is a
-plain Markdown file and the complete set of rules, for people as much as for AI agents:
+plain Markdown file and states the full rules, for people as much as for AI agents,
+completed by the project choices listed below:
 
 - `.claude/skills/tasks/SKILL.md` — tasks files: a unit of work as an ordered list of
   atomic tasks with a definition of done and a status each, committed together with the
@@ -122,7 +123,7 @@ The skills leave a few choices to the project. In tfscli:
   debt entry is planned as a tasks file. `docs/2026-05-20-tasks-html-quirks.md` predates
   the current format and keeps its own — task types and emoji statuses — when updated.
 - The changelog preamble names Semantic Versioning, as declared in "Choosing the
-  version", and the version section is written by the release workflow (see
+  version", and the version heading is inserted by the release workflow (see
   "Releasing").
 
 ## Commits and branches
