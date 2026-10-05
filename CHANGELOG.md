@@ -6,6 +6,7 @@
 ### Fixed
 - A collection, project, or team name containing `%`, such as `100% Done`, now reaches the server as written, where the request used to go to the wrong address.
 ### Changed
+- A server URL entered at `tfscli auth login` with a user name or password, such as `https://user:password@host/tfs`, is now refused with a `config` error that does not repeat the URL, where it used to be stored and printed back with the password.
 ### Removed
 
 ---
