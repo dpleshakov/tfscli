@@ -66,8 +66,9 @@ A release is made by running the `Release` workflow from the Actions tab with a 
 
 ## Git workflow
 
-`main` is protected: changes reach it only through pull requests, and a merge requires a
-green CI. The only direct pushes to `main` are made by the `Release` workflow.
+Changes reach `main` only through pull requests, and a merge requires a green CI. The only
+direct pushes to `main` are made by the `Release` workflow. This is a convention: GitHub
+does not enforce it while the repository is private (TD-07 in `docs/tech-debt.md`).
 
 Before committing, check the current branch. If it is `main`, do not commit: propose a
 branch name to the user and create the branch once they agree. Pushing and opening pull
