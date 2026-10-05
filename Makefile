@@ -27,10 +27,12 @@ build:
 # Test
 # ---------------------------------------------------------------------------
 
-# Run golangci-lint, and make sure the module files match the imports. Run it
-# before committing; CI runs it as part of check.
+# Make sure the module files match the imports, and run golangci-lint. Run it
+# before committing; CI runs it as part of check. `go mod tidy -diff` writes
+# nothing: it prints the changes the module files need and fails, and fixing
+# them is a deliberate `go mod tidy` whose result goes into the commit.
 lint:
-	go mod tidy
+	go mod tidy -diff
 	golangci-lint run
 
 # Measure statement coverage of the internal packages, print the per-function
@@ -41,12 +43,8 @@ test:
 	go tool cover -func=coverage.out
 	go run tools/check-coverage.go 85
 
-# Everything the project verifies, in one target. This is what CI runs. The
-# final step catches a `go mod tidy` in lint that changed the module files:
-# the dependency set has drifted from the imports and the change belongs in a
-# commit, not in a working tree nobody looked at.
+# Everything the project verifies, in one target. This is what CI runs.
 check: build lint test
-	git diff --exit-code go.mod go.sum
 
 # ---------------------------------------------------------------------------
 # Clean

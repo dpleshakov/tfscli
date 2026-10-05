@@ -7,9 +7,9 @@ The developer handbook for this repository. `README.md` documents the tool for i
 | Target | What it does | When to run it |
 |---|---|---|
 | `make build` | `go vet`, `go test`, then builds the binary into the repository root | While working on the code |
-| `make lint` | `go mod tidy` and `golangci-lint run` | Before committing |
+| `make lint` | `go mod tidy -diff`, which fails if `go.mod` or `go.sum` drifted from the imports, and `golangci-lint run` | Before committing |
 | `make test` | Measures coverage of `internal/...` and fails below 85% | While working on tests |
-| `make check` | `build`, `lint`, `test`, then fails if the `go mod tidy` inside `lint` changed `go.mod` or `go.sum` | Before pushing — CI runs exactly this |
+| `make check` | `build`, `lint`, and `test` | Before pushing — CI runs exactly this |
 | `make clean` | Removes the binary and `coverage.out` through `git clean`, touching nothing else | Any time |
 
 `make check` is the whole gate: `.github/workflows/ci.yml` installs the linter, runs
