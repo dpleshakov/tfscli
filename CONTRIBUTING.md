@@ -143,6 +143,21 @@ they cannot disagree. Nothing else carries a version number: `version` and `comm
 `cmd/tfscli/main.go` are targets for `-ldflags -X` and are never edited by hand, and a
 binary built without them reports `dev (unknown)`.
 
+### Choosing the version
+
+tfscli follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html). While the
+major version is 0, the usual convention for `0.y.z` applies:
+
+- a release that breaks existing usage raises the minor version and resets the patch
+  version — `0.1.0` after `0.0.6`. Breaking usage means removing or renaming a command, a
+  flag, an environment variable, or a configuration key, or refusing input that used to
+  be accepted. An entry under `Removed` in `[Unreleased]`, or an entry under `Changed`
+  that does one of these, makes the release breaking;
+- any other release — new features and fixes only — raises the patch version.
+
+Version `1.0.0` is a separate, explicit decision. From then on, a breaking release raises
+the major version.
+
 ### Steps
 
 1. Everything going into the release is merged into `main` and recorded under
@@ -151,8 +166,8 @@ binary built without them reports `dev (unknown)`.
    the flags in `internal/cli`, the error categories in `internal/tfserr`, and the
    environment variables in `internal/config`. Nothing verifies this, and the file ships
    inside every archive as what an AI agent reads instead of `--help`.
-3. **Actions → Release → Run workflow**, from `main`, with the version — `0.1.0`, without
-   the leading `v`.
+3. **Actions → Release → Run workflow**, from `main`, with the version chosen as in
+   "Choosing the version" — `0.1.0`, without the leading `v`.
 4. When the job is green, open the releases page, read the notes, confirm the seven assets
    are there, and press **Publish**. Nothing is public until then.
 
