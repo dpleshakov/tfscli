@@ -32,7 +32,7 @@ if the project has no such directory.
 **What goes here:**
 - Work that has been accepted for implementation and is not starting now
 - Work accepted on a condition that has not occurred yet, with that condition recorded
-- Work that started and is postponed before it is finished
+- Work postponed before it was finished: once it stops, it counts as not started again
 
 **What does not go here:**
 - Work that starts now — break it down and start it the way the project handles any

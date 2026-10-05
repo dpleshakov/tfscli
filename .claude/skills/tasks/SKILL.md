@@ -144,7 +144,8 @@ determines the tasks that follow it; those are added once the decision is made.
   knowing later, is marked `Skipped — <reason>` instead.
 - The order of execution is the order in the file. When tasks are added, removed, or
   reordered, the `Pending` tasks may be renumbered so that the numbers follow that
-  order; `Done` and `Skipped` tasks keep their numbers, since commits refer to them.
+  order. `Done`, `Skipped`, and `In progress` tasks keep their numbers, since commits
+  may refer to them, and a renumbered task never takes a number that one of them holds.
 
 ### Postponing the work
 
@@ -153,7 +154,7 @@ later, record its goal and the decisions already made where the project keeps ac
 work that has not started, if it has such a place; otherwise ask the user. Then, in the
 same commit:
 
-- if the file holds nothing that is not carried over — no `Done` task and no record
+- if everything in the file is carried over — it has no `Done` task and no record
   worth keeping on its own — delete it;
 - otherwise mark the unresolved tasks `Skipped — postponed` and archive the file, so
   that the work already done stays on record.
