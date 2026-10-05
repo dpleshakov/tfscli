@@ -274,8 +274,10 @@ func (g *globals) verify(ctx context.Context, cfg *config.Config) (string, error
 			Cause:    err,
 		}
 	}
-	// A server that lets anonymous requests through answers without a user;
-	// the token was then not what got the request in.
+	// A server that lets anonymous requests through is assumed to answer
+	// without a user; the token was then not what got the request in. This
+	// shape has not been seen on a live server, which is why anonymous access
+	// is listed in README.md as a known limitation.
 	if data.AuthenticatedUser.ID == "" {
 		return "", &tfserr.Error{
 			Category: tfserr.Auth,
