@@ -102,8 +102,9 @@ and delete the `before` hook. Remove the `release`, `release-publish`, and
 CHANGELOG.md "$RUNNER_TEMP/release-notes.md"` and print the file in place of
 `make release-notes`, and replace the install-only goreleaser step and
 `make release-publish` with one `goreleaser/goreleaser-action` step passing
-`release --clean --release-notes` with that file. Remove `/docs/release-notes.md` from
-`.gitignore`. Update `CONTRIBUTING.md` (quick reference, setup, releasing) and
+`release --clean --release-notes` with that file. In `.gitignore`, remove
+`/docs/release-notes.md` and the unused `/bin/`, and correct the comment on
+`config.json`, which no longer holds credentials — they live in `auth.json`. Update `CONTRIBUTING.md` (quick reference, setup, releasing) and
 `CLAUDE.md` (the list of Makefile targets and the release description) to match,
 including a one-line note on running `goreleaser release --snapshot --clean` directly
 to preview the archives.
