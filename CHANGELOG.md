@@ -1,17 +1,19 @@
 # Changelog
 
+All notable changes to this project are documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
 ## [Unreleased]
 
-### Added
-### Fixed
-- A collection, project, or team name containing `%`, such as `100% Done`, now reaches the server as written, where the request used to go to the wrong address.
 ### Changed
 - A server URL entered at `tfscli auth login` with a user name or password, such as `https://user:password@host/tfs`, is now refused with a `config` error that does not repeat the URL, where it used to be stored and printed back with the password.
-### Removed
 
----
+### Fixed
+- A collection, project, or team name containing `%`, such as `100% Done`, now reaches the server as written, where the request used to go to the wrong address.
 
-## [0.0.6] — 2026-10-04
+## [0.0.6] - 2026-10-04
 
 ### Added
 - `tfscli wit work-items list` prints several work items by id with one request, taking the ids in `--ids` and the optional `--fields`, `--as-of`, and `--error-policy`.
@@ -19,18 +21,13 @@
 - `--error-policy omit` on both commands prints the work items that exist and lists each id the server did not return, instead of failing the command.
 - `tfscli wit wiql query-by-wiql` runs the WIQL query given in `--query` and prints the ids of the work items found, or the links between them for a tree or one-hop query, with the optional `-p`, `--team`, `--top`, and `--time-precision`; without a project the query runs across the collection.
 
-### Fixed
-- A mistyped command name after the area, such as `tfscli wit workitems get`, is now reported as a `config` error that suggests the closest command, instead of printing help and exiting with 0.
-
 ### Changed
 - `tfscli workitem get` is now `tfscli wit work-items get`: commands are named by the REST API area, the resource, and the operation, as the paths of the REST API reference name them, and the old name is no longer accepted.
 
----
-
-## [0.0.5] — 2026-10-04
-
 ### Fixed
-- `tfscli auth login` now succeeds on servers that accept a personal access token only within its collection, where it used to fail with an `auth` error for a valid token.
+- A mistyped command name after the area, such as `tfscli wit workitems get`, is now reported as a `config` error that suggests the closest command, instead of printing help and exiting with 0.
+
+## [0.0.5] - 2026-10-04
 
 ### Changed
 - The collection is now part of the credential: `tfscli auth login` asks for it between the server URL and the token, `auth.json` and `TFSCLI_AUTH` require a `collection` field, and the token is sent only to the URL and the collection stored with it.
@@ -42,18 +39,17 @@
 ### Removed
 - `--collection`, `TFSCLI_COLLECTION`, and the `collection` key of the config file no longer exist; the collection comes from `tfscli auth login` or `TFSCLI_AUTH`.
 
----
+### Fixed
+- `tfscli auth login` now succeeds on servers that accept a personal access token only within its collection, where it used to fail with an `auth` error for a valid token.
 
-## [0.0.4] — 2026-10-04
+## [0.0.4] - 2026-10-04
 
 ### Changed
 - Requests no longer carry `api-version=7.2` by default: without `--api-version`, `TFSCLI_API_VERSION`, or `apiVersion`, no version is sent and the server answers at the version it chooses, so servers that do not support REST API 7.2 work without configuration.
 - `tfscli auth login` now checks the credential without an API version: `apiVersion` from the config file no longer applies to it, and `--api-version` on it is refused with a `config` error.
 - An API version refused by the server is now reported together with the setting it came from — `--api-version`, `TFSCLI_API_VERSION`, or `apiVersion` in the config file — and how to fix it.
 
----
-
-## [0.0.3] — 2026-10-01
+## [0.0.3] - 2026-10-01
 
 ### Added
 - `tfscli auth login` asks for the server URL and a personal access token with hidden input, checks them against the server, and stores them together in `$XDG_DATA_HOME/tfscli/auth.json` (`~/.local/share/tfscli/auth.json` by default), readable by the current user only.
@@ -66,16 +62,12 @@
 ### Removed
 - `--url`, `--pat`, `TFSCLI_URL`, `TFSCLI_PAT`, and the `url` and `pat` keys of the config file no longer exist; `tfscli auth login` or `TFSCLI_AUTH` replaces them.
 
----
-
-## [0.0.2] — 2026-09-02
+## [0.0.2] - 2026-09-02
 
 ### Added
 - Every release archive now carries an agent skill in `skills/tfscli/SKILL.md`, which teaches an AI agent — Claude Code or opencode — when and how to call tfscli.
 
----
-
-## [0.0.1] — 2026-08-31
+## [0.0.1] - 2026-08-31
 
 ### Added
 - `tfscli workitem get -p <project> <id>` prints a single work item as markdown, converting HTML fields such as Description and Repro Steps.

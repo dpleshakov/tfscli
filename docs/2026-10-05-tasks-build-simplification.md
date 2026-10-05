@@ -89,7 +89,7 @@ version only in format, not in entries. Running `go run tools/release-section.go
 empty `[Unreleased]` followed by `## [9.9.9] - 2026-01-01` with that entry, and leaves
 the rest of the file byte for byte; running it on a copy with an empty `[Unreleased]`
 or with an existing `[9.9.9]` fails and leaves the copy unchanged.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-02 `release-notes-in-workflow`
 **Description:** Simplify `tools/release-notes.go` to extracting the section body from
