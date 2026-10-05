@@ -65,6 +65,10 @@ Considered and left as is:
   seconds of duplication in CI. Removing it would not remove a file or a mechanism and
   would make `check` stop being a superset of `build`, so `check` keeps depending on
   `build`.
+- **The `push: main` trigger in `ci.yml`.** While `main` has no server-side
+  protection, the push run is the only check of `main` after a change reaches it by any
+  path, so the trigger stays. Its removal belongs to TD-07 in `docs/tech-debt.md`, once
+  a ruleset requires branches to be up to date.
 
 ---
 
