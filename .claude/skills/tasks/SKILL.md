@@ -27,6 +27,9 @@ Decide what to do from the user's request and the current context:
 - A feature or request description is given and no matching file exists → **Create**
   mode (breakdown), then offer to start executing. Work that is not to start now does
   not get a tasks file (see "Create mode").
+- The request names no new work and no `Active` file exists → propose starting the next
+  item from where the project keeps accepted work that has not started, if it has such
+  a place, as **Create** mode; otherwise ask the user what to work on.
 - Ambiguous (e.g. several active files, or unclear whether to create or execute) → ask
   the user one short question before proceeding.
 
@@ -95,10 +98,10 @@ A tasks file is created when the work starts, not in advance: most of the effort
 that is discussion and decisions, and a breakdown made ahead of time goes stale.
 
 1. Confirm that the work starts now. If it does not — the user wants it recorded,
-   planned, or kept for later — do not create a tasks file. Record it where the project
-   keeps planned work, if it has such a place; otherwise ask the user where it should
-   go. If the work was recorded there earlier, use that record as the input to the
-   breakdown and take it out as that place's rules require.
+   noted, or kept for later — do not create a tasks file. Record it where the project
+   keeps accepted work that has not started, if it has such a place; otherwise ask the
+   user where it should go. If the work was recorded there earlier, use that record as
+   the input to the breakdown and take it out as that place's rules require.
 2. Turn the feature/request into a complete, ordered list of **atomic** tasks — each
    one achievable in a single focused session, with a definition of done that can be
    checked.
@@ -119,8 +122,9 @@ that is discussion and decisions, and a breakdown made ahead of time goes stale.
    into that **same commit** — never a separate status-only commit. This skill follows
    the project's normal commit cadence and does not force commits the user did not ask
    for; it only governs how the file participates when a commit happens.
-5. When the last task is resolved: change the header to `Archived` and move the file to
-   the `archive/` subdirectory — in the same commit as that task's work.
+5. When every task in the file is resolved — the last one is done or skipped, or the
+   last `Pending` ones are removed — change the header to `Archived` and move the file
+   to the `archive/` subdirectory, in the commit that brings the file to that state.
 6. When the work shows that the plan is wrong, change it as described in "Changing
    the plan".
 
@@ -138,9 +142,21 @@ determines the tasks that follow it; those are added once the decision is made.
 - A task that was a mistake in the plan — a duplicate, a contradiction, a task not
   needed — is removed. A task that is deliberately not done, where the reason is worth
   knowing later, is marked `Skipped — <reason>` instead.
-- Task numbers identify tasks and do not express order. A number is never changed or
-  reused; a new task takes the next unused number and is placed where it is to be
-  done. The order of execution is the order in the file.
+- The order of execution is the order in the file. When tasks are added, removed, or
+  reordered, the `Pending` tasks may be renumbered so that the numbers follow that
+  order; `Done` and `Skipped` tasks keep their numbers, since commits refer to them.
+
+### Postponing the work
+
+When work in an `Active` file stops before every task is resolved and is to be resumed
+later, record its goal and the decisions already made where the project keeps accepted
+work that has not started, if it has such a place; otherwise ask the user. Then, in the
+same commit:
+
+- if the file holds nothing that is not carried over — no `Done` task and no record
+  worth keeping on its own — delete it;
+- otherwise mark the unresolved tasks `Skipped — postponed` and archive the file, so
+  that the work already done stays on record.
 
 ## Invariants
 

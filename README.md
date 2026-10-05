@@ -22,7 +22,7 @@ Not present in v1: write operations (out of scope) and JSON output (`--json`, pl
 ### Known limitations
 
 - **HTML tables collapse.** The markdown converter runs on library defaults, which have no table support: a `<table>` becomes its cell text run together, without separators. A work item whose Description holds a table renders unreadably.
-- **Rich-text noise is unhandled.** @-mentions, attachment links, Word- and Outlook-pasted markup, and work-item references are converted literally, with whatever wrapper markup TFS stored. Fixing this needs samples from a real instance and is planned in `docs/backlog.md`.
+- **Rich-text noise is unhandled.** @-mentions, attachment links, Word- and Outlook-pasted markup, and work-item references are converted literally, with whatever wrapper markup TFS stored. Fixing this needs samples from a real instance and is recorded in `docs/backlog.md`.
 - **Servers with anonymous access are not supported.** `auth login` has not been tested against a server that admits anonymous requests, such as Azure DevOps Server with public projects enabled. On such a server an invalid PAT may pass the login check and be stored, and the other commands would then read as the anonymous user, seeing less, without an error.
 
 ## Installation

@@ -110,16 +110,10 @@ Work is planned and tracked with four process skills kept in the repository. Eac
 plain Markdown file and states the full rules, for people as much as for AI agents,
 completed by the project choices listed below:
 
-- `.claude/skills/tasks/SKILL.md` — tasks files: a unit of work as an ordered list of
-  atomic tasks with a definition of done and a status each, committed together with the
-  work it describes and archived when done.
-- `.claude/skills/backlog/SKILL.md` — `docs/backlog.md`: work accepted for later, with
-  the decisions already made about it, in priority order; broken down into a tasks file
-  only when it starts.
-- `.claude/skills/changelog/SKILL.md` — `CHANGELOG.md`: Keep a Changelog 1.1.0 without
-  comparison links, user-visible changes only, one sentence per entry.
-- `.claude/skills/tech-debt/SKILL.md` — `docs/tech-debt.md`: what counts as a deferred
-  problem, the entry format, and closing an entry as fixed or dropped.
+- `.claude/skills/tasks/SKILL.md` — tasks files;
+- `.claude/skills/backlog/SKILL.md` — `docs/backlog.md`;
+- `.claude/skills/changelog/SKILL.md` — `CHANGELOG.md`;
+- `.claude/skills/tech-debt/SKILL.md` — `docs/tech-debt.md`.
 
 The plans, the backlog, and the tech debt are kept as files in the repository rather
 than in an issue tracker, so that each decision is versioned together with the change it
@@ -182,8 +176,10 @@ major version is 0, the usual convention for `0.y.z` applies:
   version — `0.1.0` after `0.0.6`. Breaking usage means removing or renaming a command, a
   flag, an environment variable, or a configuration key, or refusing input that used to
   be accepted. An entry under `Removed` in `[Unreleased]`, or an entry under `Changed`
-  that does one of these, makes the release breaking;
-- any other release — new features and fixes only — raises the patch version.
+  that does one of these, makes the release breaking. An entry under `Deprecated` does
+  not: what it names still works;
+- any other release — new features, deprecations, and fixes only — raises the patch
+  version.
 
 Version `1.0.0` is a separate, explicit decision. From then on, a breaking release raises
 the major version.
