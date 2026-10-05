@@ -121,6 +121,17 @@ completed by the project choices listed below:
 - `.claude/skills/tech-debt/SKILL.md` — `docs/tech-debt.md`: what counts as a deferred
   problem, the entry format, and closing an entry as fixed or dropped.
 
+The plans, the backlog, and the tech debt are kept as files in the repository rather
+than in an issue tracker, so that each decision is versioned together with the change it
+concerns, is reviewed in the same pull request, and can be read by an AI agent without
+access to an external service.
+
+The skills are written to be portable: the same files are also used outside this
+repository, which is why they make no assumptions about the project. A copy installed
+as a personal skill takes precedence over the project one in Claude Code, so each skill
+opens with a "Project version first" section that sends the reader to the repository
+copy when one exists; in the repository copy that section has no effect.
+
 The skills leave a few choices to the project. In tfscli:
 
 - Tasks files live in `docs/`, and archived ones in `docs/archive/`. Work taken from the
