@@ -1,14 +1,9 @@
 //go:build ignore
 
-// Command release-notes assembles the body of a GitHub release — one version
-// section of CHANGELOG.md followed by docs/release-footer.md — and writes it to
-// docs/release-notes.md, which goreleaser passes to --release-notes. The
-// changelog stays the single source of truth for what a release contains.
-//
-// The footer is appended here rather than handed to goreleaser as
-// --release-footer. That flag decorates the changelog goreleaser generates
-// itself, and --release-notes turns that generation off, so the two cannot be
-// combined: a footer passed alongside custom notes is dropped without a word.
+// Command release-notes extracts one version section of CHANGELOG.md, which the
+// release workflow passes to goreleaser as --release-notes. The changelog stays
+// the single source of truth for what a release contains; the footer of every
+// release page is release.footer in .goreleaser.yaml.
 //
 // Usage:
 //
@@ -16,23 +11,17 @@
 //
 // The version is the text inside the brackets of the heading, so "Unreleased"
 // selects "## [Unreleased]" and "0.1.0" selects "## [0.1.0]". The changelog
-// defaults to CHANGELOG.md and the output to docs/release-notes.md. A version
-// with no matching section is an error.
+// defaults to CHANGELOG.md, and the section is written to standard output
+// unless an output file is given. A version with no matching section, or with
+// an empty one, is an error.
 package main
 
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 )
-
-// The last lines of every release body. What to do after downloading an
-// archive belongs on the release page rather than in the changelog, and a
-// missing footer would silently shorten the release, so its absence is an
-// error like any other.
-const footerFile = "docs/release-footer.md"
 
 func main() {
 	if len(os.Args) < 2 || len(os.Args) > 4 {
@@ -45,10 +34,6 @@ func main() {
 	if len(os.Args) >= 3 {
 		changelog = os.Args[2]
 	}
-	output := filepath.Join("docs", "release-notes.md")
-	if len(os.Args) == 4 {
-		output = os.Args[3]
-	}
 
 	source, err := os.ReadFile(changelog)
 	if err != nil {
@@ -60,18 +45,15 @@ func main() {
 		fail(err)
 	}
 
-	footer, err := os.ReadFile(footerFile)
-	if err != nil {
+	if len(os.Args) < 4 {
+		fmt.Print(section)
+		return
+	}
+	output := os.Args[3]
+	if err := os.WriteFile(output, []byte(section), 0o644); err != nil {
 		fail(err)
 	}
-
-	if err := os.MkdirAll(filepath.Dir(output), 0o755); err != nil {
-		fail(err)
-	}
-	if err := os.WriteFile(output, []byte(assemble(section, string(footer))), 0o644); err != nil {
-		fail(err)
-	}
-	fmt.Printf("release-notes: wrote the [%s] section of %s, then %s, to %s\n", version, changelog, footerFile, output)
+	fmt.Printf("release-notes: wrote the [%s] section of %s to %s\n", version, changelog, output)
 }
 
 func fail(err error) {
@@ -94,22 +76,9 @@ func extract(changelog, version string) (string, error) {
 		body = body[:next[0]]
 	}
 
-	// A section followed by another one ends with the "---" that separates the
-	// two, which belongs to neither and would render as a second rule above the
-	// one the footer opens with.
 	body = strings.TrimSpace(body)
-	if rest, found := strings.CutSuffix(body, "---"); found {
-		body = strings.TrimSpace(rest)
-	}
 	if body == "" {
 		return "", fmt.Errorf("section [%s] of the changelog is empty", version)
 	}
 	return body + "\n", nil
-}
-
-// assemble joins the section and the footer with a blank line between them, which
-// the footer needs: a "---" on the line directly below text is not a rule but
-// an underline turning that text into a heading.
-func assemble(section, footer string) string {
-	return strings.TrimSpace(section) + "\n\n" + strings.TrimSpace(footer) + "\n"
 }

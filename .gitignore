@@ -1,7 +1,6 @@
-# Binaries
+# Binaries, and the archives goreleaser builds into dist/
 /tfscli
 /tfscli.exe
-/bin/
 /dist/
 
 # Test and coverage artifacts
@@ -9,10 +8,8 @@
 *.out
 coverage.html
 
-# Generated from CHANGELOG.md by `make release-notes`
-/docs/release-notes.md
-
-# Local config with credentials — never commit
+# A local config made from config.example.json — personal settings, never
+# committed. Credentials are not kept here; they live in auth.json.
 config.json
 
 # IDE

@@ -93,7 +93,8 @@ or with an existing `[9.9.9]` fails and leaves the copy unchanged.
 
 ### TASK-02 `release-notes-in-workflow`
 **Description:** Simplify `tools/release-notes.go` to extracting the section body from
-its heading up to the next `## [` heading, without the footer and without separator
+its heading up to the next `## [` heading, written to an output file or, without one,
+to standard output, without the footer and without separator
 stripping; an absent or empty section stays an error. Move the text of
 `docs/release-footer.md` into `release.footer` of `.goreleaser.yaml`, delete the file,
 and delete the `before` hook. Remove the `release`, `release-publish`, and
@@ -112,7 +113,7 @@ to preview the archives.
 `docs/release-footer.md`, `make release-notes`, `make release`, or
 `make release-publish`. Running `go run tools/release-notes.go 0.0.6 CHANGELOG.md
 <temp file>` writes exactly the entries of `[0.0.6]`, and a nonexistent version fails.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-03 `clean-without-rm-tool`
 **Description:** Make the `clean` target run `git clean -fX -- tfscli tfscli.exe

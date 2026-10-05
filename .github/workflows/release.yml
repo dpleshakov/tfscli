@@ -61,13 +61,14 @@ jobs:
       - name: Turn the unreleased section into a released one
         run: go run tools/release-section.go "$VERSION"
 
-      # Read the section back with the tool that will produce the release body,
-      # and print it: a section goreleaser could not use fails here, before the
-      # tag exists, rather than halfway through publishing.
-      - name: Check the release notes
+      # Read the section back from the rewritten changelog and print it: a
+      # rewrite that left no usable section fails here, before the tag exists,
+      # rather than halfway through publishing. The file is written outside the
+      # repository, where goreleaser does not count it as a change to the tree.
+      - name: Extract the release notes
         run: |
-          make release-notes VERSION="$VERSION"
-          cat docs/release-notes.md
+          go run tools/release-notes.go "$VERSION" CHANGELOG.md "$RUNNER_TEMP/release-notes.md"
+          cat "$RUNNER_TEMP/release-notes.md"
 
       # A push made with GITHUB_TOKEN does not start another workflow, so the
       # release commit will not set off a redundant CI run.
@@ -80,14 +81,12 @@ jobs:
           git push origin HEAD:main
           git push origin "v$VERSION"
 
-      # As in ci.yml, the action only installs the tool and the Makefile
-      # decides how it runs, so that a snapshot built by hand and the release
-      # published here cannot drift apart.
+      # --release-notes is the whole body above the footer from .goreleaser.yaml:
+      # it turns off goreleaser's own changelog generated from the commit log.
+      # The release is created as a draft (draft: true in .goreleaser.yaml).
       - uses: goreleaser/goreleaser-action@v6
         with:
           version: '~> v2'
-          install-only: true
-
-      - run: make release-publish
+          args: release --clean --release-notes ${{ runner.temp }}/release-notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

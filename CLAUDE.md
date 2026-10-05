@@ -56,11 +56,11 @@ tfscli wit wiql query-by-wiql -p MyProject --query "SELECT [System.Id] FROM Work
 
 ## Build / test commands
 
-Everything the project verifies runs through the `Makefile` — `build`, `lint`, `test`, `check`, `release-notes`, `release`, `release-publish`, `clean` — and CI runs `make check` verbatim, so a green `make check` locally is the whole gate. A single test is `go test -run TestName ./path/to/pkg`.
+Everything the project verifies runs through the `Makefile` — `build`, `lint`, `test`, `check`, `clean` — and CI runs `make check` verbatim, so a green `make check` locally is the whole gate. A single test is `go test -run TestName ./path/to/pkg`.
 
 Recipes never assume a Unix shell: file removal, the coverage check, and the changelog handling live in Go programs under `tools/`, tagged `//go:build ignore` so that `go build ./...`, `go vet ./...`, and `go test ./...` do not see them.
 
-A release is made by running the `Release` workflow from the Actions tab with a version number; it verifies, rewrites `CHANGELOG.md`, commits, tags, pushes, and builds a draft release. Nothing about a release is done by hand except pressing Publish.
+A release is made by running the `Release` workflow from the Actions tab with a version number; it verifies, rewrites `CHANGELOG.md`, commits, tags, pushes, and builds a draft release with goreleaser, which is run by the workflow and not through the `Makefile`. Nothing about a release is done by hand except pressing Publish.
 
 `CONTRIBUTING.md` has the rest — required tool versions, what each target does, the lint and coverage rules, and the release procedure. **Read it before touching the build, the workflows, or a release.**
 
