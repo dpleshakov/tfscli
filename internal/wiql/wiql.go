@@ -75,14 +75,15 @@ func QueryByWiql(ctx context.Context, client APIClient, req Request) (*Result, e
 }
 
 // path builds {project}/{team}/_apis/wit/wiql, leaving out the segments that
-// are not given.
+// are not given. The project and the team are escaped, since the API client
+// takes the path as already escaped.
 func path(req Request) string {
 	p := "_apis/wit/wiql"
 	if req.Team != "" {
-		p = req.Team + "/" + p
+		p = url.PathEscape(req.Team) + "/" + p
 	}
 	if req.Project != "" {
-		p = req.Project + "/" + p
+		p = url.PathEscape(req.Project) + "/" + p
 	}
 	return p
 }

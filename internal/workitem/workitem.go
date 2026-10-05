@@ -100,7 +100,7 @@ func Get(ctx context.Context, client APIClient, project string, id int, fields [
 		query.Set("fields", strings.Join(fields, ","))
 	}
 
-	body, err := client.Get(ctx, fmt.Sprintf("%s/_apis/wit/workitems/%d", project, id), query)
+	body, err := client.Get(ctx, fmt.Sprintf("%s/_apis/wit/workitems/%d", url.PathEscape(project), id), query)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +122,7 @@ func List(ctx context.Context, client APIClient, project string, req BatchReques
 		query.Set("errorPolicy", req.ErrorPolicy)
 	}
 
-	body, err := client.Get(ctx, project+"/_apis/wit/workitems", query)
+	body, err := client.Get(ctx, url.PathEscape(project)+"/_apis/wit/workitems", query)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +143,7 @@ func GetBatch(ctx context.Context, client APIClient, project string, req BatchRe
 		ErrorPolicy string   `json:"errorPolicy,omitempty"`
 	}{req.IDs, req.Fields, req.AsOf, req.ErrorPolicy}
 
-	resp, err := client.Post(ctx, project+"/_apis/wit/workitemsbatch", nil, body)
+	resp, err := client.Post(ctx, url.PathEscape(project)+"/_apis/wit/workitemsbatch", nil, body)
 	if err != nil {
 		return nil, err
 	}
