@@ -1,5 +1,10 @@
 # Architecture — tfscli
 
+This document records the technology stack, the architecture, and the project structure
+of tfscli, with their rationale and the alternatives rejected. It changes when the stack,
+the modules, their interactions, or the top-level structure change. The behaviour of
+individual features is documented in `README.md`, not here.
+
 ## Tech Stack
 
 ### Language: Go

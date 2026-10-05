@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Process
 
-The project follows a deliberate, strict workflow defined by process skills: `project-start` (brief, tech stack, architecture, repo skeleton), `tasks` (task breakdown and execution), `tech-debt` (deferred compromises), and `changelog` (CHANGELOG.md entries and releases). If these skills are available, they are authoritative — invoke the matching one before doing the work; this CLAUDE.md intentionally does not duplicate their content. If they are not available in the current environment, ask the user how to proceed instead of improvising the process from memory.
+The workflow is defined by three process skills kept in the repository under `.claude/skills/`: `tasks` (task breakdown and execution), `changelog` (`CHANGELOG.md` entries and releases), and `tech-debt` (deferred compromises). They are authoritative — invoke the matching one before doing the work; this CLAUDE.md intentionally does not duplicate their content. The choices they leave to the project are in the "Process" section of `CONTRIBUTING.md`, and the purpose of each project document is in its "Project documents" section.
 
 Note: tasks files created before the move to skills (e.g. `docs/2026-05-20-tasks-html-quirks.md`) follow an older format with task types and emoji statuses; keep their existing format when updating them.
 
@@ -14,7 +14,7 @@ The MVP is implemented: `tfscli wit work-items get` works end to end, `tfscli wi
 
 Three documents drive everything:
 
-- `project-brief.md` — product scope, constraints, non-goals, error/config/command contracts. **Read this before proposing any user-facing change.**
+- `project-brief.md` — purpose, scope, constraints, non-goals, and design principles of the product. **Read this before proposing any user-facing change.** It changes only when a product decision changes; feature behaviour belongs in `README.md`, not here.
 - `architecture.md` — tech stack with rationale and rejected alternatives. **Read this before adding a dependency or swapping a library.**
 - Process skills — the development workflow (see "Process" above).
 

@@ -1,5 +1,9 @@
 # Project Brief — tfscli
 
+This document records the purpose, audience, scope, constraints, non-goals, and design
+principles of tfscli. It changes only when one of these decisions changes. The behaviour
+of individual features is documented in `README.md`, not here.
+
 ## Problem
 
 AI coding agents (Claude Code, opencode, Cursor) have no lightweight way to access on-premises TFS / Azure DevOps Server data. Existing solutions are MCP servers that require Node.js runtime, long startup times, a persistent process, and explicit credentials (PAT or login/password). They don't fit the stateless CLI model that agents already use for OS interaction (`git`, `grep`, `find`).

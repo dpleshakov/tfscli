@@ -1,8 +1,8 @@
-## tech-debt.md
+# Tech debt
 
-### Active
+## Active
 
-#### TD-07 `main-not-protected`
+### TD-07 `main-not-protected`
 **Problem:** `main` has no server-side protection. The rule that changes reach it
 only through pull requests with a green `check` is a convention that GitHub does not
 enforce.
@@ -31,28 +31,45 @@ work found necessary at that point:
 **Added:** 2026-10-05, in conversation; replaces TASK-01 of
 `docs/archive/2026-10-04-tasks-release-bypass.md`
 
+### TD-08 `brief-describes-feature-behaviour`
+**Problem:** `docs/project-brief.md` now states that it records the purpose, scope,
+constraints, non-goals, and design principles of tfscli, and that feature behaviour is
+documented in `README.md`. Several of its sections predate that statement and describe
+current behaviour instead: the login sequence under "Authentication", the details
+under "Configuration", the list of commands under "Command Format", the sample
+messages under "Error Format", and "Key Dependencies". The same content is kept in
+`README.md`, `CLAUDE.md`, `skills/tfscli/SKILL.md`, and `docs/architecture.md`, so
+every feature has had to update the brief as one more copy.
+**Why deferred:** Moving the content is a separate review of each section — what is a
+principle and stays, what is behaviour and is already covered elsewhere — and is not
+needed to state the purpose of the document.
+**Trigger:** the next change that would otherwise add feature behaviour to the brief.
+The normative parts stay as principles: the credential model, the configuration
+precedence, and the error format and its stability.
+**Added:** 2026-10-05, in conversation on the purpose of the project documents
+
 ---
 
-### Closed
+## Closed
 
-#### TD-01 `login-anonymous-detection`
-**Fixed:** 2026-10-05 — dropped without a change: no server with anonymous
-access is available to verify against; recorded as a known limitation in
-`README.md` until a user reports such a server
+### TD-01 `login-anonymous-detection`
+**Closed:** 2026-10-05 — dropped: no server with anonymous access is available to
+verify against; recorded as a known limitation in `README.md` until a user reports
+such a server
 
-#### TD-02 `tls-1.2-minimum`
-**Fixed:** 2026-10-05 — not a deferred problem but a decision; recorded under
-"Defaults are safe" in `docs/architecture.md`
+### TD-02 `tls-1.2-minimum`
+**Closed:** 2026-10-05 — dropped: not a deferred problem but a decision; recorded
+under "Defaults are safe" in `docs/architecture.md`
 
-#### TD-03 `request-duration-test`
-**Fixed:** 2026-10-05
+### TD-03 `request-duration-test`
+**Closed:** 2026-10-05 — fixed in c70658c
 
-#### TD-04 `url-userinfo-in-output`
-**Fixed:** 2026-10-05
+### TD-04 `url-userinfo-in-output`
+**Closed:** 2026-10-05 — fixed in d46745f
 
-#### TD-05 `collection-named-like-virtual-directory`
-**Fixed:** 2026-10-05 — dropped without a change: the naming is not known to
-occur, and a report of it would surface as a `not_found` at login
+### TD-05 `collection-named-like-virtual-directory`
+**Closed:** 2026-10-05 — dropped: the naming is not known to occur, and a
+report of it would surface as a `not_found` at login
 
-#### TD-06 `path-segments-unescaped`
-**Fixed:** 2026-10-05
+### TD-06 `path-segments-unescaped`
+**Closed:** 2026-10-05 — fixed in c70658c
