@@ -5,8 +5,9 @@
 # construction. Recipes avoid Unix-only utilities: the checks that would
 # otherwise need a shell live in Go programs under tools/, which are tagged
 # `//go:build ignore` and therefore invisible to go build, go vet, and go test,
-# and file removal goes through git, which every platform has. Releasing is not done from here: .github/workflows/release.yml runs
-# the release tools and goreleaser itself.
+# and file removal goes through git, which every platform has. Releasing is not
+# done from here: .github/workflows/release.yml runs the release tools and
+# goreleaser itself.
 #
 # Prerequisites: Go, and — for `lint` — golangci-lint v2 on PATH.
 
@@ -50,8 +51,10 @@ check: build lint test
 # Clean
 # ---------------------------------------------------------------------------
 
-# Remove every build artifact, leaving the working tree as git sees it. -X
-# limits git clean to ignored files and the paths to exactly these artifacts,
-# so a local config.json, IDE settings, and untracked work are never touched.
+# Remove every build artifact — the binary, the coverage profile, and the dist/
+# a local goreleaser snapshot leaves — leaving the working tree as git sees it.
+# -X limits git clean to ignored files, -d lets it remove dist/, and the paths
+# restrict it to exactly these artifacts, so a local config.json, IDE settings,
+# and untracked work are never touched.
 clean:
-	git clean -fX -- tfscli tfscli.exe coverage.out
+	git clean -fdX -- tfscli tfscli.exe coverage.out dist

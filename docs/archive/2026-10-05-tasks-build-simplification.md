@@ -6,8 +6,8 @@
 
 The build and release tooling has accumulated parts that no longer pay for themselves.
 This work removes them without weakening any check that guards against a known failure.
-The items are discussed one at a time; tasks are added to this file as each item is
-settled.
+The items were discussed one at a time, and a task was added to this file as each item
+was settled.
 
 Decisions taken for the release notes:
 
@@ -18,8 +18,8 @@ Decisions taken for the release notes:
   the order Added, Changed, Removed, Fixed, and no version comparison links. The
   separator stripping and the empty-subsection filtering in `tools/` existed only
   because of the old format.
-- **Two tools stay, one per operation.** `tools/release-section.go` renames
-  `[Unreleased]`; `tools/release-notes.go` extracts a version section. Extracting from
+- **Two tools stay, one per operation.** `tools/release-section.go` inserts
+  the version heading below `[Unreleased]`; `tools/release-notes.go` extracts a version section. Extracting from
   the rewritten file keeps the cross-check recorded in
   `docs/archive/2026-08-12-tasks-release-button.md`: a malformed rewrite fails before
   anything is pushed.
@@ -41,9 +41,11 @@ Decisions taken for the release notes:
 Decisions taken for `make clean`:
 
 - **`git clean` replaces `tools/rm.go`.** Once the release targets leave the Makefile,
-  the only local artifacts are `tfscli`, `tfscli.exe`, and `coverage.out`.
-  `git clean -fX -- <paths>` removes them on every platform: `-X` limits it to ignored
-  files and the pathspec to exactly these paths, so `config.json`, IDE settings, and
+  the local artifacts are `tfscli`, `tfscli.exe`, `coverage.out`, and the `dist/` left
+  by a goreleaser snapshot run by hand (the last one was found in review, after
+  TASK-03, and added then). `git clean -fdX -- <paths>` removes them on every platform:
+  `-X` limits it to ignored files, `-d` allows the directory, and the pathspec limits it
+  to exactly these paths, so `config.json`, IDE settings, and
   untracked work are never touched. Git is already required everywhere, so the rule that
   no recipe assumes a Unix shell still holds. The target is kept rather than dropped, so
   that nobody falls back to an unrestricted `git clean -fdX`.

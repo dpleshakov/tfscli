@@ -23,6 +23,9 @@ import (
 	"strings"
 )
 
+// anySection matches the heading of any section, which ends the one before it.
+var anySection = regexp.MustCompile(`(?m)^## \[`)
+
 func main() {
 	if len(os.Args) < 2 || len(os.Args) > 4 {
 		fmt.Fprintln(os.Stderr, "usage: go run tools/release-notes.go <version> [changelog] [output]")
@@ -72,7 +75,7 @@ func extract(changelog, version string) (string, error) {
 	}
 
 	body := changelog[loc[1]:]
-	if next := regexp.MustCompile(`(?m)^## \[`).FindStringIndex(body); next != nil {
+	if next := anySection.FindStringIndex(body); next != nil {
 		body = body[:next[0]]
 	}
 

@@ -10,7 +10,7 @@ The developer handbook for this repository. `README.md` documents the tool for i
 | `make lint` | `go mod tidy -diff`, which fails if `go.mod` or `go.sum` drifted from the imports, and `golangci-lint run` | Before committing |
 | `make test` | Measures coverage of `internal/...` and fails below 85% | While working on tests |
 | `make check` | `build`, `lint`, and `test` | Before pushing — CI runs exactly this |
-| `make clean` | Removes the binary and `coverage.out` through `git clean`, touching nothing else | Any time |
+| `make clean` | Removes the binary, `coverage.out`, and `dist/` through `git clean`, touching nothing else | Any time |
 
 `make check` is the whole gate: `.github/workflows/ci.yml` installs the linter, runs
 `make check`, and does nothing else, so a green check locally is a green CI by
@@ -40,6 +40,7 @@ GOOS=windows GOARCH=amd64 go build ./cmd/tfscli
   (`buildir: interface conversion`). A release binary is built with the Go current at the
   time it was cut; `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2`
   builds it with the Go you have. CI pins v2.13 against Go 1.26.
+
 Every other target needs Go alone. [`goreleaser`](https://goreleaser.com) v2 is needed
 only to preview a release locally (see "Releasing"); the release itself installs it in
 the workflow.
