@@ -99,19 +99,23 @@ Each document has one job, and new information goes to the document whose job it
 | `CHANGELOG.md` | User-visible changes, per release | Any user-visible change |
 | `CONTRIBUTING.md` | How the project is built, checked, released, and worked on | The build, the rules, or the process change |
 | `CLAUDE.md` | Guidance for AI agents working in the repository | Anything it summarises changes |
+| `docs/backlog.md` | Accepted work not started yet, in priority order | Work is accepted, started, or dropped |
 | `docs/tech-debt.md` | Consciously deferred problems | A problem is deferred or closed |
 | `docs/YYYY-MM-DD-tasks-<slug>.md` | The plan and progress of one unit of work | The work progresses; archived to `docs/archive/` when done |
 | `.claude/skills/` | The process rules below | The process changes |
 
 ## Process
 
-Work is planned and tracked with three process skills kept in the repository. Each is a
+Work is planned and tracked with four process skills kept in the repository. Each is a
 plain Markdown file and states the full rules, for people as much as for AI agents,
 completed by the project choices listed below:
 
 - `.claude/skills/tasks/SKILL.md` — tasks files: a unit of work as an ordered list of
   atomic tasks with a definition of done and a status each, committed together with the
   work it describes and archived when done.
+- `.claude/skills/backlog/SKILL.md` — `docs/backlog.md`: work accepted for later, with
+  the decisions already made about it, in priority order; broken down into a tasks file
+  only when it starts.
 - `.claude/skills/changelog/SKILL.md` — `CHANGELOG.md`: Keep a Changelog 1.1.0 without
   comparison links, user-visible changes only, one sentence per entry.
 - `.claude/skills/tech-debt/SKILL.md` — `docs/tech-debt.md`: what counts as a deferred
@@ -119,9 +123,8 @@ completed by the project choices listed below:
 
 The skills leave a few choices to the project. In tfscli:
 
-- Tasks files live in `docs/`, and archived ones in `docs/archive/`. The fix of a tech
-  debt entry is planned as a tasks file. `docs/2026-05-20-tasks-html-quirks.md` predates
-  the current format and keeps its own — task types and emoji statuses — when updated.
+- Tasks files live in `docs/`, and archived ones in `docs/archive/`. Work taken from the
+  backlog and the fix of a tech debt entry are planned as a tasks file.
 - The changelog preamble names Semantic Versioning, as declared in "Choosing the
   version", and the version heading is inserted by the release workflow (see
   "Releasing").

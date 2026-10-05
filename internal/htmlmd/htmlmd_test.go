@@ -5,7 +5,7 @@ import "testing"
 // The expectations below record the library defaults, which is all v1 uses.
 // They are a smoke check that the wrapper is wired to the converter — not an
 // endorsement of any particular rendering. TFS-specific rules and golden tests
-// on real samples arrive with docs/2026-05-20-tasks-html-quirks.md.
+// on real samples arrive with the html-quirks entry in docs/backlog.md.
 func TestConvert(t *testing.T) {
 	tests := []struct {
 		name string

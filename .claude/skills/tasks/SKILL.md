@@ -1,6 +1,6 @@
 ---
 name: tasks
-description: Universal task-file workflow — create a structured tasks file from a feature/request and execute it step by step, tracking what is done vs. pending in any project. No project-specific assumptions.
+description: Universal task-file workflow — create a structured tasks file for work that starts now and execute it step by step, tracking what is done vs. pending in any project. No project-specific assumptions.
 argument-hint: "[feature description to break down | path to a tasks file]"
 ---
 
@@ -25,7 +25,8 @@ Decide what to do from the user's request and the current context:
   and exactly one `Active` file exists in the tasks directory (see "The tasks file") →
   **Execute** mode.
 - A feature or request description is given and no matching file exists → **Create**
-  mode (breakdown), then offer to start executing.
+  mode (breakdown), then offer to start executing. Work that is not to start now does
+  not get a tasks file (see "Create mode").
 - Ambiguous (e.g. several active files, or unclear whether to create or execute) → ask
   the user one short question before proceeding.
 
@@ -90,19 +91,28 @@ self-evident and needs no marker.
 
 ## Create mode (breakdown)
 
-1. Turn the feature/request into a complete, ordered list of **atomic** tasks — each
+A tasks file is created when the work starts, not in advance: most of the effort before
+that is discussion and decisions, and a breakdown made ahead of time goes stale.
+
+1. Confirm that the work starts now. If it does not — the user wants it recorded,
+   planned, or kept for later — do not create a tasks file. Record it where the project
+   keeps planned work, if it has such a place; otherwise ask the user where it should
+   go. If the work was recorded there earlier, use that record as the input to the
+   breakdown and take it out as that place's rules require.
+2. Turn the feature/request into a complete, ordered list of **atomic** tasks — each
    one achievable in a single focused session, with a definition of done that can be
    checked.
-2. Propose the task structure to the user and let them adjust before writing anything.
-3. Write the file to the tasks directory with header `Active` and every task `Pending`.
-4. Offer to start executing the first task.
+3. Propose the task structure to the user and let them adjust before writing anything.
+4. Write the file to the tasks directory with header `Active` and every task `Pending`,
+   numbered `TASK-01`, `TASK-02`, … in order.
+5. Offer to start executing the first task.
 
 ## Execute mode (tracking discipline)
 
 1. The next task is the one already `In progress`, if any — for example, one left
    unfinished by an interrupted session; otherwise it is the topmost `Pending` one, and
    when you start working on it, set its status to `In progress`. No decision is
-   required either way. Do not touch the other `Pending` tasks.
+   required either way. Do not start or mark the other `Pending` tasks.
 2. Do the work for that one task only — do not run ahead into later tasks.
 3. When its definition of done is met, set its status to `Done`.
 4. **Same-commit rule:** when the task's work is committed, the updated tasks file goes
@@ -111,12 +121,32 @@ self-evident and needs no marker.
    for; it only governs how the file participates when a commit happens.
 5. When the last task is resolved: change the header to `Archived` and move the file to
    the `archive/` subdirectory — in the same commit as that task's work.
-6. If a task is abandoned, mark it `Skipped — <reason>` rather than deleting it.
+6. When the work shows that the plan is wrong, change it as described in "Changing
+   the plan".
+
+## Changing the plan
+
+The `Pending` tasks are a plan, not a record, and the plan changes when the work shows
+it is wrong: a task turns out to be needed, a description contains a mistake, two tasks
+contradict each other, or a task is redundant. A task whose outcome is a decision often
+determines the tasks that follow it; those are added once the decision is made.
+
+- `Pending` tasks may be added, edited, reordered, or removed, and the Context section
+  may be updated. Propose every such change to the user before writing it, as when
+  creating the file.
+- `Done` tasks are not rewritten: they record what was done, and commits refer to them.
+- A task that was a mistake in the plan — a duplicate, a contradiction, a task not
+  needed — is removed. A task that is deliberately not done, where the reason is worth
+  knowing later, is marked `Skipped — <reason>` instead.
+- Task numbers identify tasks and do not express order. A number is never changed or
+  reused; a new task takes the next unused number and is placed where it is to be
+  done. The order of execution is the order in the file.
 
 ## Invariants
 
 - Tasks are atomic; work on one at a time.
 - Never leave a finished task unmarked — the file is the source of truth for progress.
+- `Done` tasks are never rewritten; `Pending` tasks change when the plan proves wrong.
 - The tasks file travels with the work it describes in a single commit.
 - Archive the file (header + move to `archive/`) once every task is resolved.
 - Require no particular project files or tooling; follow the project's documented

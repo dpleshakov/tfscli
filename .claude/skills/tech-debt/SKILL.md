@@ -50,6 +50,7 @@ fix it.
 **Problem:** what is wrong
 **Why deferred:** reasoning
 **Trigger:** the event that makes the fix necessary (a new feature, a performance issue)
+**Fix notes:** what is already known about the fix (optional)
 **Added:** YYYY-MM-DD, in <where the decision was made>
 
 ---
@@ -66,6 +67,12 @@ fix it.
 Numbers (`TD-NN`) are assigned sequentially and never reused. The **Added** line
 names where the decision was made — a review, a plan of work, or a conversation.
 
+**Trigger** names only the event, not what to do when it occurs. What is already known
+about the fix — findings, constraints, and the steps worked out when the decision to
+defer was made — goes into **Fix notes**, so that it is not rediscovered later. The
+field may run to several paragraphs or a list, and is omitted when nothing is known
+yet.
+
 ## Adding an item
 
 When a problem is deliberately deferred — during a review, while planning or doing
@@ -78,7 +85,8 @@ review fixes, or into a commit of its own when there is no such change.
 An item is closed in one of two ways:
 
 - **Fixed.** When the item is ready to be fixed, it becomes a regular piece of work,
-  planned and carried out the way the project plans any change. When the work is done,
+  planned and carried out the way the project plans any change, with the item's
+  **Fix notes** as an input to the planning. When the work is done,
   the item is closed with `fixed in` and a reference to where the fix can be found.
 - **Dropped.** When a review of the item shows that no change is needed — the problem
   does not occur in practice, or it turns out to be a decision rather than a deferred

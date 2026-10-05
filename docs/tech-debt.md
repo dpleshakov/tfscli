@@ -9,8 +9,8 @@ enforce.
 **Why deferred:** The repository is private on the free plan, where GitHub does not
 enforce rulesets. Protection becomes possible only when the repository is made
 public or the account moves to GitHub Pro, and neither has been decided.
-**Trigger:** The repository becomes public, or the account moves to GitHub Pro. The
-work found necessary at that point:
+**Trigger:** The repository becomes public, or the account moves to GitHub Pro.
+**Fix notes:**
 - A branch ruleset on the default branch: pull request required with 0 approvals,
   the `check` status check from GitHub Actions required with branches up to date,
   linear history, deletions and force pushes blocked; only rebase merging allowed
@@ -45,8 +45,8 @@ elsewhere.
 principle and stays, what is behaviour and is already covered elsewhere — and is not
 needed to state the purpose of the document.
 **Trigger:** the next change that would otherwise add feature behaviour to the brief.
-The normative parts stay as principles: the credential model, the configuration
-precedence, and the error format and its stability.
+**Fix notes:** The normative parts stay as principles: the credential model, the
+configuration precedence, and the error format and its stability.
 **Added:** 2026-10-05, in conversation on the purpose of the project documents
 
 ---
