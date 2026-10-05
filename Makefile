@@ -2,10 +2,10 @@
 #
 # Every verification the project has is reachable through `make check`, and CI
 # runs that same target, so "green locally, red in CI" cannot happen by
-# construction. Recipes avoid Unix-only utilities: file removal and the checks
-# that would otherwise need a shell live in Go programs under tools/, which are
-# tagged `//go:build ignore` and therefore invisible to go build, go vet, and
-# go test. Releasing is not done from here: .github/workflows/release.yml runs
+# construction. Recipes avoid Unix-only utilities: the checks that would
+# otherwise need a shell live in Go programs under tools/, which are tagged
+# `//go:build ignore` and therefore invisible to go build, go vet, and go test,
+# and file removal goes through git, which every platform has. Releasing is not done from here: .github/workflows/release.yml runs
 # the release tools and goreleaser itself.
 #
 # Prerequisites: Go, and — for `lint` — golangci-lint v2 on PATH.
@@ -52,7 +52,8 @@ check: build lint test
 # Clean
 # ---------------------------------------------------------------------------
 
-# Remove every build artifact, leaving the working tree as git sees it.
+# Remove every build artifact, leaving the working tree as git sees it. -X
+# limits git clean to ignored files and the paths to exactly these artifacts,
+# so a local config.json, IDE settings, and untracked work are never touched.
 clean:
-	go run tools/rm.go tfscli tfscli.exe coverage.out docs/release-notes.md
-	go run tools/rm.go -r dist
+	git clean -fX -- tfscli tfscli.exe coverage.out

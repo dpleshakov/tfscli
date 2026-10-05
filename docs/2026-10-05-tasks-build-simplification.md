@@ -125,7 +125,7 @@ coverage.out` and delete `tools/rm.go`. Update every description of `clean` and 
 `config.json` present in the repository root, `make clean` removes the first two and
 leaves `config.json`; run again with nothing to remove, it succeeds. No file outside
 `docs/archive/` refers to `tools/rm.go`.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-04 `tidy-diff`
 **Description:** In the `Makefile`, make `lint` run `go mod tidy -diff` instead of
