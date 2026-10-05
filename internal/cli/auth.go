@@ -153,6 +153,9 @@ func (g *globals) promptAuth() (*config.Auth, error) {
 	if err != nil {
 		return nil, inputError("the server URL", err)
 	}
+	if err := refuseUserinfo(raw); err != nil {
+		return nil, err
+	}
 	server, err := config.NormalizeURL(raw)
 	if err != nil {
 		return nil, err
@@ -190,6 +193,26 @@ func (g *globals) promptAuth() (*config.Auth, error) {
 		}
 	}
 	return &config.Auth{URL: server, Collection: collection, PAT: pat}, nil
+}
+
+// refuseUserinfo rejects a server URL that carries a user name or password.
+// tfscli authenticates only with the PAT, and what the user meant by the
+// userinfo cannot be known, so it is neither stored nor silently dropped.
+// The message does not repeat the URL, which would print the password. A URL
+// stored in the auth file or TFSCLI_AUTH is not checked here, so a working
+// credential keeps working.
+func refuseUserinfo(raw string) error {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || u.User == nil {
+		// An unparseable URL is reported by NormalizeURL.
+		return nil
+	}
+	return &tfserr.Error{
+		Category: tfserr.Config,
+		Message: "the server URL contains a user name or password; tfscli authenticates only with " +
+			"the personal access token it asks for next. Run tfscli auth login again and enter the URL " +
+			"without them, e.g. https://tfs.company.com/tfs",
+	}
 }
 
 // trimCollection removes collection from the end of the normalised server

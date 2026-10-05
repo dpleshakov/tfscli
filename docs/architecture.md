@@ -293,6 +293,7 @@ type Result struct {
 **Validation.**
 - CLI args: cobra type checking; positive-integer check on every work-item id, from the argument of `wit work-items get` and from `--ids`.
 - Env vars, config file, and credential: required fields enforced in `config.Load` after the merge. Malformed JSON in the config file, `auth.json`, or `TFSCLI_AUTH` fails fast at load with category `config`; the credential URL must be `http` or `https` with a host.
+- `auth login` answers: a server URL carrying a user name or password is refused with category `config`, without repeating the URL. tfscli authenticates only with the PAT, and what the user meant by the userinfo cannot be known, so it is neither stored nor silently dropped. A URL already stored with userinfo in `auth.json` or `TFSCLI_AUTH` is still accepted, so that a working credential keeps working.
 - TFS response: `encoding/json` validates shape into typed intermediate structs. HTML field values are passed only to `htmlmd` — never executed, never written to disk verbatim except as markdown in stdout, never used to build shell or filesystem paths.
 
 **What goes into logs.**
@@ -309,6 +310,7 @@ type Result struct {
 
 **Defaults are safe.**
 - TLS verification: on. `InsecureSkipVerify` must be set explicitly in the config file.
+- TLS version: 1.2 or later. `MinVersion` is set to TLS 1.2 when `CABundle` or `InsecureSkipVerify` is configured (`newTLSConfig` in `apiclient`), and the Go client default is the same otherwise. This restricts server compatibility, as "Server compatibility is preserved" in `project-brief.md` requires to be recorded: a server that offers only TLS 1.0 or 1.1, such as an older TFS on a Windows Server without TLS 1.2 enabled, cannot be reached. Accepting TLS 1.0 and 1.1 was rejected: both are deprecated and insecure, the PAT travels in every request, and no server limited to them is known among the users. The decision is revisited if such a server is reported.
 - Verbose: off. Stderr stays empty on success.
 - `CABundle`: empty. Falls back to the system root certificate store.
 
