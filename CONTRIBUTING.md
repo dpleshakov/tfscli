@@ -10,9 +10,6 @@ The developer handbook for this repository. `README.md` documents the tool for i
 | `make lint` | `go mod tidy` and `golangci-lint run` | Before committing |
 | `make test` | Measures coverage of `internal/...` and fails below 85% | While working on tests |
 | `make check` | `build`, `lint`, `test`, then fails if the `go mod tidy` inside `lint` changed `go.mod` or `go.sum` | Before pushing — CI runs exactly this |
-| `make release-notes VERSION=X.Y.Z` | Writes that changelog section, then the footer, into the gitignored `docs/release-notes.md` | To preview the release body |
-| `make release` | Builds a local snapshot release into `dist/`, publishing nothing | To see what a release would contain |
-| `make release-publish` | The same archives, uploaded to a draft GitHub release for the current tag | Never by hand — the release workflow runs it |
 | `make clean` | Removes the binary, `coverage.out`, `docs/release-notes.md`, and `dist/` | Any time |
 
 `make check` is the whole gate: `.github/workflows/ci.yml` installs the linter, runs
@@ -43,9 +40,9 @@ GOOS=windows GOARCH=amd64 go build ./cmd/tfscli
   (`buildir: interface conversion`). A release binary is built with the Go current at the
   time it was cut; `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2`
   builds it with the Go you have. CI pins v2.13 against Go 1.26.
-- **[`goreleaser`](https://goreleaser.com) v2**, for `make release`.
-
-Every other target needs Go alone.
+Every other target needs Go alone. [`goreleaser`](https://goreleaser.com) v2 is needed
+only to preview a release locally (see "Releasing"); the release itself installs it in
+the workflow.
 
 ## Code rules
 
@@ -164,24 +161,27 @@ a tag by hand does nothing.
 What the job does, in order: `make check` on the commit it is about to tag; then
 `tools/release-section.go`, which inserts `## [X.Y.Z] - YYYY-MM-DD` directly below
 `## [Unreleased]`, so that the unreleased entries become the new version and
-`[Unreleased]` is left empty; then
-`make release-notes`, which assembles the release body — that section followed by
-`docs/release-footer.md` — and prints it to the log; then the commit `Release X.Y.Z`, the
-tag, and the push; then goreleaser. The result is six archives — linux, windows, darwin
-× amd64, arm64 — plus `checksums.txt`, attached to a draft release titled `tfscli vX.Y.Z`
-whose body is that same file, passed as `--release-notes`. What goes into each archive is
+`[Unreleased]` is left empty; then `tools/release-notes.go`, which reads that section back
+from the rewritten changelog into a file outside the repository and prints it to the log;
+then the commit `Release X.Y.Z`, the tag, and the push; then goreleaser, run directly by
+its action rather than through the `Makefile`. The result is six archives — linux,
+windows, darwin × amd64, arm64 — plus `checksums.txt`, attached to a draft release titled
+`tfscli vX.Y.Z`. Its body is the extracted section, passed as `--release-notes`, followed
+by `release.footer` from `.goreleaser.yaml`. What goes into each archive is also
 `.goreleaser.yaml`; that the release is a draft is `draft: true` there.
 
-The footer is part of the file and not a goreleaser flag on purpose. `--release-footer`
-and `--release-header` decorate the changelog goreleaser generates from the commit log,
-and `--release-notes` switches that generation off; passed together, the footer is dropped
-without a warning. Anything else that belongs at the end of every release page goes into
-`docs/release-footer.md`, never into a flag.
+The footer is the `release.footer` field of the configuration on purpose, not the
+`--release-footer` flag. The flag decorates the changelog goreleaser generates from the
+commit log, and `--release-notes` switches that generation off; passed together, the
+footer is dropped without a warning. The field is added to the body whatever the notes
+came from. Anything else that belongs at the end of every release page goes into that
+field, never into a flag.
 
-To see what a release would contain without making one, `make release` builds the same
-archives into `dist/` and publishes nothing. The release body is not part of that preview:
-goreleaser skips the changelog step entirely for a snapshot. To see the body, run
-`make release-notes VERSION=X.Y.Z` and read `docs/release-notes.md`.
+The body of the next release is the `[Unreleased]` section as it stands, followed by the
+footer; `go run tools/release-notes.go Unreleased` prints the section. To see what the
+archives would contain without making a release, run `goreleaser release --snapshot
+--clean`, which builds them into `dist/` and publishes nothing. A snapshot renders no
+release body: goreleaser skips the changelog step entirely for it.
 
 ### When it goes wrong
 

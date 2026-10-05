@@ -2,13 +2,6 @@ version: 2
 
 project_name: tfscli
 
-before:
-  hooks:
-    # The release notes come from CHANGELOG.md, which is the single source of
-    # truth for what a release contains. A snapshot has no version of its own,
-    # so it takes the unreleased section.
-    - make release-notes VERSION={{ if .IsSnapshot }}Unreleased{{ else }}{{ .Version }}{{ end }}
-
 builds:
   - id: tfscli
     main: ./cmd/tfscli
@@ -54,3 +47,11 @@ release:
   name_template: "tfscli v{{ .Version }}"
   # Every release is reviewed and published by hand.
   draft: true
+  # The last lines of every release page, below the changelog section the
+  # release workflow passes as --release-notes. This is the config field, not
+  # the --release-footer flag: the flag is ignored when --release-notes is
+  # given, while the field is added to the body whatever the notes came from.
+  footer: |
+    ---
+
+    Before the first run, store the server URL, the collection, and a personal access token with `tfscli auth login`, as described in [Authentication](https://github.com/dpleshakov/tfscli#authentication).
