@@ -78,7 +78,8 @@ func TestQueryByWiqlRequestsPath(t *testing.T) {
 		{name: "collection level", want: "_apis/wit/wiql"},
 		{name: "project", project: "MyProject", want: "MyProject/_apis/wit/wiql"},
 		{name: "project and team", project: "MyProject", team: "Web", want: "MyProject/Web/_apis/wit/wiql"},
-		{name: "team with a space", project: "My Project", team: "Web Team", want: "My Project/Web Team/_apis/wit/wiql"},
+		{name: "team with a space", project: "My Project", team: "Web Team", want: "My%20Project/Web%20Team/_apis/wit/wiql"},
+		{name: "percent signs", project: "100% Done", team: "A%20B", want: "100%25%20Done/A%2520B/_apis/wit/wiql"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -117,6 +117,30 @@ func TestGetBuildsURL(t *testing.T) {
 	}
 }
 
+func TestGetEscapesCollectionAndKeepsEscapedPath(t *testing.T) {
+	var gotPath string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+	}))
+	t.Cleanup(srv.Close)
+
+	client, err := New(&config.Config{
+		URL:        srv.URL,
+		Collection: "100% Collection",
+		PAT:        testPAT,
+	}, log.Noop())
+	if err != nil {
+		t.Fatalf("New() error = %v, want nil", err)
+	}
+	if _, err := client.Get(t.Context(), "100%25%20Done/_apis/wit/workitems/123", nil); err != nil {
+		t.Fatalf("Get() error = %v, want nil", err)
+	}
+
+	if want := "/100% Collection/100% Done/_apis/wit/workitems/123"; gotPath != want {
+		t.Errorf("path = %q, want %q", gotPath, want)
+	}
+}
+
 func TestGetWithoutAPIVersion(t *testing.T) {
 	var gotQuery url.Values
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -382,7 +406,12 @@ func TestGetCanceledContext(t *testing.T) {
 }
 
 func TestLogsEveryRequestExactlyOnce(t *testing.T) {
+	// The monotonic clock on Windows advances in steps of up to 15.6ms, so a
+	// local round trip can measure 0s; a handler that waits longer than one
+	// step makes the duration measurable on every platform.
+	const delay = 20 * time.Millisecond
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(delay)
 		w.WriteHeader(http.StatusOK)
 	}))
 	t.Cleanup(srv.Close)
@@ -410,10 +439,9 @@ func TestLogsEveryRequestExactlyOnce(t *testing.T) {
 	if strings.Contains(entry.url, testPAT) {
 		t.Errorf("url = %q, want it to be free of the PAT", entry.url)
 	}
-	// The duration check is disabled until TD-03 in docs/tech-debt.md is
-	// resolved: on Windows a request to a local server often measures 0s.
-	// The checks above still run; Skip keeps their failures.
-	t.Skip("duration check disabled: flaky on Windows, see TD-03 in docs/tech-debt.md")
+	if entry.dur < delay {
+		t.Errorf("duration = %v, want at least %v", entry.dur, delay)
+	}
 }
 
 func TestNewRejectsBadURL(t *testing.T) {

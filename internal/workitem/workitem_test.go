@@ -85,6 +85,39 @@ func TestGetRequestsDocumentedPath(t *testing.T) {
 	}
 }
 
+func TestEscapesProjectInPath(t *testing.T) {
+	const project = "100% Done"
+	tests := []struct {
+		name string
+		read func(*fakeClient) error
+		want string
+	}{
+		{"get", func(c *fakeClient) error {
+			_, err := Get(context.Background(), c, project, 12345, nil)
+			return err
+		}, "100%25%20Done/_apis/wit/workitems/12345"},
+		{"list", func(c *fakeClient) error {
+			_, err := List(context.Background(), c, project, BatchRequest{IDs: []int{297}})
+			return err
+		}, "100%25%20Done/_apis/wit/workitems"},
+		{"get-batch", func(c *fakeClient) error {
+			_, err := GetBatch(context.Background(), c, project, BatchRequest{IDs: []int{297}})
+			return err
+		}, "100%25%20Done/_apis/wit/workitemsbatch"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := &fakeClient{body: []byte(`{"id": 297, "rev": 1, "value": []}`)}
+			if err := tt.read(client); err != nil {
+				t.Fatalf("read returned error: %v", err)
+			}
+			if client.path != tt.want {
+				t.Errorf("requested path %q, want %q", client.path, tt.want)
+			}
+		})
+	}
+}
+
 func TestGetPassesRequestedFields(t *testing.T) {
 	client := &fakeClient{body: fixture(t, "bug.json")}
 

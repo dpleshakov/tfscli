@@ -4,6 +4,7 @@
 
 ### Added
 ### Fixed
+- A collection, project, or team name containing `%`, such as `100% Done`, now reaches the server as written, where the request used to go to the wrong address.
 ### Changed
 ### Removed
 

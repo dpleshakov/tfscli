@@ -89,7 +89,7 @@ func New(cfg *config.Config, logger log.Logger) (*Client, error) {
 
 	return &Client{
 		http:             &http.Client{Transport: &loggingTransport{base: transport, logger: logger}},
-		base:             base.JoinPath(cfg.Collection),
+		base:             base.JoinPath(url.PathEscape(cfg.Collection)),
 		pat:              cfg.PAT,
 		apiVersion:       cfg.APIVersion,
 		apiVersionSource: cfg.APIVersionSource,
@@ -97,7 +97,9 @@ func New(cfg *config.Config, logger log.Logger) (*Client, error) {
 }
 
 // Get performs a GET request against path, which is appended to the base URL
-// (server URL plus collection). The api-version parameter is added here when
+// (server URL plus collection). The path is taken as already escaped, so a
+// caller escapes each user-supplied segment, such as a project name, with
+// url.PathEscape. The api-version parameter is added here when
 // a version is configured, so callers pass only their own query parameters;
 // without one the server answers at the version it chooses. On a non-2xx
 // response or a transport failure the error is a *tfserr.Error carrying the
