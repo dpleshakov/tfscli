@@ -1,6 +1,6 @@
 # 2026-10-05-tasks-build-simplification.md
 
-**Status:** Active
+**Status:** Archived
 
 ## Context
 
@@ -137,4 +137,4 @@ with the comments that explain it. Update the descriptions of `lint` and `check`
 by hand, `make lint` fails, prints the diff, and leaves `go.mod` and `go.sum` exactly as
 they were. No file outside `docs/archive/` describes `check` as running `git diff` on
 the module files.
-**Status:** Pending
+**Status:** Done
