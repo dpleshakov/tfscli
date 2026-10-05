@@ -103,10 +103,12 @@ how to proceed rather than reconstructing the process from the summary below.
   types and emoji statuses — when updated.
 - **Changelog.** `CHANGELOG.md` is written for the user of the tool: features, observable
   bug fixes, changed configuration keys and flags, behaviour changes, and removals, but not
-  refactoring, tests, documentation, or invisible dependency updates. Sections are exactly
-  `Added`, `Fixed`, `Changed`, and `Removed`; an entry is one sentence starting with the
-  subject of the change rather than a verb. Unreleased work accumulates under
-  `[Unreleased]`.
+  refactoring, tests, documentation, or invisible dependency updates. The format is
+  [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) without version
+  comparison links. Sections are exactly `Added`, `Changed`, `Removed`, and `Fixed`, in
+  that order, and a section heading appears only when it has entries; an entry is one
+  sentence starting with the subject of the change rather than a verb. Unreleased work
+  accumulates under `[Unreleased]`.
 - **Tech debt.** A consciously deferred compromise is recorded in `docs/tech-debt.md`
   rather than left in a comment, and is closed through the normal tasks-file workflow.
 
@@ -135,7 +137,7 @@ In two places, neither of them a source file:
 
 - **the git tag** `vX.Y.Z` — goreleaser takes `.Version` as the tag without the leading
   `v`;
-- **the section heading** `## [X.Y.Z] — YYYY-MM-DD` in `CHANGELOG.md`, from which
+- **the section heading** `## [X.Y.Z] - YYYY-MM-DD` in `CHANGELOG.md`, from which
   `tools/release-notes.go` extracts the release notes.
 
 Both are written by `.github/workflows/release.yml` from the version typed into it, so
@@ -160,8 +162,9 @@ There is no other entry point: the workflow runs on `workflow_dispatch` alone, a
 a tag by hand does nothing.
 
 What the job does, in order: `make check` on the commit it is about to tag; then
-`tools/release-section.go`, which renames `[Unreleased]` to `[X.Y.Z] — YYYY-MM-DD`, drops
-the subsections that stayed empty, and starts a fresh `[Unreleased]` above it; then
+`tools/release-section.go`, which inserts `## [X.Y.Z] - YYYY-MM-DD` directly below
+`## [Unreleased]`, so that the unreleased entries become the new version and
+`[Unreleased]` is left empty; then
 `make release-notes`, which assembles the release body — that section followed by
 `docs/release-footer.md` — and prints it to the log; then the commit `Release X.Y.Z`, the
 tag, and the push; then goreleaser. The result is six archives — linux, windows, darwin
