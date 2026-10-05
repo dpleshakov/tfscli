@@ -112,10 +112,11 @@ how to proceed rather than reconstructing the process from the summary below.
 
 ## Commits and branches
 
-`main` is protected by a repository ruleset: every change reaches it through a pull
-request, merged only when the `check` job of `.github/workflows/ci.yml` is green. The
-`Release` workflow is the sole exception — it pushes the release commit and the tag to
-`main` directly, as the ruleset's only bypass actor.
+Every change reaches `main` through a pull request, merged only when the `check` job of
+`.github/workflows/ci.yml` is green. The `Release` workflow is the sole exception — it
+pushes the release commit and the tag to `main` directly. This is a convention rather than
+a setting: the repository is private on the free plan, where GitHub does not enforce
+rulesets. What protecting `main` would take is recorded as TD-07 in `docs/tech-debt.md`.
 
 Commit messages follow what the history already does:
 
