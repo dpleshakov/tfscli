@@ -4,18 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Process
 
-The project follows a deliberate, strict workflow defined by process skills: `project-start` (brief, tech stack, architecture, repo skeleton), `tasks` (task breakdown and execution), `tech-debt` (deferred compromises), and `changelog` (CHANGELOG.md entries and releases). If these skills are available, they are authoritative — invoke the matching one before doing the work; this CLAUDE.md intentionally does not duplicate their content. If they are not available in the current environment, ask the user how to proceed instead of improvising the process from memory.
-
-Note: tasks files created before the move to skills (e.g. `docs/2026-05-20-tasks-html-quirks.md`) follow an older format with task types and emoji statuses; keep their existing format when updating them.
+The workflow is defined by four process skills kept in the repository under `.claude/skills/`: `tasks` (task breakdown and execution), `backlog` (accepted work not started yet), `changelog` (`CHANGELOG.md` entries and releases), and `tech-debt` (deferred compromises). They are authoritative — invoke the matching one before doing the work; this CLAUDE.md intentionally does not duplicate their content. `CONTRIBUTING.md` records the choices they leave to the project ("Process") and the purpose of each project document ("Project documents").
 
 ## Project state
 
-The MVP is implemented: `tfscli wit work-items get` works end to end, `tfscli wit work-items list` and `tfscli wit work-items get-batch` read several work items by id, `tfscli wit wiql query-by-wiql` finds work item ids with a WIQL query, and the module has one package per architecture module (see the "Project Structure" section of `docs/architecture.md`). Release 0.0.5, which predates the current command names, has been run against a live TFS instance: `auth login` and reading one work item (`get`) work there; `list`, `get-batch`, and `query-by-wiql` have not been run against a live server yet; the error paths and rich-text rendering on real data have not been checked yet — see the "Status" and "Known limitations" sections of `README.md`. Further work goes through tasks files per the `tasks` skill.
+The MVP is implemented: `tfscli wit work-items get` works end to end, `tfscli wit work-items list` and `tfscli wit work-items get-batch` read several work items by id, `tfscli wit wiql query-by-wiql` finds work item ids with a WIQL query, and the module has one package per architecture module (see the "Project Structure" section of `docs/architecture.md`). Release 0.0.5, which predates the current command names, has been run against a live TFS instance: `auth login` and reading one work item (`get`) work there; `list`, `get-batch`, and `query-by-wiql` have not been run against a live server yet; the error paths and rich-text rendering on real data have not been checked yet — see the "Status" and "Known limitations" sections of `README.md`. Accepted work that has not started is listed in `docs/backlog.md`; work in progress goes through tasks files per the `tasks` skill.
 
-Three documents drive everything:
+Read these before the corresponding kind of change (the full list of project documents is in "Project documents" in `CONTRIBUTING.md`):
 
-- `project-brief.md` — product scope, constraints, non-goals, error/config/command contracts. **Read this before proposing any user-facing change.**
-- `architecture.md` — tech stack with rationale and rejected alternatives. **Read this before adding a dependency or swapping a library.**
+- `project-brief.md` — purpose, audience, scope, constraints, non-goals, and design principles of the product. **Read this before proposing any user-facing change.** It changes only when a product decision changes; feature behaviour belongs in `README.md`, not here.
+- `architecture.md` — technology stack, architecture, and project structure, with rationale and rejected alternatives. **Read this before adding a dependency or swapping a library.**
 - Process skills — the development workflow (see "Process" above).
 
 ## Non-negotiable product constraints

@@ -85,30 +85,54 @@ if a change would break one, raise it before implementing.
 parsing are `encoding/json`. A fourth dependency is a decision recorded in
 `docs/architecture.md`, not a `go get`.
 
+## Project documents
+
+Each document has one job, and new information goes to the document whose job it is.
+`project-brief.md` and `architecture.md` also state their purpose at the top.
+
+| Document | What it records | When it changes |
+|---|---|---|
+| `docs/project-brief.md` | Purpose, audience, scope, constraints, non-goals, and design principles | A product decision changes — not when a feature is added |
+| `docs/architecture.md` | Technology stack, architecture, and project structure, with rationale | The stack, the modules, their interactions, or the top-level structure change |
+| `README.md` | What tfscli does and how to use it | Any user-visible behaviour changes |
+| `skills/tfscli/SKILL.md` | How an AI agent uses tfscli; ships in every release archive | A command, a flag, an error category, or an environment variable changes |
+| `CHANGELOG.md` | User-visible changes, per release | Any user-visible change |
+| `CONTRIBUTING.md` | How the project is built, checked, released, and worked on | The build, the rules, or the process change |
+| `CLAUDE.md` | Guidance for AI agents working in the repository | Anything it summarises changes |
+| `docs/backlog.md` | Accepted work not started yet, in priority order | Work is accepted, started, or dropped |
+| `docs/tech-debt.md` | Consciously deferred problems | A problem is deferred or closed |
+| `docs/YYYY-MM-DD-tasks-<slug>.md` | The plan and progress of one unit of work | The work progresses; archived to `docs/archive/` when done |
+| `.claude/skills/` | The process rules below | The process changes |
+
 ## Process
 
-Work is planned and tracked through the process skills `tasks`, `changelog`, and
-`tech-debt`, which are authoritative wherever they are available. Where they are not, ask
-how to proceed rather than reconstructing the process from the summary below.
+Work is planned and tracked with four process skills kept in the repository. Each is a
+plain Markdown file and states the full rules, for people as much as for AI agents,
+completed by the project choices listed below:
 
-- **Tasks files.** A unit of work gets `docs/YYYY-MM-DD-tasks-<slug>.md`, with
-  `**Status:** Active` in the header and an ordered list of atomic tasks, each carrying a
-  description, a definition of done, and a status of `Pending`, `In progress`, `Done`, or
-  `Skipped — <reason>`. The file travels in the same commit as the work it describes; a
-  status-only commit is never correct. When the last task is resolved, the header becomes
-  `Archived` and the file moves to `docs/archive/` in that same commit.
-  `docs/2026-05-20-tasks-html-quirks.md` predates this format and keeps its own — task
-  types and emoji statuses — when updated.
-- **Changelog.** `CHANGELOG.md` is written for the user of the tool: features, observable
-  bug fixes, changed configuration keys and flags, behaviour changes, and removals, but not
-  refactoring, tests, documentation, or invisible dependency updates. The format is
-  [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) without version
-  comparison links. Sections are exactly `Added`, `Changed`, `Removed`, and `Fixed`, in
-  that order, and a section heading appears only when it has entries; an entry is one
-  sentence starting with the subject of the change rather than a verb. Unreleased work
-  accumulates under `[Unreleased]`.
-- **Tech debt.** A consciously deferred compromise is recorded in `docs/tech-debt.md`
-  rather than left in a comment, and is closed through the normal tasks-file workflow.
+- `.claude/skills/tasks/SKILL.md` — tasks files;
+- `.claude/skills/backlog/SKILL.md` — `docs/backlog.md`;
+- `.claude/skills/changelog/SKILL.md` — `CHANGELOG.md`;
+- `.claude/skills/tech-debt/SKILL.md` — `docs/tech-debt.md`.
+
+The plans, the backlog, and the tech debt are kept as files in the repository rather
+than in an issue tracker, so that each decision is versioned together with the change it
+concerns, is reviewed in the same pull request, and can be read by an AI agent without
+access to an external service.
+
+The skills are written to be portable: the same files are also used outside this
+repository, which is why they make no assumptions about the project. A copy installed
+as a personal skill takes precedence over the project one in Claude Code, so each skill
+opens with a "Project version first" section that sends the reader to the repository
+copy when one exists; in the repository copy that section has no effect.
+
+The skills leave a few choices to the project. In tfscli:
+
+- Tasks files live in `docs/`, and archived ones in `docs/archive/`. Work taken from the
+  backlog and the fix of a tech debt entry are planned as a tasks file.
+- The changelog preamble names Semantic Versioning, as declared in "Choosing the
+  version", and the version heading is inserted by the release workflow (see
+  "Releasing").
 
 ## Commits and branches
 
@@ -152,8 +176,10 @@ major version is 0, the usual convention for `0.y.z` applies:
   version — `0.1.0` after `0.0.6`. Breaking usage means removing or renaming a command, a
   flag, an environment variable, or a configuration key, or refusing input that used to
   be accepted. An entry under `Removed` in `[Unreleased]`, or an entry under `Changed`
-  that does one of these, makes the release breaking;
-- any other release — new features and fixes only — raises the patch version.
+  that does one of these, makes the release breaking. An entry under `Deprecated` does
+  not: what it names still works;
+- any other release — new features, deprecations, and fixes only — raises the patch
+  version.
 
 Version `1.0.0` is a separate, explicit decision. From then on, a breaking release raises
 the major version.
