@@ -10,7 +10,7 @@ The developer handbook for this repository. `README.md` documents the tool for i
 | `make lint` | `go mod tidy` and `golangci-lint run` | Before committing |
 | `make test` | Measures coverage of `internal/...` and fails below 85% | While working on tests |
 | `make check` | `build`, `lint`, `test`, then fails if the `go mod tidy` inside `lint` changed `go.mod` or `go.sum` | Before pushing — CI runs exactly this |
-| `make clean` | Removes the binary, `coverage.out`, `docs/release-notes.md`, and `dist/` | Any time |
+| `make clean` | Removes the binary and `coverage.out` through `git clean`, touching nothing else | Any time |
 
 `make check` is the whole gate: `.github/workflows/ci.yml` installs the linter, runs
 `make check`, and does nothing else, so a green check locally is a green CI by
@@ -55,9 +55,9 @@ the workflow.
 - **Doc comments on exported identifiers**, methods on unexported receivers included —
   such methods are the bulk of this codebase.
 - **No recipe may assume a Unix shell**, since development happens on Windows and CI runs
-  on Linux. File removal and the checks that would otherwise need one live in Go programs
-  under `tools/`, tagged `//go:build ignore` so that `go build ./...`, `go vet ./...`, and
-  `go test ./...` do not see them.
+  on Linux. File removal goes through `git clean`, and the checks that would otherwise need
+  a shell live in Go programs under `tools/`, tagged `//go:build ignore` so that
+  `go build ./...`, `go vet ./...`, and `go test ./...` do not see them.
 
 ## Before changing behaviour
 
