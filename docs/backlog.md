@@ -2,52 +2,6 @@
 
 Accepted work that has not started yet, in priority order.
 
-### `api-version-negotiation`
-**Goal:** Every command works on any server without the user setting an API
-version: `wit work-items get-batch` and `wit wiql query-by-wiql` no longer fail
-with "No api-version was supplied" on servers that require a version for POST.
-**Context:** Microsoft documents `api-version` as required on every request; in
-practice GET requests work without it, while POST requests are refused by some
-servers. The official SDKs (.NET, Go, Node, Python) discover versions with
-`OPTIONS {url}/{collection}/_apis`, which lists every resource with its
-`minVersion`, `maxVersion`, `releasedVersion`, and `resourceVersion`. Decisions
-already made:
-- When no version is configured, every request except the verification in
-  `auth login` is preceded by `OPTIONS {url}/{collection}/_apis` and carries the
-  `releasedVersion` of its resource — the version the server chooses for a
-  request without one, so the output does not change. A resource without a
-  released version (`0.0`) gets `{maxVersion}-preview.{resourceVersion}`.
-- The response is not cached: an on-disk cache is excluded by the product
-  constraints, and an in-process cache gains nothing in a CLI. Each invocation
-  makes one extra request.
-- A configured version (config file, `TFSCLI_API_VERSION`, `--api-version`) is
-  sent as is, without `OPTIONS`.
-- Negotiation never fails a command on its own. A 401 or a transport error on
-  `OPTIONS` is reported at once in its usual category, since the main request
-  would fail the same way. Any other failure — 400, 403, 404, 405, 5xx, an
-  unparseable response, the resource missing from the list — falls back to
-  sending the request without a version, as before, so that no server that works
-  today stops working.
-- Under `--verbose` the `OPTIONS` request is logged like any other, and a
-  fallback adds one line saying that the version was not negotiated and why.
-  Nothing is printed without `--verbose`.
-- When a request sent without a version after a fallback is refused for lack of
-  one, the `config` error says that negotiation failed and why, names
-  `apiVersion` with the config file path, `TFSCLI_API_VERSION`, and
-  `--api-version`, and says that the value must not exceed the server's version.
-  This supersedes TASK-08 in `docs/2026-10-04-tasks-first-run-errors.md`, which
-  moves into this work when it starts.
-- No new error category.
-- The constraint "requests carry `api-version` only when one is configured" in
-  `docs/project-brief.md` and `CLAUDE.md`, and the "REST API version" section of
-  `README.md`, change together with this work.
-
-Open questions:
-- Whether `OPTIONS` answers in this form on TFS 2015 and 2017 (unverified).
-- How a request is matched to its entry in the list: by location id, as the
-  SDKs do, or by area and resource name.
-**Added:** 2026-10-06, in conversation on API version negotiation
-
 ### `workitem-relations`
 **Goal:** An agent reading a work item sees the work items linked to it — parent,
 children, related, duplicates — without composing a WIQL link query.
