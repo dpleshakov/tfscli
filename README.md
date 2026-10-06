@@ -21,6 +21,22 @@ Not present in v1: write operations (out of scope) and JSON output (`--json`, pl
 - **Rich-text noise is unhandled.** @-mentions, attachment links, Word- and Outlook-pasted markup, and work-item references are converted literally, with whatever wrapper markup TFS stored. The fix is recorded in `docs/backlog.md`.
 - **Servers with anonymous access are not supported.** On a server that admits anonymous requests, such as Azure DevOps Server with public projects enabled, an invalid PAT may pass the login check and be stored, and the other commands would then read as the anonymous user, seeing less, without an error.
 
+## Quick start
+
+1. Download the archive for your platform from the [releases page](https://github.com/dpleshakov/tfscli/releases), unpack it, and put `tfscli` (`tfscli.exe` on Windows) in a directory on your `PATH`.
+2. In the TFS web interface, issue a personal access token for your collection with these scopes only:
+   - **Work Items (Read)**
+3. Run `tfscli auth login` in a terminal and enter the server URL, the collection, and the token.
+4. Check the setup by reading a work item you know exists:
+
+   ```
+   tfscli wit work-items get -p MyProject 12345
+   ```
+
+5. Copy the `skills/tfscli` directory from the archive into the skills directory of your AI agent.
+
+Details for each step: [Installation](#installation) covers the archive names, checksums, and building from source; [Authentication](#authentication) covers the token scope, Git Bash on Windows, and CI; [Use with an AI agent](#use-with-an-ai-agent) lists the skills directories of the supported agents, gives the copy commands, and describes an agent without skill support. Further settings, such as a default project, are described under [Configuration](#configuration).
+
 ## Installation
 
 ### Pre-built binaries
@@ -106,7 +122,11 @@ plain markdown under a short YAML header.
 
 A personal access token is issued for one collection, so the server URL, the collection, and the token are stored together, and the token is only ever sent to the URL and the collection stored with it.
 
-Issue the token in the TFS web interface for the collection you will log in to. tfscli only reads work items, so the **Work Items (Read)** scope is all it needs; leave every other scope off. A scope limits what the token can do but does not extend what its owner can do: a work item in a project or area the user has no access to is refused with a `forbidden` error whatever the scope.
+Issue the token in the TFS web interface for the collection you will log in to, with these scopes only, and leave every other scope off:
+
+- **Work Items (Read)**
+
+tfscli only reads data, so no scope beyond reading is needed. A scope limits what the token can do but does not extend what its owner can do: a work item in a project or area the user has no access to is refused with a `forbidden` error whatever the scope.
 
 Store them once per machine:
 

@@ -109,3 +109,25 @@ optional for `wit work-items get`, taking server compatibility into account.
 the Context section, and implementation tasks for the decision are added to
 this file.
 **Status:** Pending
+
+### TASK-08 `missing-api-version`
+**Description:** A server may refuse a POST request that carries no
+`api-version` — `wit work-items get-batch` and `wit wiql query-by-wiql`
+send one only when it is configured — with "No api-version was supplied for
+the \"POST\" request". `classify` in `internal/apiclient/apiclient.go` adds
+a next step to a version error only when a version is configured, so this
+refusal reaches the user as the server's message alone, without the settings
+that supply a version or how to choose its value. Add the next step for this
+case: name `apiVersion` in the config file with the path of the file,
+`TFSCLI_API_VERSION`, and `--api-version`, and say that the value must not
+exceed the highest version the server supports, as listed in the
+"Configuration" section of `README.md`. How the refusal is recognised is
+unverified: the `typeKey` of this error is not in `versionErrorTypeKeys`
+and has to be established from documentation or a sample response, falling
+back to the message text only if no `typeKey` is available.
+**Definition of done:** A refusal of a request that carries no `api-version`
+produces a message naming the three settings, the config file path, and how
+to choose the value; a refusal of a configured version keeps its current
+message. Tests cover both. `README.md` and the representative messages in
+`skills/tfscli/SKILL.md` match. `make check` passes.
+**Status:** Pending
