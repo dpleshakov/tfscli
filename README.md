@@ -10,16 +10,9 @@ Every invocation hits the server: there is no daemon, no background process, and
 - `wit work-items list` and `wit work-items get-batch` — several work items by id in one request
 - `wit wiql query-by-wiql` — find work items with a WIQL query
 - `auth login` — store the server URL, the collection, and a PAT, checked against the server
-- Configuration through a file, environment variables, and flags
-- `--verbose` request logging and the full error contract
+- A stable error contract and `--verbose` request logging
 
-Not present in v1: write operations (out of scope) and JSON output (`--json`, planned — markdown is lossy, so writes depend on it landing first). See `docs/project-brief.md` for scope and `docs/architecture.md` for design decisions.
-
-### Known limitations
-
-- **HTML tables collapse.** The markdown converter runs on library defaults, which have no table support: a `<table>` becomes its cell text run together, without separators. A work item whose Description holds a table renders unreadably.
-- **Rich-text noise is unhandled.** @-mentions, attachment links, Word- and Outlook-pasted markup, and work-item references are converted literally, with whatever wrapper markup TFS stored. The fix is recorded in `docs/backlog.md`.
-- **Servers with anonymous access are not supported.** On a server that admits anonymous requests, such as Azure DevOps Server with public projects enabled, an invalid PAT may pass the login check and be stored, and the other commands would then read as the anonymous user, seeing less, without an error.
+Not present in v1: write operations (out of scope) and JSON output (`--json`, planned — markdown is lossy, so writes depend on it landing first). See `docs/project-brief.md` for scope and `docs/architecture.md` for design decisions. Known defects are listed under [Known limitations](#known-limitations).
 
 ## Quick start
 
@@ -79,6 +72,47 @@ GOOS=windows GOARCH=amd64 go build -o tfscli.exe ./cmd/tfscli
 
 A binary built this way reports its version as `dev (unknown)`: the real values are stamped in by the release build.
 
+## Authentication
+
+A personal access token is issued for one collection, so the server URL, the collection, and the token are stored together, and the token is only ever sent to the URL and the collection stored with it.
+
+Issue the token in the TFS web interface for the collection you will log in to, with these scopes only, and leave every other scope off:
+
+- **Work Items (Read)**
+
+tfscli only reads data, so no scope beyond reading is needed. A scope limits what the token can do but does not extend what its owner can do: a work item in a project or area the user has no access to is refused with a `forbidden` error whatever the scope.
+
+Store them once per machine:
+
+```
+$ tfscli auth login
+Server URL (e.g. https://tfs.company.com:8080/tfs): https://tfs.company.com:8080/tfs
+Collection (e.g. DefaultCollection): DefaultCollection
+Personal access token:
+Logged in to https://tfs.company.com:8080/tfs, collection DefaultCollection, as Jane Doe
+```
+
+The token is typed with echo turned off. The three values are checked against the server before anything is written: a rejected token, or a URL and collection that lead nowhere, is reported as an error and leaves nothing behind. The command takes no flags, refuses `--api-version`, and sends its check without `api-version` whatever the config file or `TFSCLI_API_VERSION` say.
+
+Particular setups:
+
+- **A URL copied from the browser** often ends with the collection. When its last path segment names the collection entered next, that segment is removed, and the command says which server URL it uses instead.
+- **A server behind an internal CA.** `auth login` reads `caBundle` and `insecureSkipVerify` from the config file when there is one; see [TLS](#tls).
+- **Git Bash (mintty) on Windows.** stdin is not a console there, and the command needs an interactive terminal. Run it from Windows Terminal, PowerShell, or `cmd`, or prefix it with `winpty`.
+- **CI and other environments without a terminal.** Use `TFSCLI_AUTH`, described below.
+
+The credential is written to `$XDG_DATA_HOME/tfscli/auth.json`, or `~/.local/share/tfscli/auth.json` when `XDG_DATA_HOME` is not set — the same location on every OS. The file is created with mode `0600` and its directory with `0700`; on Windows it inherits the permissions of the user profile. It holds exactly one credential: running `auth login` again replaces it. Working with another collection means logging in again with a token issued for it.
+
+Where an interactive login is impossible, put the same JSON into `TFSCLI_AUTH`. When the variable is set, `auth.json` is not read:
+
+```
+TFSCLI_AUTH='{"url": "https://tfs.company.com:8080/tfs", "collection": "DefaultCollection", "pat": "…"}'
+```
+
+All three fields are required. The URL, the collection, and the token always come from the same source, and no flag, separate environment variable, or config key can supply any of them, so a mistyped or injected server address cannot make tfscli send the token to another host.
+
+PAT is the only authentication method; SSPI and NTLM are out of scope. The token is sent as HTTP Basic authentication with an empty user name, which is what the TFS REST API expects. It is not kept in the OS keychain, which adds no protection against code running as the same user; other users are excluded by the file permissions.
+
 ## Use with an AI agent
 
 tfscli is built for AI coding agents first, and every archive carries an agent
@@ -118,50 +152,28 @@ those settings first.
 An agent without skill support can be pointed at the same file directly: it is
 plain markdown under a short YAML header.
 
-## Authentication
-
-A personal access token is issued for one collection, so the server URL, the collection, and the token are stored together, and the token is only ever sent to the URL and the collection stored with it.
-
-Issue the token in the TFS web interface for the collection you will log in to, with these scopes only, and leave every other scope off:
-
-- **Work Items (Read)**
-
-tfscli only reads data, so no scope beyond reading is needed. A scope limits what the token can do but does not extend what its owner can do: a work item in a project or area the user has no access to is refused with a `forbidden` error whatever the scope.
-
-Store them once per machine:
-
-```
-$ tfscli auth login
-Server URL (e.g. https://tfs.company.com:8080/tfs): https://tfs.company.com:8080/tfs
-Collection (e.g. DefaultCollection): DefaultCollection
-Personal access token:
-Logged in to https://tfs.company.com:8080/tfs, collection DefaultCollection, as Jane Doe
-```
-
-The token is typed with echo turned off, and the three are checked against the server (`{url}/{collection}/_apis/connectionData`) before anything is written. A rejected token is reported in the usual error format and leaves nothing behind; so is a URL or collection that leads nowhere, with the address they made up. The URL is stored with a lower-case scheme and host and without a trailing slash. A URL copied from the browser often ends with the collection: when its last path segment names the collection entered next, that segment is removed, and the command says which server URL it uses instead. The command takes no flags and needs an interactive terminal; it reads `caBundle` and `insecureSkipVerify` from the config file when there is one, so a server behind an internal CA can be reached during login too. The API version settings do not apply to it: the check is sent without `api-version`, whatever the config file or `TFSCLI_API_VERSION` say, and `--api-version` is refused. On Windows under Git Bash (mintty), stdin is not a console; run the command from Windows Terminal, PowerShell, or `cmd`, or prefix it with `winpty`.
-
-The credential is written to `$XDG_DATA_HOME/tfscli/auth.json`, or `~/.local/share/tfscli/auth.json` when `XDG_DATA_HOME` is not set — the same location on every OS. The file is created with mode `0600` and its directory with `0700`; on Windows it inherits the permissions of the user profile. It holds exactly one credential: running `auth login` again replaces it. Working with another collection means logging in again with a token issued for it.
-
-Where an interactive login is impossible, as in CI, put the same JSON into `TFSCLI_AUTH`. When the variable is set, `auth.json` is not read:
-
-```
-TFSCLI_AUTH='{"url": "https://tfs.company.com:8080/tfs", "collection": "DefaultCollection", "pat": "…"}'
-```
-
-All three fields are required. The URL, the collection, and the token always come from the same source. There is no flag, separate environment variable, or config key for any of them, so that neither a mistyped server address nor an injected one can make tfscli send the token to another host.
-
-PAT is the only authentication method. SSPI and NTLM are out of scope. The token is sent as HTTP Basic authentication with an empty user name, which is what the TFS REST API expects. It is not kept in the OS keychain: against code running as the same user a keychain adds no protection, other users are excluded by the file permissions, and a stolen disk is a matter for disk encryption.
-
 ## Configuration
 
-The remaining settings come from four sources. Later sources override earlier ones:
+Every setting apart from the credential:
+
+| Setting | Config key | Environment variable | Flag | Default | Required |
+|---|---|---|---|---|---|
+| Team project | `project` | `TFSCLI_PROJECT` | `-p`, `--project` | — | per command |
+| REST API version | `apiVersion` | `TFSCLI_API_VERSION` | `--api-version` | none | no |
+| Request logging | — | `TFSCLI_VERBOSE=1` | `--verbose` | off | no |
+| CA bundle | `caBundle` | — | — | none | no |
+| Skip certificate verification | `insecureSkipVerify` | — | — | `false` | no |
+
+Every flag in the table is global except `-p` / `--project`, which belongs to the commands that act within a project: it is required for the `wit work-items` commands and optional for `wit wiql query-by-wiql`.
+
+The settings come from four sources. Later sources override earlier ones:
 
 1. Built-in defaults
 2. The config file `$XDG_CONFIG_HOME/tfscli/config.json`, or `~/.config/tfscli/config.json` when `XDG_CONFIG_HOME` is not set. The same location is used on every OS, Windows included.
 3. Environment variables
 4. Command-line flags
 
-The config file is optional: every setting it holds, except the TLS ones below, can be given by an environment variable or a flag instead. To use one, copy `config.example.json` to that location and fill in the values:
+The config file is optional: every setting it holds, except the TLS ones, can be given by an environment variable or a flag instead. To use one, copy `config.example.json` to that location and fill in the values:
 
 ```json
 {
@@ -169,24 +181,27 @@ The config file is optional: every setting it holds, except the TLS ones below, 
 }
 ```
 
-| Setting | Config key | Environment variable | Flag | Default | Required |
-|---|---|---|---|---|---|
-| Team project | `project` | `TFSCLI_PROJECT` | `-p`, `--project` | — | per command |
-| REST API version | `apiVersion` | `TFSCLI_API_VERSION` | `--api-version` | none | no |
-| Request logging | — | `TFSCLI_VERBOSE=1` | `--verbose` | off | no |
+### REST API version
 
-Every flag in the table is global except `-p` / `--project`, which belongs to the commands that act within a project: it is required for the `wit work-items` commands and optional for `wit wiql query-by-wiql`.
+By default no `api-version` is sent, and the server answers at the version it chooses. The commands that send a GET request, `wit work-items get` and `wit work-items list`, need no setting to work with any server release.
 
-By default no `api-version` is sent, and the server answers at the version it chooses, so the commands that send a GET request need no setting to work with any server release. `wit work-items get-batch` and `wit wiql query-by-wiql` send a POST request, for which a server may require a version: it then refuses the request with a `config` error saying that no `api-version` was supplied, and a version has to be set with any of the three settings above. Otherwise set a version only to pin the shape of the response. It must not exceed the highest version the server supports, which follows from its release: 7.1 for Azure DevOps Server 2022.1, 7.0 for 2022, 6.0 for 2020, 5.0 for 2019, and 4.1 for TFS 2018 Update 2 (see "API and TFS version mapping" in the [REST API reference](https://learn.microsoft.com/en-us/rest/api/azure/devops/)). The value is sent unchanged, so a resource that exists only in preview at that version needs the `-preview` suffix. `auth login` does not use this setting.
+`wit work-items get-batch` and `wit wiql query-by-wiql` send a POST request, which a server may refuse without a version: it then reports a `config` error saying that no `api-version` was supplied, and a version has to be set with any of the three settings above. Otherwise set a version only to pin the shape of the response. `auth login` does not use this setting.
+
+The version must not exceed the highest one the server supports:
+
+| Server | Highest API version |
+|---|---|
+| Azure DevOps Server 2022.1 | 7.1 |
+| Azure DevOps Server 2022 | 7.0 |
+| Azure DevOps Server 2020 | 6.0 |
+| Azure DevOps Server 2019 | 5.0 |
+| TFS 2018 Update 2 | 4.1 |
+
+The full mapping is under "API and TFS version mapping" in the [REST API reference](https://learn.microsoft.com/en-us/rest/api/azure/devops/). The value is sent unchanged, so a resource that exists only in preview at that version needs the `-preview` suffix.
 
 ### TLS
 
-Two settings are accepted in the config file only, so that relaxing TLS is always a written-down decision:
-
-| Config key | Effect |
-|---|---|
-| `caBundle` | Path to a PEM bundle appended to the system root pool. Use this for an internal CA. |
-| `insecureSkipVerify` | Disables certificate verification entirely. Prints a warning under `--verbose`. |
+`caBundle` and `insecureSkipVerify` are accepted in the config file only, so that relaxing TLS is always a written-down decision. `caBundle` is the path to a PEM bundle appended to the system root pool; use it for an internal CA. `insecureSkipVerify` set to `true` disables certificate verification entirely and prints a warning under `--verbose`.
 
 ## Usage
 
@@ -213,8 +228,6 @@ tfscli wit work-items get -p MyProject 12345 --fields System.Title,System.State,
 ```
 
 Without `--fields`, every field of the work item is printed in the order the server returned it.
-
-`-p` is required unless `project` is set in the config file or `TFSCLI_PROJECT` is exported.
 
 ### `wit work-items list` and `wit work-items get-batch`
 
@@ -354,6 +367,12 @@ Error [config]: The requested REST API version of 7.2 is out of range for this s
 $ tfscli wit work-items get -p MyProject 12345
 Error [network]: cannot reach https://tfs.company.com:8080
 ```
+
+## Known limitations
+
+- **HTML tables collapse.** A `<table>` in a rich-text field becomes its cell text run together, without separators, so a work item whose Description holds a table renders unreadably.
+- **Rich-text noise is unhandled.** @-mentions, attachment links, Word- and Outlook-pasted markup, and work-item references are converted literally, with whatever wrapper markup TFS stored. The fix for this and for tables is recorded in `docs/backlog.md`.
+- **Servers with anonymous access are not supported.** On a server that admits anonymous requests, such as Azure DevOps Server with public projects enabled, an invalid PAT may pass the login check and be stored, and the other commands would then read as the anonymous user, seeing less, without an error.
 
 ## Development
 
