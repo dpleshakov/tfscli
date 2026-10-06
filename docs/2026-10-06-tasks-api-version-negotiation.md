@@ -52,6 +52,53 @@ Decisions already made:
   `docs/project-brief.md` and `CLAUDE.md`, and the "REST API version" section
   of `README.md`, change together with this work.
 
+### Findings (TASK-01)
+
+Sources: `microsoft/azure-devops-go-api`, branch `dev`, files
+`azuredevops/v7/client.go` [G1], `azuredevops/v7/models.go` [G2],
+`azuredevops/v7/connection.go` [G3], `azuredevops/v7/versionnegotiation.go`
+[G4], `azuredevops/v7/workitemtracking/client.go` [G5]; the error response
+quoted in https://dexterposh.github.io/posts/002-azdo-tip-api/ [D1].
+
+- **Request.** `getResourceLocationsFromServer` sends `OPTIONS` to the client's
+  base URL joined with `_apis`, with `Accept: application/json` and no
+  `api-version` [G1]. For an on-premises server the base URL is the
+  collection URL: `GetClientByResourceAreaId` falls back to the connection
+  URL because "resourceAreaInfo will be nil for on prem servers" [G3]. tfscli
+  therefore sends `OPTIONS {url}/{collection}/_apis`.
+- **Response.** A collection wrapper `{"count": n, "value": [...]}`, read with
+  `UnmarshalCollectionBody` [G1]. Each element is an `ApiResourceLocation`
+  [G2]: `id` (GUID), `area`, `resourceName`, `routeTemplate`, `minVersion`,
+  `maxVersion`, `releasedVersion` (strings such as `"7.1"`), and
+  `resourceVersion` (an integer). `releasedVersion` is "the latest version of
+  this resource location that is in Release (non-preview) mode"; the
+  negotiation treats `0.0` as "not released" [G4].
+- **Location ids** [G5]: Get Work Item and Work Items - List share
+  `72c7ddf8-2cdc-4f60-90cd-ab71c14a399b`; Get Work Items Batch is
+  `908509b6-4248-4475-a1cd-829139ba419f`; Query By Wiql, with and without a
+  team, is `1a9c53f7-f243-4447-b110-35ef023636e4`.
+- **Matching: by location id.** The SDK indexes the response by `id` and
+  fails with `LocationIdNotRegisteredError` when the id is absent [G1]. The
+  id is what the server publishes as the identity of a location and is the
+  same in every release. Matching by area and resource name is rejected: the
+  pair is not documented as unique, and the work items resource already has
+  two locations — `72c7ddf8-…` and `62d3d110-0047-428c-ad3c-4fe872c91c74`,
+  used for Create Work Item and Get Work Item Template [G5] — whose resource
+  names have not been checked; an ambiguous match would pick a version for
+  the wrong route.
+- **Where the version goes.** The SDK sends it in the `Accept` header
+  (`application/json;api-version=…`) [G1]; the server error [D1] accepts it
+  "either as part of the Accept header … or as a query parameter". tfscli
+  keeps the query parameter, so that the version stays visible in the URL
+  logged under `--verbose`.
+- **Refusal without a version** [D1]: `typeKey` `VssVersionNotSpecifiedException`,
+  message `No api-version was supplied for the "POST" request. …`. The
+  report is from Azure DevOps Services; that an on-premises server returns
+  the same `typeKey` is unverified.
+- **TFS 2015 and 2017.** No source was found that shows the `OPTIONS`
+  response of these releases. Unverified; the fallback to a request without
+  a version covers a server that does not answer it.
+
 ---
 
 ### TASK-01 `options-research`
@@ -66,7 +113,7 @@ request that carries no `api-version`.
 **Definition of done:** The findings are recorded in the Context section,
 each with its source; anything not confirmed is marked as unverified; the
 matching method is decided and recorded with the rejected alternative.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-02 `version-selection`
 **Description:** In `internal/apiclient`, parse the `OPTIONS` response and add
