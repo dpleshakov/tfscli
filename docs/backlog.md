@@ -54,8 +54,6 @@ contracts. Decisions already made:
   attachment file names; that is a separate feature.
 - The limitation is stated in "Known limitations" in both `README.md` and
   `skills/tfscli/SKILL.md`, which must stop claiming it together.
-**Blocked until:** A decision to collect rich-text samples from a live TFS instance. A
-live connection is no longer the blocker: release 0.0.5 ran `auth login` and reading one
-work item against a live server.
+**Blocked until:** A decision to collect rich-text samples from a live TFS instance.
 **Added:** 2026-05-20, in the conversation that produced the Architecture section of
 `docs/architecture.md`

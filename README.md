@@ -4,11 +4,7 @@ A stateless CLI for read-only access to on-premises TFS / Azure DevOps Server, d
 
 Every invocation hits the server: there is no daemon, no background process, and no on-disk cache.
 
-## Status
-
-Pre-release. Four read commands exist — `wit work-items get`, `wit work-items list`, `wit work-items get-batch`, and `wit wiql query-by-wiql`. They are covered by tests that drive the full command tree against a stub HTTP server, so the request shape, the output format, and the error contract behave as documented. Against a live TFS instance, release 0.0.5 has been checked for the main path only: `auth login` with a valid PAT and reading one work item, the command now named `wit work-items get`, succeed. `wit work-items list`, `wit work-items get-batch`, and `wit wiql query-by-wiql` have not been run against a live server yet. The error paths and rich-text rendering of a variety of real work items have not been exercised yet; expect discrepancies there, particularly in rich-text rendering.
-
-Available now:
+## Features
 
 - `wit work-items get` — one work item as markdown, whole or narrowed by `--fields`
 - `wit work-items list` and `wit work-items get-batch` — several work items by id in one request
@@ -22,8 +18,8 @@ Not present in v1: write operations (out of scope) and JSON output (`--json`, pl
 ### Known limitations
 
 - **HTML tables collapse.** The markdown converter runs on library defaults, which have no table support: a `<table>` becomes its cell text run together, without separators. A work item whose Description holds a table renders unreadably.
-- **Rich-text noise is unhandled.** @-mentions, attachment links, Word- and Outlook-pasted markup, and work-item references are converted literally, with whatever wrapper markup TFS stored. Fixing this needs samples from a real instance and is recorded in `docs/backlog.md`.
-- **Servers with anonymous access are not supported.** `auth login` has not been tested against a server that admits anonymous requests, such as Azure DevOps Server with public projects enabled. On such a server an invalid PAT may pass the login check and be stored, and the other commands would then read as the anonymous user, seeing less, without an error.
+- **Rich-text noise is unhandled.** @-mentions, attachment links, Word- and Outlook-pasted markup, and work-item references are converted literally, with whatever wrapper markup TFS stored. The fix is recorded in `docs/backlog.md`.
+- **Servers with anonymous access are not supported.** On a server that admits anonymous requests, such as Azure DevOps Server with public projects enabled, an invalid PAT may pass the login check and be stored, and the other commands would then read as the anonymous user, seeing less, without an error.
 
 ## Installation
 
