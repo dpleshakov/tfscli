@@ -104,6 +104,9 @@ func TestAuthLoginStoresTheCredential(t *testing.T) {
 	if _, ok := s.query["api-version"]; ok {
 		t.Errorf("query = %v, want no api-version", s.query)
 	}
+	if s.options != 0 {
+		t.Errorf("OPTIONS requests = %d, want none: the login check negotiates no version", s.options)
+	}
 	if want := "Basic " + base64.StdEncoding.EncodeToString([]byte(":secret-token")); s.auth != want {
 		t.Errorf("Authorization = %q, want %q", s.auth, want)
 	}

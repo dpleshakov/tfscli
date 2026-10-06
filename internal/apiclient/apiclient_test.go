@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -33,6 +34,7 @@ type requestEntry struct {
 type recordingLogger struct {
 	requests []requestEntry
 	warnings []string
+	infos    []string
 }
 
 func (l *recordingLogger) LogRequest(method, url string, status int, dur time.Duration) {
@@ -40,6 +42,8 @@ func (l *recordingLogger) LogRequest(method, url string, status int, dur time.Du
 }
 
 func (l *recordingLogger) Warn(msg string) { l.warnings = append(l.warnings, msg) }
+
+func (l *recordingLogger) Info(msg string) { l.infos = append(l.infos, msg) }
 
 var _ log.Logger = (*recordingLogger)(nil)
 
@@ -79,7 +83,7 @@ func TestGetSetsAuthorizationHeader(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	client, _ := newTestClient(t, srv.URL)
-	if _, err := client.Get(t.Context(), "/MyProject/_apis/wit/workitems/123", nil); err != nil {
+	if _, err := client.Get(t.Context(), testLocation, "/MyProject/_apis/wit/workitems/123", nil); err != nil {
 		t.Fatalf("Get() error = %v, want nil", err)
 	}
 
@@ -102,7 +106,7 @@ func TestGetBuildsURL(t *testing.T) {
 
 	client, _ := newTestClient(t, srv.URL)
 	query := url.Values{"fields": {"System.Title,System.State"}}
-	if _, err := client.Get(t.Context(), "/MyProject/_apis/wit/workitems/123", query); err != nil {
+	if _, err := client.Get(t.Context(), testLocation, "/MyProject/_apis/wit/workitems/123", query); err != nil {
 		t.Fatalf("Get() error = %v, want nil", err)
 	}
 
@@ -132,7 +136,7 @@ func TestGetEscapesCollectionAndKeepsEscapedPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New() error = %v, want nil", err)
 	}
-	if _, err := client.Get(t.Context(), "100%25%20Done/_apis/wit/workitems/123", nil); err != nil {
+	if _, err := client.Get(t.Context(), testLocation, "100%25%20Done/_apis/wit/workitems/123", nil); err != nil {
 		t.Fatalf("Get() error = %v, want nil", err)
 	}
 
@@ -141,9 +145,11 @@ func TestGetEscapesCollectionAndKeepsEscapedPath(t *testing.T) {
 	}
 }
 
-func TestGetWithoutAPIVersion(t *testing.T) {
+func TestGetWithoutLocationSendsNoVersion(t *testing.T) {
+	var methods []string
 	var gotQuery url.Values
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		methods = append(methods, r.Method)
 		gotQuery = r.URL.Query()
 	}))
 	t.Cleanup(srv.Close)
@@ -156,10 +162,13 @@ func TestGetWithoutAPIVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New() error = %v, want nil", err)
 	}
-	if _, err := client.Get(t.Context(), "/MyProject/_apis/wit/workitems/123", nil); err != nil {
+	if _, err := client.Get(t.Context(), "", "_apis/connectionData", nil); err != nil {
 		t.Fatalf("Get() error = %v, want nil", err)
 	}
 
+	if want := []string{http.MethodGet}; !slices.Equal(methods, want) {
+		t.Errorf("requests = %v, want %v — no OPTIONS without a location", methods, want)
+	}
 	if _, ok := gotQuery["api-version"]; ok {
 		t.Errorf("query = %v, want no api-version", gotQuery)
 	}
@@ -171,7 +180,7 @@ func TestGetDoesNotMutateCallerQuery(t *testing.T) {
 
 	client, _ := newTestClient(t, srv.URL)
 	query := url.Values{"fields": {"System.Title"}}
-	if _, err := client.Get(t.Context(), "/MyProject/_apis/wit/workitems/123", query); err != nil {
+	if _, err := client.Get(t.Context(), testLocation, "/MyProject/_apis/wit/workitems/123", query); err != nil {
 		t.Fatalf("Get() error = %v, want nil", err)
 	}
 
@@ -188,7 +197,7 @@ func TestGetReturnsBody(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	client, _ := newTestClient(t, srv.URL)
-	got, err := client.Get(t.Context(), "/MyProject/_apis/wit/workitems/123", nil)
+	got, err := client.Get(t.Context(), testLocation, "/MyProject/_apis/wit/workitems/123", nil)
 	if err != nil {
 		t.Fatalf("Get() error = %v, want nil", err)
 	}
@@ -217,7 +226,7 @@ func TestGetClassifiesResponseStatus(t *testing.T) {
 			srv := errorServer(t, tt.status, "")
 			client, _ := newTestClient(t, srv.URL)
 
-			_, err := client.Get(t.Context(), "/MyProject/_apis/wit/workitems/123", nil)
+			_, err := client.Get(t.Context(), testLocation, "/MyProject/_apis/wit/workitems/123", nil)
 			te := assertTFSError(t, err, tt.want)
 			if te.HTTPStatus != tt.status {
 				t.Errorf("HTTPStatus = %d, want %d", te.HTTPStatus, tt.status)
@@ -234,7 +243,7 @@ func TestGetPrefersServerMessage(t *testing.T) {
 	srv := errorServer(t, http.StatusNotFound, body)
 	client, _ := newTestClient(t, srv.URL)
 
-	_, err := client.Get(t.Context(), "/MyProject/_apis/wit/workitems/99999", nil)
+	_, err := client.Get(t.Context(), testLocation, "/MyProject/_apis/wit/workitems/99999", nil)
 	te := assertTFSError(t, err, tfserr.NotFound)
 	if want := "TF401232: Work item 99999 does not exist."; te.Message != want {
 		t.Errorf("message = %q, want %q", te.Message, want)
@@ -256,7 +265,7 @@ func TestGetFallsBackToGenericMessage(t *testing.T) {
 			srv := errorServer(t, http.StatusForbidden, tt.body)
 			client, _ := newTestClient(t, srv.URL)
 
-			_, err := client.Get(t.Context(), "/MyProject/_apis/wit/workitems/123", nil)
+			_, err := client.Get(t.Context(), testLocation, "/MyProject/_apis/wit/workitems/123", nil)
 			te := assertTFSError(t, err, tfserr.Forbidden)
 			if want := "access denied by TFS"; te.Message != want {
 				t.Errorf("message = %q, want %q", te.Message, want)
@@ -282,7 +291,7 @@ func TestGetNamesTheSourceOfARefusedVersion(t *testing.T) {
 		t.Fatalf("New() error = %v, want nil", err)
 	}
 
-	_, err = client.Get(t.Context(), "/MyProject/_apis/wit/workitems/123", nil)
+	_, err = client.Get(t.Context(), testLocation, "/MyProject/_apis/wit/workitems/123", nil)
 	te := assertTFSError(t, err, tfserr.Config)
 	want := outOfRangeMessage + ` (api-version "7.2" is set by TFSCLI_API_VERSION; ` +
 		"remove it to let the server choose the version, or set one the server supports)"
@@ -335,7 +344,7 @@ func TestGetLeavesOtherRejectionsAlone(t *testing.T) {
 				t.Fatalf("New() error = %v, want nil", err)
 			}
 
-			_, err = client.Get(t.Context(), "/MyProject/_apis/wit/workitems/123", nil)
+			_, err = client.Get(t.Context(), testLocation, "/MyProject/_apis/wit/workitems/123", nil)
 			te := assertTFSError(t, err, tfserr.Config)
 			if te.Message != tt.want {
 				t.Errorf("message = %q, want %q", te.Message, tt.want)
@@ -349,7 +358,7 @@ func TestGetCollapsesAndBoundsServerMessage(t *testing.T) {
 	srv := errorServer(t, http.StatusInternalServerError, body)
 	client, _ := newTestClient(t, srv.URL)
 
-	_, err := client.Get(t.Context(), "/MyProject/_apis/wit/workitems/123", nil)
+	_, err := client.Get(t.Context(), testLocation, "/MyProject/_apis/wit/workitems/123", nil)
 	te := assertTFSError(t, err, tfserr.Server)
 
 	if strings.ContainsAny(te.Message, "\n\t") {
@@ -369,7 +378,7 @@ func TestGetUnreachableServer(t *testing.T) {
 	srv.Close() // nothing listens on that port any more
 
 	client, logger := newTestClient(t, serverURL)
-	_, err := client.Get(t.Context(), "/MyProject/_apis/wit/workitems/123", nil)
+	_, err := client.Get(t.Context(), testLocation, "/MyProject/_apis/wit/workitems/123", nil)
 
 	te := assertTFSError(t, err, tfserr.Network)
 	if want := "cannot reach " + serverURL; te.Message != want {
@@ -394,7 +403,7 @@ func TestGetCanceledContext(t *testing.T) {
 	cancel()
 
 	client, _ := newTestClient(t, srv.URL)
-	_, err := client.Get(ctx, "/MyProject/_apis/wit/workitems/123", nil)
+	_, err := client.Get(ctx, testLocation, "/MyProject/_apis/wit/workitems/123", nil)
 
 	te := assertTFSError(t, err, tfserr.Network)
 	if !strings.Contains(te.Message, "canceled") {
@@ -418,7 +427,7 @@ func TestLogsEveryRequestExactlyOnce(t *testing.T) {
 
 	client, logger := newTestClient(t, srv.URL)
 	for range 2 {
-		if _, err := client.Get(t.Context(), "/MyProject/_apis/wit/workitems/123", nil); err != nil {
+		if _, err := client.Get(t.Context(), testLocation, "/MyProject/_apis/wit/workitems/123", nil); err != nil {
 			t.Fatalf("Get() error = %v, want nil", err)
 		}
 	}
@@ -605,7 +614,7 @@ func TestPostSendsJSONBody(t *testing.T) {
 		IDs    []int    `json:"ids"`
 		Fields []string `json:"fields,omitempty"`
 	}{IDs: []int{297, 299}}
-	got, err := client.Post(t.Context(), "/MyProject/_apis/wit/workitemsbatch", nil, body)
+	got, err := client.Post(t.Context(), testLocation, "/MyProject/_apis/wit/workitemsbatch", nil, body)
 	if err != nil {
 		t.Fatalf("Post() error = %v, want nil", err)
 	}
@@ -635,7 +644,7 @@ func TestPostCarriesQueryAndAPIVersion(t *testing.T) {
 	client, _ := newTestClient(t, srv.URL)
 
 	query := url.Values{"$top": {"50"}}
-	if _, err := client.Post(t.Context(), "/MyProject/_apis/wit/wiql", query, map[string]string{}); err != nil {
+	if _, err := client.Post(t.Context(), testLocation, "/MyProject/_apis/wit/wiql", query, map[string]string{}); err != nil {
 		t.Fatalf("Post() error = %v, want nil", err)
 	}
 
@@ -650,31 +659,11 @@ func TestPostCarriesQueryAndAPIVersion(t *testing.T) {
 	}
 }
 
-func TestPostWithoutAPIVersion(t *testing.T) {
-	srv, rec := recordingServer(t, "")
-	client, err := New(&config.Config{
-		URL:        srv.URL,
-		Collection: "DefaultCollection",
-		PAT:        testPAT,
-	}, &recordingLogger{})
-	if err != nil {
-		t.Fatalf("New() error = %v, want nil", err)
-	}
-
-	if _, err := client.Post(t.Context(), "/MyProject/_apis/wit/workitemsbatch", nil, map[string]string{}); err != nil {
-		t.Fatalf("Post() error = %v, want nil", err)
-	}
-
-	if _, ok := rec.query["api-version"]; ok {
-		t.Errorf("query = %v, want no api-version", rec.query)
-	}
-}
-
 func TestGetSendsNoContentType(t *testing.T) {
 	srv, rec := recordingServer(t, "")
 	client, _ := newTestClient(t, srv.URL)
 
-	if _, err := client.Get(t.Context(), "/MyProject/_apis/wit/workitems/123", nil); err != nil {
+	if _, err := client.Get(t.Context(), testLocation, "/MyProject/_apis/wit/workitems/123", nil); err != nil {
 		t.Fatalf("Get() error = %v, want nil", err)
 	}
 
@@ -688,7 +677,7 @@ func TestPostClassifiesResponseStatus(t *testing.T) {
 	srv := errorServer(t, http.StatusNotFound, body)
 	client, _ := newTestClient(t, srv.URL)
 
-	_, err := client.Post(t.Context(), "/MyProject/_apis/wit/workitemsbatch", nil, map[string]string{})
+	_, err := client.Post(t.Context(), testLocation, "/MyProject/_apis/wit/workitemsbatch", nil, map[string]string{})
 	te := assertTFSError(t, err, tfserr.NotFound)
 	if te.HTTPStatus != http.StatusNotFound {
 		t.Errorf("HTTPStatus = %d, want %d", te.HTTPStatus, http.StatusNotFound)
@@ -702,7 +691,7 @@ func TestPostRejectsUnencodableBody(t *testing.T) {
 	srv, rec := recordingServer(t, "")
 	client, _ := newTestClient(t, srv.URL)
 
-	_, err := client.Post(t.Context(), "/MyProject/_apis/wit/workitemsbatch", nil, make(chan int))
+	_, err := client.Post(t.Context(), testLocation, "/MyProject/_apis/wit/workitemsbatch", nil, make(chan int))
 
 	_ = assertTFSError(t, err, tfserr.Config)
 	if rec.method != "" {

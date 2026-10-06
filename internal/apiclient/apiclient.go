@@ -53,6 +53,7 @@ type Client struct {
 	// apiVersionSource names the setting apiVersion came from; see
 	// config.Config.APIVersionSource.
 	apiVersionSource string
+	logger           log.Logger
 }
 
 // New builds a Client from cfg. TLS is configured from CABundle (appended to
@@ -93,24 +94,27 @@ func New(cfg *config.Config, logger log.Logger) (*Client, error) {
 		pat:              cfg.PAT,
 		apiVersion:       cfg.APIVersion,
 		apiVersionSource: cfg.APIVersionSource,
+		logger:           logger,
 	}, nil
 }
 
 // Get performs a GET request against path, which is appended to the base URL
 // (server URL plus collection). The path is taken as already escaped, so a
 // caller escapes each user-supplied segment, such as a project name, with
-// url.PathEscape. The api-version parameter is added here when
-// a version is configured, so callers pass only their own query parameters;
-// without one the server answers at the version it chooses. On a non-2xx
+// url.PathEscape. Callers pass only their own query parameters: api-version
+// is added here (see version). location is the id under which the server
+// lists the resource of the request among its API versions; an empty
+// location sends the request without negotiating a version. On a non-2xx
 // response or a transport failure the error is a *tfserr.Error carrying the
 // matching category.
-func (c *Client) Get(ctx context.Context, path string, query url.Values) ([]byte, error) {
-	return c.do(ctx, http.MethodGet, path, query, nil)
+func (c *Client) Get(ctx context.Context, location, path string, query url.Values) ([]byte, error) {
+	return c.do(ctx, http.MethodGet, location, path, query, nil)
 }
 
 // Post performs a POST request against path with body encoded as JSON. The
-// path, the query, api-version, and the errors are handled as in Get.
-func (c *Client) Post(ctx context.Context, path string, query url.Values, body any) ([]byte, error) {
+// location, the path, the query, api-version, and the errors are handled as
+// in Get.
+func (c *Client) Post(ctx context.Context, location, path string, query url.Values, body any) ([]byte, error) {
 	payload, err := json.Marshal(body)
 	if err != nil {
 		return nil, &tfserr.Error{
@@ -119,29 +123,81 @@ func (c *Client) Post(ctx context.Context, path string, query url.Values, body a
 			Cause:    err,
 		}
 	}
-	return c.do(ctx, http.MethodPost, path, query, payload)
+	return c.do(ctx, http.MethodPost, location, path, query, payload)
 }
 
 // do sends one request and returns the body of a 2xx response. A nil payload
 // sends no body; a non-nil one is sent as JSON.
-func (c *Client) do(ctx context.Context, method, path string, query url.Values, payload []byte) ([]byte, error) {
+func (c *Client) do(ctx context.Context, method, location, path string, query url.Values, payload []byte) ([]byte, error) {
+	version, err := c.version(ctx, location)
+	if err != nil {
+		return nil, err
+	}
+
 	u := c.base.JoinPath(path)
 	q := maps.Clone(query)
 	if q == nil {
 		q = url.Values{}
 	}
-	if c.apiVersion != "" {
-		q.Set("api-version", c.apiVersion)
+	if version != "" {
+		q.Set("api-version", version)
 	}
 	u.RawQuery = q.Encode()
 
+	status, body, err := c.send(ctx, method, u, payload)
+	if err != nil {
+		return nil, err
+	}
+	if status < 200 || status > 299 {
+		return nil, c.classify(status, body)
+	}
+	return body, nil
+}
+
+// version returns the api-version for a request to location. A configured
+// version is used as it is. Otherwise the version is negotiated with an
+// OPTIONS request to _apis, which lists every resource location with its
+// versions, as the official SDKs do; see chooseVersion. A 401 or a transport
+// failure is returned as the error, since the request itself would fail the
+// same way. Any other failure leaves the version empty, so that the request
+// goes out without one, as it did before negotiation existed, and is noted
+// under --verbose.
+func (c *Client) version(ctx context.Context, location string) (string, error) {
+	if c.apiVersion != "" || location == "" {
+		return c.apiVersion, nil
+	}
+
+	status, body, err := c.send(ctx, http.MethodOptions, c.base.JoinPath("_apis"), nil)
+	if err != nil {
+		return "", err
+	}
+	var version, reason string
+	switch {
+	case status == http.StatusUnauthorized:
+		return "", c.classify(status, body)
+	case status < 200 || status > 299:
+		reason = fmt.Sprintf("OPTIONS returned HTTP %d", status)
+	default:
+		version, reason = chooseVersion(body, location)
+	}
+	if reason != "" {
+		c.logger.Info("api-version not negotiated (" + reason + "); sending the request without it")
+	}
+	return version, nil
+}
+
+// send makes one request to u and returns the status and the body of the
+// response, whatever the status. A nil payload sends no body; a non-nil one
+// is sent as JSON. The error is a *tfserr.Error for a request that could not
+// be built, a transport failure, or a body that could not be read.
+func (c *Client) send(ctx context.Context, method string, u *url.URL, payload []byte) (int, []byte, error) {
 	var reqBody io.Reader
 	if payload != nil {
 		reqBody = bytes.NewReader(payload)
 	}
 	req, err := http.NewRequestWithContext(ctx, method, u.String(), reqBody)
 	if err != nil {
-		return nil, &tfserr.Error{
+		return 0, nil, &tfserr.Error{
 			Category: tfserr.Config,
 			Message:  fmt.Sprintf("cannot build a request for %s", u.Redacted()),
 			Cause:    err,
@@ -157,7 +213,7 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return nil, transportError(u, err)
+		return 0, nil, transportError(u, err)
 	}
 	// The body is read in full below; a failure to close it afterwards says
 	// nothing about the result and has nowhere useful to go.
@@ -165,18 +221,14 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, &tfserr.Error{
+		return 0, nil, &tfserr.Error{
 			Category:   tfserr.Server,
 			Message:    "cannot read the response from TFS",
 			HTTPStatus: resp.StatusCode,
 			Cause:      err,
 		}
 	}
-
-	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return nil, c.classify(resp.StatusCode, body)
-	}
-	return body, nil
+	return resp.StatusCode, body, nil
 }
 
 // loggingTransport logs one line per request and is the single call site of

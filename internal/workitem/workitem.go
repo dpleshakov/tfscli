@@ -16,11 +16,19 @@ import (
 )
 
 // APIClient is the part of the API client this package uses: Get for Get Work
-// Item and List, Post for Get Work Items Batch.
+// Item and List, Post for Get Work Items Batch. location is the id under
+// which the server lists the resource among its API versions.
 type APIClient interface {
-	Get(ctx context.Context, path string, query url.Values) ([]byte, error)
-	Post(ctx context.Context, path string, query url.Values, body any) ([]byte, error)
+	Get(ctx context.Context, location, path string, query url.Values) ([]byte, error)
+	Post(ctx context.Context, location, path string, query url.Values, body any) ([]byte, error)
 }
+
+// The resource location ids of the operations this package calls, as the
+// official SDKs give them: Get Work Item and Work Items - List share one.
+const (
+	workItemsLocation      = "72c7ddf8-2cdc-4f60-90cd-ab71c14a399b"
+	workItemsBatchLocation = "908509b6-4248-4475-a1cd-829139ba419f"
+)
 
 // FieldKind tells the printer how to render a field value.
 type FieldKind string
@@ -100,7 +108,7 @@ func Get(ctx context.Context, client APIClient, project string, id int, fields [
 		query.Set("fields", strings.Join(fields, ","))
 	}
 
-	body, err := client.Get(ctx, fmt.Sprintf("%s/_apis/wit/workitems/%d", url.PathEscape(project), id), query)
+	body, err := client.Get(ctx, workItemsLocation, fmt.Sprintf("%s/_apis/wit/workitems/%d", url.PathEscape(project), id), query)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +130,7 @@ func List(ctx context.Context, client APIClient, project string, req BatchReques
 		query.Set("errorPolicy", req.ErrorPolicy)
 	}
 
-	body, err := client.Get(ctx, url.PathEscape(project)+"/_apis/wit/workitems", query)
+	body, err := client.Get(ctx, workItemsLocation, url.PathEscape(project)+"/_apis/wit/workitems", query)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +151,7 @@ func GetBatch(ctx context.Context, client APIClient, project string, req BatchRe
 		ErrorPolicy string   `json:"errorPolicy,omitempty"`
 	}{req.IDs, req.Fields, req.AsOf, req.ErrorPolicy}
 
-	resp, err := client.Post(ctx, url.PathEscape(project)+"/_apis/wit/workitemsbatch", nil, body)
+	resp, err := client.Post(ctx, workItemsBatchLocation, url.PathEscape(project)+"/_apis/wit/workitemsbatch", nil, body)
 	if err != nil {
 		return nil, err
 	}

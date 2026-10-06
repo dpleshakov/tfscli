@@ -125,7 +125,7 @@ fallback can say why it happened.
 **Definition of done:** Unit tests cover a released resource, a
 preview-only resource, a resource missing from the list, and an unparseable
 response. `make check` passes.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-03 `client-negotiation`
 **Description:** Use the version selection in `Client`. Callers name the
@@ -141,7 +141,7 @@ request.
 version on GET and on POST; a configured version sent without `OPTIONS`; a
 401 and a transport failure on `OPTIONS`; each fallback case with its
 `--verbose` line; and `auth login` sending no `OPTIONS`. `make check` passes.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-04 `missing-version-error`
 **Description:** When a request sent without a version after a fallback is
