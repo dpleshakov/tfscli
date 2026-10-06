@@ -3,6 +3,10 @@
 /tfscli.exe
 /dist/
 
+# The third-party licenses the release build generates for each platform; the
+# PLACEHOLDER beside each third-party/ is committed.
+/internal/licenses/embed/*/third-party/
+
 # Test and coverage artifacts
 *.test
 *.out
