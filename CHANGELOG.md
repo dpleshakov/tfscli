@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- `tfscli licenses` prints the components included in the binary and the license text of each: the Go standard library and, in the release builds, the third-party modules.
+- `tfscli licenses` prints the components included in the binary and the license text of each: tfscli itself, the Go standard library, and, in the release builds, the third-party modules.
 
 ### Changed
 - Release archives now unpack into a directory of their own name, `tfscli-<version>-<os>-<arch>/`, holding only the binary, `LICENSE`, and the agent skill; `README.md`, `CHANGELOG.md`, and `config.example.json` are no longer included.

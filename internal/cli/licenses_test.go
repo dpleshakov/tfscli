@@ -37,7 +37,7 @@ func TestLicensesNeedsNoSettings(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0 (stderr: %s)", code, errOut.String())
 	}
-	if !strings.HasPrefix(out.String(), "tfscli includes the following components:") {
+	if !strings.HasPrefix(out.String(), "The tfscli binary contains the following components:") {
 		t.Errorf("stdout = %q, want the licenses", out.String())
 	}
 }
