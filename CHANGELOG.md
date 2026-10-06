@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-06
+
 ### Added
 - `tfscli licenses` prints the components included in the binary and the license text of each: tfscli itself, the Go standard library, and, in the release builds, the third-party modules.
 
