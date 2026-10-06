@@ -147,8 +147,9 @@ This section describes the conceptual module structure, their responsibilities, 
                  ▼
         ┌──────────────────┐       ┌─────────────────────┐
         │  apiclient       │◄─────►│  TFS REST API       │
-        │  net/http + PAT  │  TLS  │  (no default ver.)  │
-        │  + TLS + logger  │       └─────────────────────┘
+        │  net/http + PAT  │  TLS  │  (version: config,  │
+        │  + TLS + logger  │       │   else OPTIONS)     │
+        │                  │       └─────────────────────┘
         └────────┬─────────┘
                  │ raw JSON / *tfserr.Error
                  ▼
@@ -174,26 +175,29 @@ This section describes the conceptual module structure, their responsibilities, 
 
 - **cli** — cobra commands, nested as area, resource, and action after the REST API reference (`wit` → `work-items` → `get`); persistent flags (`--verbose`, config overrides); orchestrates the chain config → apiclient → domain → printer → exit. Owns the markdown printer functions (one per resource and shape, such as a single work item and several) plus small per-kind scalar formatters for identity and datetime values used by those printers. No `Renderer` interface in v1 — printers are plain functions. When `--json` is added later, the interface and a second renderer can be introduced here without touching the domain layer.
 - **config** — resolves the credential (`URL`, `Collection`, and `PAT`; a PAT is issued for one collection) from `TFSCLI_AUTH` or `$XDG_DATA_HOME/tfscli/auth.json`, never from a mix of sources; loads the optional `$XDG_CONFIG_HOME/tfscli/config.json`, applies environment overrides (`TFSCLI_*`), applies cobra flag overrides; validates that all required fields are set for the command being run. Writes `auth.json` for `auth login` (mode `0600`, directory `0700`). Holds `URL`, `Collection`, `PAT`, `Project`, `APIVersion`, `InsecureSkipVerify`, `CABundle`. Never logs PAT.
-- **apiclient** — wraps `net/http`. Builds URLs from `Config.URL + Collection + path`, adding `api-version` only when `APIVersion` is set; without it the server answers at the version it chooses. Sets `Authorization: Basic base64(":<PAT>")` on every request. Configures TLS using `CABundle` (appended to system root pool) and `InsecureSkipVerify`. Hooks the logger via a `RoundTripper` — that transport is the single call site of `LogRequest`, so every outgoing request is logged exactly once and no other module logs HTTP traffic. Classifies HTTP outcomes into the stable error categories defined in the brief (`auth`, `not_found`, `forbidden`, `server`, `config`, `network`).
+- **apiclient** — wraps `net/http`. Builds URLs from `Config.URL + Collection + path` and adds `api-version`. A configured `APIVersion` is sent as it is. Otherwise the version is negotiated per request, as the official SDKs do: `OPTIONS {URL}/{Collection}/_apis` lists every resource location with its versions, the caller names its location by id, and the request carries the location's released version, or `{maxVersion}-preview.{resourceVersion}` when it has none — the version the server chooses for a request without one. The response is not cached. A 401 or a transport failure on `OPTIONS` fails the request; any other failure sends it without a version and notes why through `Logger.Info`, and a refusal of that request for the missing version gets the settings to use in its message. A call without a location, the login check, neither negotiates nor sends a version. Sets `Authorization: Basic base64(":<PAT>")` on every request. Configures TLS using `CABundle` (appended to system root pool) and `InsecureSkipVerify`. Hooks the logger via a `RoundTripper` — that transport is the single call site of `LogRequest`, so every outgoing request is logged exactly once and no other module logs HTTP traffic. Classifies HTTP outcomes into the stable error categories defined in the brief (`auth`, `not_found`, `forbidden`, `server`, `config`, `network`).
 - **workitem** — domain logic for Work Items: Get Work Item, Work Items - List, and Get Work Items Batch. Owns the `WorkItem`/`Field` types, the `BatchRequest`/`Batch` types for reading several work items, and the allowlist of fields known to contain HTML (`System.Description`, `Microsoft.VSTS.TCM.ReproSteps`, `Microsoft.VSTS.TCM.SystemInfo`, `Microsoft.VSTS.Common.AcceptanceCriteria`, …). After unmarshalling, tags each field with its `FieldKind`. For several work items, keeps the server's order and reports the requested ids the server did not return. Returns raw values — does not perform markdown conversion.
 - **wiql** — domain logic for Wiql: Query By Wiql. Owns the `Request` and `Result` types. Builds the path at collection level, under a project, or under a project and a team; passes the query text through unchanged and sends `$top` and `timePrecision` only when they are given. Reads the query type, `asOf`, the reference names of the columns, and either the work item ids of a flat query or the relations of a link query, keeping the server's order. Does not read the work items themselves: that is a separate call through `workitem`, made by the caller.
 - **htmlmd** — thin wrapper over `github.com/JohannesKaufmann/html-to-markdown/v2`. One method: `Convert(html string) (string, error)`. v1 uses library defaults only; the wrapper is the extension point where TFS-specific rules will be registered once real HTML samples have been collected (see the `html-quirks` entry in `docs/backlog.md`).
 - **tfserr** — typed error `Error{Category, Message, HTTPStatus, Cause}` with the stable category set from the brief. Provides `Print(err, w)` writing `Error [category]: message (HTTP status)` and `ExitCode(err)` mapping to a non-zero process exit code (v1: 1 for every category; the API leaves room for per-category exit codes later without breaking the contract).
-- **log** — `Logger` interface with two implementations: `noop` (default) and `stderr` (selected by `--verbose` / `TFSCLI_VERBOSE=1`). Methods: `LogRequest(method, url, status, dur)` and `Warn(msg)`. The logger interface accepts only these four request fields — PAT and the `Authorization` header are never passed in, so they cannot leak through the logger by construction.
+- **log** — `Logger` interface with two implementations: `noop` (default) and `stderr` (selected by `--verbose` / `TFSCLI_VERBOSE=1`). Methods: `LogRequest(method, url, status, dur)`, `Warn(msg)` for a condition worth reporting, and `Info(msg)` for what tfscli did on its own, such as sending a request without a version after a failed negotiation. The logger interface accepts only these four request fields — PAT and the `Authorization` header are never passed in, so they cannot leak through the logger by construction.
 
 ### Key dependency interfaces
 
 These are the boundaries between modules. Final signatures may evolve during Step 4.
 
 ```go
+// location is the id under which the server lists the resource of the
+// request in its response to OPTIONS on _apis; empty for no negotiation.
 type APIClient interface {
-    Get(ctx context.Context, path string, query url.Values) ([]byte, error)
-    Post(ctx context.Context, path string, query url.Values, body any) ([]byte, error)
+    Get(ctx context.Context, location, path string, query url.Values) ([]byte, error)
+    Post(ctx context.Context, location, path string, query url.Values, body any) ([]byte, error)
 }
 
 type Logger interface {
     LogRequest(method, url string, status int, dur time.Duration)
     Warn(msg string)
+    Info(msg string)
 }
 
 type Converter interface {
@@ -271,8 +275,8 @@ type Result struct {
 2. `config.Load` takes `URL`, `Collection`, and `PAT` from `TFSCLI_AUTH` or `auth.json`, which must carry all three; reads the config file if present, overlays env vars, overlays bound flags. The command then checks that `Project` is supplied either by `-p`, env, or config default.
 3. cli builds a `Logger` (noop or stderr depending on `--verbose`) and an `apiclient.APIClient`. The TLS config is derived from `CABundle` and `InsecureSkipVerify`. If verification is disabled, the logger emits one `[warn] TLS verification disabled` line.
 4. cli calls `workitem.Get(ctx, client, project, id, fields)`.
-5. `workitem.Get` constructs the path `{Project}/_apis/wit/workitems/{id}` with the `fields` query parameter and calls `client.Get`, which prefixes the collection and adds `api-version={APIVersion}` only when a version is configured.
-6. `apiclient.Get` builds the request, sets the `Authorization` header, and executes it through its `RoundTripper`, which calls `LogRequest` once with method, URL, status, and duration. On non-2xx the response is classified into a `*tfserr.Error`; otherwise the response body is returned.
+5. `workitem.Get` constructs the path `{Project}/_apis/wit/workitems/{id}` with the `fields` query parameter and calls `client.Get` with the location id of Work Items, `72c7ddf8-2cdc-4f60-90cd-ab71c14a399b`.
+6. Without a configured version, `apiclient.Get` first sends `OPTIONS {Collection}/_apis` and takes the version listed for that location; with one, it uses the configured version. It then builds the request with `api-version`, sets the `Authorization` header, and executes it through its `RoundTripper`, which calls `LogRequest` once with method, URL, status, and duration. On non-2xx the response is classified into a `*tfserr.Error`; otherwise the response body is returned.
 7. `workitem.Get` unmarshals the JSON, walks `fields`, sets each `Field.Kind` using the HTML allowlist plus known identity/datetime field types, and returns `*WorkItem`.
 8. The cli printer iterates `wi.Fields`. HTML fields go through `htmlmd.Convert`. Identity and datetime fields are formatted by small dedicated helpers. Plain fields print as is. Output is written to `stdout`.
 9. On error at any step: `tfserr.Print(err, os.Stderr)`; `os.Exit(tfserr.ExitCode(err))`.

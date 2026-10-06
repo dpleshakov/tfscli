@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Every command except `tfscli auth login`, when no API version is configured, now first asks the server with an `OPTIONS` request which version its resource supports and sends that version, so `wit work-items get-batch` and `wit wiql query-by-wiql` no longer fail with "No api-version was supplied" on servers that require one.
+- A request sent without an API version because the server did not answer that question is now noted under `--verbose`, and if the server refuses it for the missing version, the `config` error names `apiVersion`, `TFSCLI_API_VERSION`, and `--api-version`.
+
 ## [0.1.0] - 2026-10-06
 
 ### Changed
