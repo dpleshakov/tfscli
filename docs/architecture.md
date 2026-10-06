@@ -110,6 +110,26 @@ This document records the technology stack, the architecture, and the project st
 
 ---
 
+### License notices: `github.com/google/go-licenses/v2` (build tool)
+
+**Rationale:**
+- The binary links the Go standard library and the third-party modules statically, and their licenses (MIT, BSD-3-Clause, Apache-2.0) require the license text to accompany every binary copy. The texts are embedded in the binary and printed by `tfscli licenses`, so they travel with the binary even when it is taken out of the archive. GitHub CLI does the same (`gh licenses`).
+- go-licenses finds the license file of each dependency, including one kept at the root of a repository above the module, classifies it, and saves it per package path. It runs at build time only: it is never linked into the binary and does not enter `go.mod`, so it does not count against the dependency budget above.
+- The dependencies differ by platform (`inconshreveable/mousetrap` is linked on Windows only), so the set is generated per target, by a build pre-hook in `.goreleaser.yaml` with the target's `GOOS` and `GOARCH`, and each binary embeds the set of its own platform. The hook runs without a shell. go-licenses is installed by a `before` hook for the platform goreleaser runs on; `go run` in the build hook would build it for the target platform instead.
+- go-licenses skips the standard library, so its license is a committed copy, `internal/licenses/go.LICENSE`, which a test keeps equal to the toolchain's.
+- `make check` runs `go-licenses check` with the allowed licenses, so a dependency under another license fails the pull request that brings it.
+
+**Considered alternatives:**
+
+| Alternative | Why rejected |
+|---|---|
+| License files in the release archive | Satisfies the licenses only while the binary stays beside them; a binary copied out of the archive carries no notice. |
+| One set for every platform | go-licenses cannot merge sets, so a union needs a merging program; a per-platform set needs none, and each binary carries exactly what it links. |
+| A set committed to the repository | A committed copy has to be regenerated and checked for drift on every dependency change; generating it at release time cannot drift. |
+| A hand-written collector over `go list -deps` and the module cache | Misses license files outside the module directory and cannot classify a license, which `go-licenses check` needs. |
+
+---
+
 ### Summary
 
 | Component | Choice | External dependency? |
@@ -122,7 +142,7 @@ This document records the technology stack, the architecture, and the project st
 | JSON parsing | `encoding/json` | No (stdlib) |
 | Config format | JSON via `encoding/json` | No (stdlib) |
 
-Total external dependencies: **3** (cobra, html-to-markdown, x/term). Minimal dependency footprint for a CLI tool.
+Total external dependencies: **3** (cobra, html-to-markdown, x/term). Minimal dependency footprint for a CLI tool. go-licenses, which generates the license notices, is a build tool and not among them.
 
 ---
 
@@ -181,6 +201,7 @@ This section describes the conceptual module structure, their responsibilities, 
 - **htmlmd** — thin wrapper over `github.com/JohannesKaufmann/html-to-markdown/v2`. One method: `Convert(html string) (string, error)`. v1 uses library defaults only; the wrapper is the extension point where TFS-specific rules will be registered once real HTML samples have been collected (see the `html-quirks` entry in `docs/backlog.md`).
 - **tfserr** — typed error `Error{Category, Message, HTTPStatus, Cause}` with the stable category set from the brief. Provides `Print(err, w)` writing `Error [category]: message (HTTP status)` and `ExitCode(err)` mapping to a non-zero process exit code (v1: 1 for every category; the API leaves room for per-category exit codes later without breaking the contract).
 - **log** — `Logger` interface with two implementations: `noop` (default) and `stderr` (selected by `--verbose` / `TFSCLI_VERBOSE=1`). Methods: `LogRequest(method, url, status, dur)`, `Warn(msg)` for a condition worth reporting, and `Info(msg)` for what tfscli did on its own, such as sending a request without a version after a failed negotiation. The logger interface accepts only these four request fields — PAT and the `Authorization` header are never passed in, so they cannot leak through the logger by construction.
+- **licenses** — the license texts of the code linked into the binary, for `tfscli licenses`. Always embeds `go.LICENSE`, the license of the Go standard library; on each release platform also embeds `embed/<os>-<arch>/third-party/`, which the release build fills with go-licenses and git ignores. A committed `PLACEHOLDER` beside it keeps `go:embed` compiling in every other build, whose output then says that the third-party texts are only in the release builds. Depends on nothing else in the module.
 
 ### Key dependency interfaces
 
@@ -334,7 +355,7 @@ Go module path: `github.com/dpleshakov/tfscli`.
 
 ### Layout principle
 
-Standard Go CLI layout: a single binary entry point under `cmd/`, all implementation under `internal/`. Package boundaries are exactly the module boundaries from the Architecture section — one Go package per module (cli, config, apiclient, workitem, wiql, htmlmd, tfserr, log) — so the dependency rules stated there are visible in import lists and enforced by the compiler rather than by convention. Everything lives under `internal/` because tfscli is a CLI tool, not a library: a zero public API surface keeps full freedom to refactor between releases.
+Standard Go CLI layout: a single binary entry point under `cmd/`, all implementation under `internal/`. Package boundaries are exactly the module boundaries from the Architecture section — one Go package per module (cli, config, apiclient, workitem, wiql, htmlmd, tfserr, log, licenses) — so the dependency rules stated there are visible in import lists and enforced by the compiler rather than by convention. Everything lives under `internal/` because tfscli is a CLI tool, not a library: a zero public API surface keeps full freedom to refactor between releases.
 
 ### Top-level directories
 

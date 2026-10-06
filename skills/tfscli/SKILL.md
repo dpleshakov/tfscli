@@ -37,9 +37,11 @@ name. Output is markdown on stdout; errors are one line on stderr.
 
 ## When not to use it
 
-Apart from `auth login`, which is the user's to run, the tool covers four
-commands: `wit work-items get`, `wit work-items list`,
-`wit work-items get-batch`, and `wit wiql query-by-wiql`. Do not attempt anything below; none of it exists,
+Apart from `auth login`, which is the user's to run, and `licenses`, which
+prints the license texts of the code built into the binary and reads nothing
+from the server, the tool covers four commands: `wit work-items get`,
+`wit work-items list`, `wit work-items get-batch`, and
+`wit wiql query-by-wiql`. Do not attempt anything below; none of it exists,
 and inventing a flag or a subcommand produces an error, not a result.
 
 - **No writes.** Nothing creates, updates, or comments on a work item. If the

@@ -1,6 +1,6 @@
 # 2026-10-06-tasks-third-party-licenses.md
 
-**Status:** Active
+**Status:** Archived
 
 ## Context
 
@@ -124,4 +124,4 @@ target, go-licenses in the release and the snapshot, `$(go env GOPATH)/bin` on
 `CLAUDE.md` where it summarises any of these.
 **Definition of done:** The documents describe the new state; `make check` is
 green.
-**Status:** Pending
+**Status:** Done
