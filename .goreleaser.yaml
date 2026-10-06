@@ -2,6 +2,14 @@ version: 2
 
 project_name: tfscli
 
+before:
+  hooks:
+    # go-licenses generates the third-party licenses each binary embeds (see
+    # the build pre-hook). It is installed for the platform goreleaser runs on:
+    # `go run` in the pre-hook would build it for the target's GOOS instead,
+    # and a binary for another platform cannot be executed.
+    - go install github.com/google/go-licenses/v2@v2.0.1
+
 builds:
   - id: tfscli
     main: ./cmd/tfscli
@@ -12,6 +20,19 @@ builds:
       - CGO_ENABLED=0
     ldflags:
       - -X main.version={{ .Version }} -X main.commit={{ .Commit }}
+    # The licenses of the third-party modules linked into this target, saved
+    # where internal/licenses embeds them for it. GOOS and GOARCH make
+    # go-licenses follow the target's dependencies, which differ by platform.
+    # The targets build in parallel, and each writes to a directory of its
+    # own; --force replaces what an earlier build left there. A hook runs
+    # without a shell, so nothing here may rely on one.
+    hooks:
+      pre:
+        - cmd: go-licenses save ./cmd/tfscli --save_path=internal/licenses/embed/{{ .Os }}-{{ .Arch }}/third-party --ignore github.com/dpleshakov/tfscli --force
+          env:
+            - "GOOS={{ .Os }}"
+            - "GOARCH={{ .Arch }}"
+          output: true
     goos:
       - linux
       - windows

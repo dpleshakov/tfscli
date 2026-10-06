@@ -7,7 +7,7 @@
 Goal: every tfscli binary carries the license texts its distribution requires,
 and the release archive holds only what a user needs.
 
-The binary statically contains nine third-party modules — MIT
+The binary statically contains eight third-party modules — MIT
 (`JohannesKaufmann/html-to-markdown/v2`, `JohannesKaufmann/dom`), BSD-3-Clause
 (`spf13/pflag`, `golang.org/x/term`, `x/sys`, `x/net`), Apache-2.0
 (`spf13/cobra`, and `inconshreveable/mousetrap` on Windows only) — and the Go
@@ -92,9 +92,10 @@ green.
 **Description:** Add the `before` hook installing go-licenses and the build
 pre-hook generating the set to `.goreleaser.yaml`.
 **Definition of done:** `goreleaser release --snapshot --clean` succeeds;
-`tfscli licenses` of the windows/amd64 binary lists all nine components and
-prints their texts; `git status` is clean after the snapshot.
-**Status:** Pending
+`tfscli licenses` of the windows/amd64 binary lists the Go standard library
+and the eight third-party modules and prints their texts; `git status` is
+clean after the snapshot.
+**Status:** Done
 
 ### TASK-04 `archive-contents`
 **Description:** Reduce the archive files to `LICENSE` and `skills`, enable
