@@ -42,7 +42,7 @@ Download an archive from the [releases page](https://github.com/dpleshakov/tfscl
 | Windows | `windows-amd64.zip` | `windows-arm64.zip` |
 | macOS | `darwin-amd64.tar.gz` | `darwin-arm64.tar.gz` |
 
-Every archive holds the binary together with `LICENSE`, `README.md`, `CHANGELOG.md`, `config.example.json`, and the agent skill in `skills/tfscli/SKILL.md`. SHA-256 sums for all six archives are in `checksums.txt`, attached to the same release.
+Every archive unpacks into a directory of the same name, `tfscli-<version>-<os>-<arch>/`, holding the binary, `LICENSE`, and the agent skill in `skills/tfscli/SKILL.md`. SHA-256 sums for all six archives are in `checksums.txt`, attached to the same release.
 
 Verify a download before using it:
 
@@ -173,7 +173,7 @@ The settings come from four sources. Later sources override earlier ones:
 3. Environment variables
 4. Command-line flags
 
-The config file is optional: every setting it holds, except the TLS ones, can be given by an environment variable or a flag instead. To use one, copy `config.example.json` to that location and fill in the values:
+The config file is optional: every setting it holds, except the TLS ones, can be given by an environment variable or a flag instead. To use one, create it at that location; for example:
 
 ```json
 {

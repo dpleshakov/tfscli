@@ -105,7 +105,7 @@ rewording its mentions in `README.md` and `.gitignore`.
 `tfscli-<version>-<os>-<arch>/` holding exactly the binary, `LICENSE`, and
 `skills/tfscli/SKILL.md`; no file of the repository mentions
 `config.example.json` outside `docs/archive/`.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-05 `licenses-check`
 **Description:** Add the `licenses` target to the `Makefile` and include it in
