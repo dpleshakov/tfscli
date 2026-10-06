@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `tfscli licenses` prints the components included in the binary and the license text of each: the Go standard library and, in the release builds, the third-party modules.
+
 ### Changed
+- Release archives now unpack into a directory of their own name, `tfscli-<version>-<os>-<arch>/`, holding only the binary, `LICENSE`, and the agent skill; `README.md`, `CHANGELOG.md`, and `config.example.json` are no longer included.
 - Every command except `tfscli auth login`, when no API version is configured, now first asks the server with an `OPTIONS` request which version its resource supports and sends that version, so `wit work-items get-batch` and `wit wiql query-by-wiql` no longer fail with "No api-version was supplied" on servers that require one.
 - A request sent without an API version because the server did not answer that question is now noted under `--verbose`, and if the server refuses it for the missing version, the `config` error names `apiVersion`, `TFSCLI_API_VERSION`, and `--api-version`.
 

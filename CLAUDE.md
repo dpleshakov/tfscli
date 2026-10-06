@@ -8,7 +8,7 @@ The workflow is defined by four process skills kept in the repository under `.cl
 
 ## Project state
 
-The MVP is implemented and released: `tfscli auth login` stores the credential, `tfscli wit work-items get` reads one work item, `tfscli wit work-items list` and `tfscli wit work-items get-batch` read several work items by id, `tfscli wit wiql query-by-wiql` finds work item ids with a WIQL query, and the module has one package per architecture module (see the "Project Structure" section of `docs/architecture.md`). Known defects are listed in the "Known limitations" section of `README.md`. Accepted work that has not started is listed in `docs/backlog.md`; work in progress goes through tasks files per the `tasks` skill.
+The MVP is implemented and released: `tfscli auth login` stores the credential, `tfscli wit work-items get` reads one work item, `tfscli wit work-items list` and `tfscli wit work-items get-batch` read several work items by id, `tfscli wit wiql query-by-wiql` finds work item ids with a WIQL query, `tfscli licenses` prints the license texts embedded in the binary, and the module has one package per architecture module (see the "Project Structure" section of `docs/architecture.md`). Known defects are listed in the "Known limitations" section of `README.md`. Accepted work that has not started is listed in `docs/backlog.md`; work in progress goes through tasks files per the `tasks` skill.
 
 Read these before the corresponding kind of change (the full list of project documents is in "Project documents" in `CONTRIBUTING.md`):
 
@@ -30,7 +30,7 @@ These come from `project-brief.md` and override casual feature requests. If a ch
 - **Target is on-prem TFS / Azure DevOps Server; the API version is negotiated.** Without a configured version, each request is preceded by `OPTIONS {url}/{collection}/_apis` and carries the version the server lists for its resource; when the negotiation fails, the request goes out without a version, as before. A configured version is sent as is. `auth login` never sends one. Cloud Azure DevOps Services may work incidentally but is not tested or supported.
 - **Do not narrow server compatibility.** A change must not stop tfscli from working with a TFS / Azure DevOps Server version it worked with before, unless that is an explicitly discussed and recorded decision (see "Server compatibility is preserved" in `project-brief.md`).
 - **Works out of the box; errors lead the way.** Assume the user has read nothing and configured nothing. Do not add a required setting where a working default exists, and do not guess where the answer is ambiguous — ask the user instead. Every error a first-time user can hit names the concrete next step, and says when only a person can take it (see "Works out of the box; errors lead the way" in `project-brief.md`).
-- **Minimal dependencies.** Total external deps are intentionally three: `cobra`, `html-to-markdown/v2`, and `golang.org/x/term` (hidden PAT input for `auth login`). HTTP via `net/http`, JSON via `encoding/json`, config via `encoding/json`. Don't pull in `viper`, `resty`, retry libraries, or YAML/TOML parsers without a strong reason and explicit discussion.
+- **Minimal dependencies.** Total external deps are intentionally three: `cobra`, `html-to-markdown/v2`, and `golang.org/x/term` (hidden PAT input for `auth login`). HTTP via `net/http`, JSON via `encoding/json`, config via `encoding/json`. go-licenses, which generates the license notices at release time, is a build tool and not a dependency. Don't pull in `viper`, `resty`, retry libraries, or YAML/TOML parsers without a strong reason and explicit discussion.
 
 ## Command shape
 
@@ -38,7 +38,7 @@ These come from `project-brief.md` and override casual feature requests. If a ch
 tfscli <area> <resource> <action> [flags] [arguments]
 ```
 
-The area and the resource are the segments of the operation's page path in the REST API reference (`.../wit/work-items/get-work-item` is `wit work-items get`); the action is the operation name without the resource name. `tfscli auth login` is a local command and lies outside this scheme. The full rule is in "Follow TFS API structure" in `project-brief.md`.
+The area and the resource are the segments of the operation's page path in the REST API reference (`.../wit/work-items/get-work-item` is `wit work-items get`); the action is the operation name without the resource name. `tfscli auth login` and `tfscli licenses` are local commands and lie outside this scheme. The full rule is in "Follow TFS API structure" in `project-brief.md`.
 
 Commands (from the brief):
 
@@ -54,7 +54,7 @@ tfscli wit wiql query-by-wiql -p MyProject --query "SELECT [System.Id] FROM Work
 
 ## Build / test commands
 
-Everything the project verifies runs through the `Makefile` — `build`, `lint`, `test`, `check`, `clean` — and CI runs `make check` verbatim, so a green `make check` locally is the whole gate. A single test is `go test -run TestName ./path/to/pkg`.
+Everything the project verifies runs through the `Makefile` — `build`, `lint`, `test`, `licenses`, `check`, `clean` — and CI runs `make check` verbatim, so a green `make check` locally is the whole gate. A single test is `go test -run TestName ./path/to/pkg`.
 
 Recipes never assume a Unix shell: file removal goes through `git clean`, and the coverage check and the changelog handling live in Go programs under `tools/`, tagged `//go:build ignore` so that `go build ./...`, `go vet ./...`, and `go test ./...` do not see them.
 
