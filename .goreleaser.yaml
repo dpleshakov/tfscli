@@ -48,11 +48,14 @@ archives:
     format_overrides:
       - goos: windows
         formats: [zip]
+    # The archive unpacks into a directory named like it, rather than
+    # scattering its files into the directory it is unpacked in.
+    wrap_in_directory: true
+    # Only what a user needs beside the binary. The documentation lives on
+    # GitHub, and the release page carries the changelog section; the
+    # third-party licenses are embedded in the binary (tfscli licenses).
     files:
       - LICENSE
-      - README.md
-      - CHANGELOG.md
-      - config.example.json
       # The agent skill ships with the binary so that an AI agent that unpacks
       # the archive can be told how to use tfscli without a second download.
       # The directory is kept whole: it is copied as-is into a skills path.

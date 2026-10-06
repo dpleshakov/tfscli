@@ -12,8 +12,7 @@
 *.out
 coverage.html
 
-# A local config made from config.example.json — personal settings, never
-# committed. Credentials are not kept here; they live in auth.json.
+# A local config file — personal settings, never committed. Credentials are not kept here; they live in auth.json.
 config.json
 
 # IDE
