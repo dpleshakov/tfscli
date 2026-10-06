@@ -41,6 +41,16 @@ var versionErrorTypeKeys = map[string]bool{
 	"VssVersionOutOfRangeException": true,
 }
 
+// missingVersionTypeKey is the typeKey of the error refusing a request that
+// carries no API version, as Azure DevOps Services reports it; that an
+// on-premises server uses the same one is assumed, not observed.
+// missingVersionMessage, the start of its English message, identifies the
+// error from a server that sends no typeKey.
+const (
+	missingVersionTypeKey = "VssVersionNotSpecifiedException"
+	missingVersionMessage = "No api-version was supplied"
+)
+
 // Client performs TFS REST API calls. It owns the PAT and is the only module
 // that sets the Authorization header.
 type Client struct {
@@ -129,7 +139,7 @@ func (c *Client) Post(ctx context.Context, location, path string, query url.Valu
 // do sends one request and returns the body of a 2xx response. A nil payload
 // sends no body; a non-nil one is sent as JSON.
 func (c *Client) do(ctx context.Context, method, location, path string, query url.Values, payload []byte) ([]byte, error) {
-	version, err := c.version(ctx, location)
+	version, fallback, err := c.version(ctx, location)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +159,7 @@ func (c *Client) do(ctx context.Context, method, location, path string, query ur
 		return nil, err
 	}
 	if status < 200 || status > 299 {
-		return nil, c.classify(status, body)
+		return nil, c.classify(status, body, fallback)
 	}
 	return body, nil
 }
@@ -160,30 +170,29 @@ func (c *Client) do(ctx context.Context, method, location, path string, query ur
 // versions, as the official SDKs do; see chooseVersion. A 401 or a transport
 // failure is returned as the error, since the request itself would fail the
 // same way. Any other failure leaves the version empty, so that the request
-// goes out without one, as it did before negotiation existed, and is noted
-// under --verbose.
-func (c *Client) version(ctx context.Context, location string) (string, error) {
+// goes out without one, as it did before negotiation existed; fallback then
+// says why, and the same is noted under --verbose.
+func (c *Client) version(ctx context.Context, location string) (version, fallback string, err error) {
 	if c.apiVersion != "" || location == "" {
-		return c.apiVersion, nil
+		return c.apiVersion, "", nil
 	}
 
 	status, body, err := c.send(ctx, http.MethodOptions, c.base.JoinPath("_apis"), nil)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	var version, reason string
 	switch {
 	case status == http.StatusUnauthorized:
-		return "", c.classify(status, body)
+		return "", "", c.classify(status, body, "")
 	case status < 200 || status > 299:
-		reason = fmt.Sprintf("OPTIONS returned HTTP %d", status)
+		fallback = fmt.Sprintf("OPTIONS returned HTTP %d", status)
 	default:
-		version, reason = chooseVersion(body, location)
+		version, fallback = chooseVersion(body, location)
 	}
-	if reason != "" {
-		c.logger.Info("api-version not negotiated (" + reason + "); sending the request without it")
+	if fallback != "" {
+		c.logger.Info("api-version not negotiated (" + fallback + "); sending the request without it")
 	}
-	return version, nil
+	return version, fallback, nil
 }
 
 // send makes one request to u and returns the status and the body of the
@@ -325,17 +334,22 @@ func transportError(u *url.URL, err error) error {
 // classify maps a non-2xx response to a stable error category, preferring the
 // message from the TFS error JSON over the generic wording when the body
 // carries one. When TFS refused a version the user configured, the message
-// goes on to name the setting and what to do with it.
-func (c *Client) classify(status int, body []byte) error {
+// goes on to name the setting and what to do with it. When it refused a
+// request for carrying no version, sent so because negotiation failed for the
+// reason in fallback, the message says that and where a version is set.
+func (c *Client) classify(status int, body []byte, fallback string) error {
 	category, generic := categoryFor(status)
 	message := generic
 	payload := parseServerError(body)
 	if payload.message != "" {
 		message = payload.message
 	}
-	if versionErrorTypeKeys[payload.typeKey] && c.apiVersion != "" {
+	switch {
+	case versionErrorTypeKeys[payload.typeKey] && c.apiVersion != "":
 		message += fmt.Sprintf(" (api-version %q is set by %s; remove it to let the server choose the version, or set one the server supports)",
 			c.apiVersion, c.apiVersionSource)
+	case fallback != "" && payload.versionMissing():
+		message += " (" + missingVersionStep(fallback) + ")"
 	}
 	return &tfserr.Error{
 		Category:   category,
@@ -375,6 +389,29 @@ type serverError struct {
 	// VssVersionOutOfRangeException. Unlike message, it does not depend on
 	// the language the server is installed in.
 	typeKey string
+}
+
+// versionMissing reports whether e refuses a request for carrying no API
+// version. The typeKey decides when there is one, since the message depends
+// on the language the server is installed in.
+func (e serverError) versionMissing() bool {
+	if e.typeKey != "" {
+		return e.typeKey == missingVersionTypeKey
+	}
+	return strings.HasPrefix(e.message, missingVersionMessage)
+}
+
+// missingVersionStep is the next step for a request refused for carrying no
+// API version after negotiation failed for reason: where to set a version and
+// how to choose its value.
+func missingVersionStep(reason string) string {
+	file := "the config file"
+	if path, err := config.DefaultPath(); err == nil {
+		file = path
+	}
+	return "the API version could not be negotiated: " + reason +
+		`; set one with "apiVersion" in ` + file + ", TFSCLI_API_VERSION, or --api-version, " +
+		`no higher than the server supports (see "REST API version" in the tfscli README)`
 }
 
 // parseServerError extracts the "message" and "typeKey" fields of a TFS

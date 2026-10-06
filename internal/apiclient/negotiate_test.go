@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"path/filepath"
 	"slices"
 	"testing"
 
@@ -301,6 +302,108 @@ func TestNegotiationFallsBack(t *testing.T) {
 			}
 			if want := []string{tt.info}; !slices.Equal(logger.infos, want) {
 				t.Errorf("infos = %q, want %q", logger.infos, want)
+			}
+		})
+	}
+}
+
+const missingVersionReply = `{"$id":"1","message":"No api-version was supplied for the \"POST\" request.","typeKey":"VssVersionNotSpecifiedException"}`
+
+// refusingServer answers OPTIONS with optionsStatus and every other request
+// with HTTP 400 and reply.
+func refusingServer(t *testing.T, optionsStatus int, reply string) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(optionsStatus)
+			return
+		}
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(reply))
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func TestMissingVersionAfterFallbackNamesTheSettings(t *testing.T) {
+	cfgHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	cfgPath := filepath.Join(cfgHome, "tfscli", "config.json")
+	step := ` (the API version could not be negotiated: OPTIONS returned HTTP 405; ` +
+		`set one with "apiVersion" in ` + cfgPath + `, TFSCLI_API_VERSION, or --api-version, ` +
+		`no higher than the server supports (see "REST API version" in the tfscli README))`
+
+	tests := []struct {
+		name  string
+		reply string
+		want  string
+	}{
+		{
+			name:  "typeKey",
+			reply: missingVersionReply,
+			want:  `No api-version was supplied for the "POST" request.` + step,
+		},
+		{
+			name:  "message without a typeKey",
+			reply: `{"message":"No api-version was supplied for the \"POST\" request."}`,
+			want:  `No api-version was supplied for the "POST" request.` + step,
+		},
+		{
+			name:  "another refusal",
+			reply: `{"message":"TF51005: The query references a field that does not exist.","typeKey":"QueryException"}`,
+			want:  "TF51005: The query references a field that does not exist.",
+		},
+		{
+			name:  "message of another error without a typeKey",
+			reply: `{"message":"Some other problem."}`,
+			want:  "Some other problem.",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := refusingServer(t, http.StatusMethodNotAllowed, tt.reply)
+			client, _ := newUnversionedClient(t, srv.URL)
+
+			_, err := client.Post(t.Context(), testLocation, "_apis/wit/wiql", nil, map[string]string{})
+
+			te := assertTFSError(t, err, tfserr.Config)
+			if te.Message != tt.want {
+				t.Errorf("message = %q, want %q", te.Message, tt.want)
+			}
+		})
+	}
+}
+
+func TestMissingVersionWithoutFallbackKeepsTheMessage(t *testing.T) {
+	tests := []struct {
+		name     string
+		location string
+	}{
+		// No location: the request was meant to go without a version.
+		{"no location", ""},
+		// A wrong typeKey on a negotiated request is not a missing version.
+		{"negotiated", testLocation},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method == http.MethodOptions {
+					_, _ = w.Write([]byte(optionsBody))
+					return
+				}
+				w.WriteHeader(http.StatusBadRequest)
+				_, _ = w.Write([]byte(missingVersionReply))
+			}))
+			t.Cleanup(srv.Close)
+			client, _ := newUnversionedClient(t, srv.URL)
+
+			_, err := client.Post(t.Context(), tt.location, "_apis/wit/wiql", nil, map[string]string{})
+
+			te := assertTFSError(t, err, tfserr.Config)
+			if want := `No api-version was supplied for the "POST" request.`; te.Message != want {
+				t.Errorf("message = %q, want %q", te.Message, want)
 			}
 		})
 	}

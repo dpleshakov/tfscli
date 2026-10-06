@@ -154,7 +154,7 @@ value must not exceed the highest version the server supports, as listed in
 the "REST API version" section of `README.md`.
 **Definition of done:** Tests cover the refusal after a fallback; a refusal
 of a configured version keeps its current message. `make check` passes.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-05 `docs`
 **Description:** Bring the documents in line with the new behaviour: the
