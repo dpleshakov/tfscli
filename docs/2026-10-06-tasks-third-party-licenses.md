@@ -112,7 +112,7 @@ rewording its mentions in `README.md` and `.gitignore`.
 `check`.
 **Definition of done:** `make check` is green and runs the target; with a
 license removed from `--allowed_licenses`, the target fails.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-06 `docs`
 **Description:** Document the change: `README.md` (the `licenses` command, the
