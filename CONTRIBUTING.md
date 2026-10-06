@@ -9,7 +9,7 @@ The developer handbook for this repository. `README.md` documents the tool for i
 | `make build` | `go vet`, `go test`, then builds the binary into the repository root | While working on the code |
 | `make lint` | `go mod tidy -diff`, which fails if `go.mod` or `go.sum` drifted from the imports, and `golangci-lint run` | Before committing |
 | `make test` | Measures coverage of `internal/...` and fails below 85% | While working on tests |
-| `make licenses` | `go-licenses check`, which fails if a dependency linked into the binary is under a license other than MIT, BSD-3-Clause, or Apache-2.0 | Before committing a dependency change |
+| `make licenses` | `go-licenses check` for each of the six release platforms (`tools/check-licenses.go`), which fails if a dependency linked into the binary is under a license other than MIT, BSD-3-Clause, or Apache-2.0 | Before committing a dependency change |
 | `make check` | `build`, `lint`, `test`, and `licenses` | Before pushing — CI runs exactly this |
 | `make clean` | Removes the binary, `coverage.out`, `dist/`, and the license sets a snapshot generates, through `git clean`, touching nothing else | Any time |
 
@@ -42,10 +42,10 @@ GOOS=windows GOARCH=amd64 go build ./cmd/tfscli
   time it was cut; `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2`
   builds it with the Go you have. CI pins v2.13 against Go 1.26.
 
-Every other target needs Go alone; `make licenses` fetches go-licenses through
-`go run`. [`goreleaser`](https://goreleaser.com) v2 is needed only to preview a release
-locally (see "Releasing"); the release itself installs it in the workflow. The preview
-installs go-licenses with `go install` and runs it by name, so Go's install directory —
+Every other target needs Go alone; `make licenses` installs go-licenses into a
+temporary directory itself. [`goreleaser`](https://goreleaser.com) v2 is needed only to
+preview a release locally (see "Releasing"); the release itself installs it in the
+workflow. The preview installs go-licenses with `go install` and runs it by name, so Go's install directory —
 `$(go env GOBIN)`, or `$(go env GOPATH)/bin` when that is unset — must be on `PATH`.
 
 ## Code rules
@@ -208,10 +208,13 @@ What the job does, in order: `make check` on the commit it is about to tag; then
 `## [Unreleased]`, so that the unreleased entries become the new version and
 `[Unreleased]` is left empty; then `tools/release-notes.go`, which reads that section back
 from the rewritten changelog into a file outside the repository and prints it to the log;
-then the commit `Release X.Y.Z`, the tag, and the push; then goreleaser, run directly by
-its action rather than through the `Makefile`. goreleaser first installs go-licenses
-v2.0.1, which it finds because `actions/setup-go` puts `$(go env GOPATH)/bin` on `PATH`;
-each build then saves the licenses of its target's dependencies into
+then `goreleaser build --snapshot`, which builds the six binaries and publishes nothing,
+and a check that each platform's license set was generated and that the linux/amd64
+binary prints it; then the commit `Release X.Y.Z`, the tag, and the push; then
+goreleaser, run directly by its action rather than through the `Makefile`. Both
+goreleaser runs first install go-licenses v2.0.1, which they find because
+`actions/setup-go` puts `$(go env GOPATH)/bin` on `PATH`; each build then saves the
+licenses of its target's dependencies into
 `internal/licenses/embed/<os>-<arch>/third-party/`, which the binary embeds and
 `tfscli licenses` prints. The result is six archives — linux, windows, darwin × amd64,
 arm64 — each unpacking into a directory of its own name and holding the binary,
@@ -242,7 +245,8 @@ repository exactly as it was — fix it through a pull request and run the workf
 
 - `make check` is red on the commit being released;
 - the version is not of the form `X.Y.Z`, or the changelog already has a section for it;
-- `[Unreleased]` has no entries, so there is nothing to release.
+- `[Unreleased]` has no entries, so there is nothing to release;
+- the snapshot build fails, or a binary would ship without its third-party licenses.
 
 After the push the failure to expect is a release body that is wrong rather than
 unusable — the wrong entries under `[Unreleased]`, say. The release is a draft, so delete

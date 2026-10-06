@@ -44,13 +44,13 @@ test:
 	go tool cover -func=coverage.out
 	go run tools/check-coverage.go 85
 
-# Fail when a dependency linked into the binary is under a license not on the
-# list. Every license here allows a binary distribution that carries its text,
-# which tfscli licenses does; a new one is a decision, not an edit of the list.
-# `go run` with a version needs nothing installed and leaves go.mod alone. The
-# check follows the dependencies of the platform it runs on.
+# Fail when a dependency linked into the binary on any release platform is
+# under a license outside the allowed list, which tools/check-licenses.go
+# holds. It runs go-licenses once per platform, since the dependencies differ
+# by platform, and installs it in a temporary directory, so nothing is needed
+# beforehand and go.mod is left alone.
 licenses:
-	go run github.com/google/go-licenses/v2@v2.0.1 check ./cmd/tfscli --allowed_licenses=MIT,BSD-3-Clause,Apache-2.0
+	go run tools/check-licenses.go
 
 # Everything the project verifies, in one target. This is what CI runs.
 check: build lint test licenses
