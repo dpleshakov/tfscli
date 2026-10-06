@@ -18,22 +18,23 @@ type fakeClient struct {
 	body []byte
 	err  error
 
-	method string
-	path   string
-	query  url.Values
-	sent   any
+	method   string
+	location string
+	path     string
+	query    url.Values
+	sent     any
 }
 
-func (c *fakeClient) Get(_ context.Context, path string, query url.Values) ([]byte, error) {
-	c.method, c.path, c.query = "GET", path, query
+func (c *fakeClient) Get(_ context.Context, location, path string, query url.Values) ([]byte, error) {
+	c.method, c.location, c.path, c.query = "GET", location, path, query
 	if c.err != nil {
 		return nil, c.err
 	}
 	return c.body, nil
 }
 
-func (c *fakeClient) Post(_ context.Context, path string, query url.Values, body any) ([]byte, error) {
-	c.method, c.path, c.query, c.sent = "POST", path, query, body
+func (c *fakeClient) Post(_ context.Context, location, path string, query url.Values, body any) ([]byte, error) {
+	c.method, c.location, c.path, c.query, c.sent = "POST", location, path, query, body
 	if c.err != nil {
 		return nil, c.err
 	}
@@ -88,22 +89,23 @@ func TestGetRequestsDocumentedPath(t *testing.T) {
 func TestEscapesProjectInPath(t *testing.T) {
 	const project = "100% Done"
 	tests := []struct {
-		name string
-		read func(*fakeClient) error
-		want string
+		name     string
+		read     func(*fakeClient) error
+		want     string
+		location string
 	}{
 		{"get", func(c *fakeClient) error {
 			_, err := Get(context.Background(), c, project, 12345, nil)
 			return err
-		}, "100%25%20Done/_apis/wit/workitems/12345"},
+		}, "100%25%20Done/_apis/wit/workitems/12345", "72c7ddf8-2cdc-4f60-90cd-ab71c14a399b"},
 		{"list", func(c *fakeClient) error {
 			_, err := List(context.Background(), c, project, BatchRequest{IDs: []int{297}})
 			return err
-		}, "100%25%20Done/_apis/wit/workitems"},
+		}, "100%25%20Done/_apis/wit/workitems", "72c7ddf8-2cdc-4f60-90cd-ab71c14a399b"},
 		{"get-batch", func(c *fakeClient) error {
 			_, err := GetBatch(context.Background(), c, project, BatchRequest{IDs: []int{297}})
 			return err
-		}, "100%25%20Done/_apis/wit/workitemsbatch"},
+		}, "100%25%20Done/_apis/wit/workitemsbatch", "908509b6-4248-4475-a1cd-829139ba419f"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -113,6 +115,9 @@ func TestEscapesProjectInPath(t *testing.T) {
 			}
 			if client.path != tt.want {
 				t.Errorf("requested path %q, want %q", client.path, tt.want)
+			}
+			if client.location != tt.location {
+				t.Errorf("location = %q, want %q", client.location, tt.location)
 			}
 		})
 	}

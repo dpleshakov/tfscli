@@ -247,16 +247,17 @@ func inputError(what string, err error) error {
 // live server answered 401 at the server level to a PAT it accepted at the
 // collection level. HTTP failures come back in their usual categories.
 func (g *globals) verify(ctx context.Context, cfg *config.Config) (string, error) {
-	// The request carries no api-version, whatever the config file says:
-	// connectionData has no released version, so a version pinned for the
-	// other commands would be refused for it, and without one the server
-	// answers at its latest preview version.
+	// The request carries no api-version, whatever the config file says, and
+	// none is negotiated, which the empty location ensures: connectionData has
+	// no released version, so a version pinned for the other commands would be
+	// refused for it, and without one the server answers at its latest preview
+	// version.
 	cfg.APIVersion = ""
 	client, err := apiclient.New(cfg, g.logger())
 	if err != nil {
 		return "", err
 	}
-	body, err := client.Get(ctx, "_apis/connectionData", nil)
+	body, err := client.Get(ctx, "", "_apis/connectionData", nil)
 	if err != nil {
 		return "", notFoundAt(err, cfg)
 	}

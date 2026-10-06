@@ -132,7 +132,7 @@ func TestWiqlQueryByWiqlRequest(t *testing.T) {
 			if s.rawPath != tt.rawPath {
 				t.Errorf("requested path %q, want %q", s.rawPath, tt.rawPath)
 			}
-			if !reflect.DeepEqual(s.query, tt.query) {
+			if !reflect.DeepEqual(commandQuery(t, s), tt.query) {
 				t.Errorf("query = %v, want %v", s.query, tt.query)
 			}
 			want, _ := json.Marshal(map[string]string{"query": testWiql})

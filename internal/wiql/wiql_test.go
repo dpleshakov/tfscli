@@ -16,13 +16,14 @@ type fakeClient struct {
 	body []byte
 	err  error
 
-	path  string
-	query url.Values
-	sent  any
+	location string
+	path     string
+	query    url.Values
+	sent     any
 }
 
-func (c *fakeClient) Post(_ context.Context, path string, query url.Values, body any) ([]byte, error) {
-	c.path, c.query, c.sent = path, query, body
+func (c *fakeClient) Post(_ context.Context, location, path string, query url.Values, body any) ([]byte, error) {
+	c.location, c.path, c.query, c.sent = location, path, query, body
 	if c.err != nil {
 		return nil, c.err
 	}
@@ -89,6 +90,9 @@ func TestQueryByWiqlRequestsPath(t *testing.T) {
 
 			if client.path != tt.want {
 				t.Errorf("requested path %q, want %q", client.path, tt.want)
+			}
+			if want := "1a9c53f7-f243-4447-b110-35ef023636e4"; client.location != want {
+				t.Errorf("location = %q, want %q", client.location, want)
 			}
 		})
 	}

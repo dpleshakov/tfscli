@@ -11,10 +11,15 @@ import (
 )
 
 // APIClient is the part of the API client this package uses: Post for Query
-// By Wiql.
+// By Wiql. location is the id under which the server lists the resource
+// among its API versions.
 type APIClient interface {
-	Post(ctx context.Context, path string, query url.Values, body any) ([]byte, error)
+	Post(ctx context.Context, location, path string, query url.Values, body any) ([]byte, error)
 }
+
+// wiqlLocation is the resource location id of Query By Wiql, with and without
+// a team, as the official SDKs give it.
+const wiqlLocation = "1a9c53f7-f243-4447-b110-35ef023636e4"
 
 // Request holds the parameters of Query By Wiql. Project and Team are the
 // optional path segments: an empty Project runs the query at collection
@@ -67,7 +72,7 @@ func QueryByWiql(ctx context.Context, client APIClient, req Request) (*Result, e
 		Query string `json:"query"`
 	}{req.Query}
 
-	resp, err := client.Post(ctx, path(req), query, body)
+	resp, err := client.Post(ctx, wiqlLocation, path(req), query, body)
 	if err != nil {
 		return nil, err
 	}

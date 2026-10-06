@@ -34,12 +34,26 @@ const workItemResponse = `{
   }
 }`
 
+// optionsResponse is the reply to OPTIONS on _apis: the resource locations
+// tfscli calls, each with its versions, as a server lists them.
+const optionsResponse = `{"count":3,"value":[
+  {"id":"72c7ddf8-2cdc-4f60-90cd-ab71c14a399b","area":"wit","resourceName":"workItems","minVersion":"1.0","maxVersion":"7.1","releasedVersion":"7.1","resourceVersion":3},
+  {"id":"908509b6-4248-4475-a1cd-829139ba419f","area":"wit","resourceName":"workItemsBatch","minVersion":"5.0","maxVersion":"7.1","releasedVersion":"7.1","resourceVersion":1},
+  {"id":"1a9c53f7-f243-4447-b110-35ef023636e4","area":"wit","resourceName":"wiql","minVersion":"1.0","maxVersion":"7.1","releasedVersion":"7.1","resourceVersion":2}
+]}`
+
 // server records the request the CLI made and answers with a canned response.
+// OPTIONS, which negotiates the API version, is answered with optionsStatus
+// and optionsResponse and is counted only in options, so that the other
+// fields describe the request of the command itself.
 type server struct {
 	*httptest.Server
 
 	status int
 	body   string
+
+	optionsStatus int
+	options       int
 
 	calls  int
 	method string
@@ -53,8 +67,17 @@ type server struct {
 
 func newServer(t *testing.T, status int, body string) *server {
 	t.Helper()
-	s := &server{status: status, body: body}
+	s := &server{status: status, body: body, optionsStatus: http.StatusOK}
 	s.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method == http.MethodOptions {
+			s.options++
+			w.WriteHeader(s.optionsStatus)
+			if s.optionsStatus == http.StatusOK {
+				_, _ = fmt.Fprint(w, optionsResponse)
+			}
+			return
+		}
 		s.calls++
 		s.method = r.Method
 		s.path = r.URL.Path
@@ -64,7 +87,6 @@ func newServer(t *testing.T, status int, body string) *server {
 		sent, _ := io.ReadAll(r.Body)
 		s.sent = string(sent)
 
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(s.status)
 		_, _ = fmt.Fprint(w, s.body)
 	}))
@@ -168,8 +190,11 @@ func TestWorkItemGetRequest(t *testing.T) {
 	if got, want := s.query.Get("fields"), "System.Title,System.State"; got != want {
 		t.Errorf("fields = %q, want %q — spaces around the comma are trimmed", got, want)
 	}
-	if _, ok := s.query["api-version"]; ok {
-		t.Errorf("query = %v, want no api-version when none is configured", s.query)
+	if got, want := s.query.Get("api-version"), "7.1"; got != want {
+		t.Errorf("api-version = %q, want %q, negotiated when none is configured", got, want)
+	}
+	if s.options != 1 {
+		t.Errorf("OPTIONS requests = %d, want 1", s.options)
 	}
 	if want := "Basic " + base64.StdEncoding.EncodeToString([]byte(":secret-token")); s.auth != want {
 		t.Errorf("Authorization = %q, want %q", s.auth, want)
@@ -213,6 +238,9 @@ func TestWorkItemGetConfiguredAPIVersion(t *testing.T) {
 			}
 			if got := s.query.Get("api-version"); got != tt.want {
 				t.Errorf("api-version = %q, want %q unchanged", got, tt.want)
+			}
+			if s.options != 0 {
+				t.Errorf("OPTIONS requests = %d, want none with a configured version", s.options)
 			}
 		})
 	}
@@ -603,8 +631,11 @@ func TestVerboseLogsTheRequestToStderr(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0 (stderr: %s)", code, stderr)
 	}
-	if !strings.HasPrefix(stderr, "GET "+s.URL) {
-		t.Errorf("stderr = %q, want a logged GET request", stderr)
+	lines := strings.Split(strings.TrimSuffix(stderr, "\n"), "\n")
+	if len(lines) != 2 ||
+		!strings.HasPrefix(lines[0], "OPTIONS "+s.URL+"/DefaultCollection/_apis ") ||
+		!strings.HasPrefix(lines[1], "GET "+s.URL+"/DefaultCollection/MyProject/_apis/wit/workitems/12345?api-version=7.1 ") {
+		t.Errorf("stderr = %q, want the OPTIONS request and then the GET request with the negotiated version", stderr)
 	}
 	if strings.Contains(stderr, "secret-token") {
 		t.Error("the log line contains the PAT")
@@ -745,11 +776,28 @@ func TestWorkItemListRequest(t *testing.T) {
 			if want := "/DefaultCollection/MyProject/_apis/wit/workitems"; s.path != want {
 				t.Errorf("requested path %q, want %q", s.path, want)
 			}
-			if got, want := s.query.Encode(), tt.want.Encode(); got != want {
+			if got, want := commandQuery(t, s).Encode(), tt.want.Encode(); got != want {
 				t.Errorf("query = %q, want %q", got, want)
 			}
 		})
 	}
+}
+
+// commandQuery returns the query s received without api-version, after
+// checking that it carries the version negotiated from optionsResponse: what
+// remains are the parameters of the command itself.
+func commandQuery(t *testing.T, s *server) url.Values {
+	t.Helper()
+	if got, want := s.query.Get("api-version"), "7.1"; got != want {
+		t.Errorf("api-version = %q, want the negotiated %q", got, want)
+	}
+	q := url.Values{}
+	for k, v := range s.query {
+		if k != "api-version" {
+			q[k] = v
+		}
+	}
+	return q
 }
 
 func TestWorkItemBatchReportsServerErrors(t *testing.T) {
@@ -879,8 +927,8 @@ func TestWorkItemGetBatchRequest(t *testing.T) {
 			if want := "/DefaultCollection/MyProject/_apis/wit/workitemsbatch"; s.path != want {
 				t.Errorf("requested path %q, want %q", s.path, want)
 			}
-			if len(s.query) != 0 {
-				t.Errorf("query = %v, want none: the parameters belong in the body", s.query)
+			if q := commandQuery(t, s); len(q) != 0 {
+				t.Errorf("query = %v, want only api-version: the parameters belong in the body", s.query)
 			}
 			if s.sent != tt.want {
 				t.Errorf("body = %s, want %s", s.sent, tt.want)

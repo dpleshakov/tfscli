@@ -50,6 +50,17 @@ func TestWriterLoggerWarn(t *testing.T) {
 	}
 }
 
+func TestWriterLoggerInfo(t *testing.T) {
+	var sb strings.Builder
+	l := New(&sb)
+
+	l.Info("api-version not negotiated")
+
+	if got, want := sb.String(), "[info] api-version not negotiated\n"; got != want {
+		t.Errorf("Info() wrote %q, want %q", got, want)
+	}
+}
+
 var (
 	_ Logger = Noop()
 	_ Logger = New(io.Discard)
@@ -63,4 +74,5 @@ func TestNoopDoesNotPanic(t *testing.T) {
 
 	l.LogRequest("GET", "https://tfs.company.com/coll/_apis/a", 200, time.Second)
 	l.Warn("TLS verification disabled")
+	l.Info("api-version not negotiated")
 }
