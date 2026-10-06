@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-06
+
 ### Changed
 - A server URL entered at `tfscli auth login` with a user name or password, such as `https://user:password@host/tfs`, is now refused with a `config` error that does not repeat the URL, where it used to be stored and printed back with the password.
 
