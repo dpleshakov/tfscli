@@ -8,7 +8,7 @@ The workflow is defined by four process skills kept in the repository under `.cl
 
 ## Project state
 
-The MVP is implemented: `tfscli wit work-items get` works end to end, `tfscli wit work-items list` and `tfscli wit work-items get-batch` read several work items by id, `tfscli wit wiql query-by-wiql` finds work item ids with a WIQL query, and the module has one package per architecture module (see the "Project Structure" section of `docs/architecture.md`). Release 0.0.5, which predates the current command names, has been run against a live TFS instance: `auth login` and reading one work item (`get`) work there; `list`, `get-batch`, and `query-by-wiql` have not been run against a live server yet; the error paths and rich-text rendering on real data have not been checked yet — see the "Status" and "Known limitations" sections of `README.md`. Accepted work that has not started is listed in `docs/backlog.md`; work in progress goes through tasks files per the `tasks` skill.
+The MVP is implemented and released: `tfscli auth login` stores the credential, `tfscli wit work-items get` reads one work item, `tfscli wit work-items list` and `tfscli wit work-items get-batch` read several work items by id, `tfscli wit wiql query-by-wiql` finds work item ids with a WIQL query, and the module has one package per architecture module (see the "Project Structure" section of `docs/architecture.md`). Known defects are listed in the "Known limitations" section of `README.md`. Accepted work that has not started is listed in `docs/backlog.md`; work in progress goes through tasks files per the `tasks` skill.
 
 Read these before the corresponding kind of change (the full list of project documents is in "Project documents" in `CONTRIBUTING.md`):
 
