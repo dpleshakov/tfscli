@@ -2,6 +2,32 @@
 
 Accepted work that has not started yet, in priority order.
 
+### `workitem-relations`
+**Goal:** An agent reading a work item sees the work items linked to it — parent,
+children, related, duplicates — without composing a WIQL link query.
+**Context:** "Key Success Metrics" in `docs/project-brief.md` includes referencing
+related work items. Relations are not fields: the API returns them only with
+`$expand`, and the printer renders fields only. Decisions already made:
+- `--expand` is exposed on `wit work-items get`, `list`, and `get-batch` at once,
+  together with rendering relations and not before it: a flag whose result the
+  printer drops would be accepted and silently ignored (recorded in
+  `docs/archive/2026-10-04-tasks-domains-1-workitem-batch.md`).
+- The flag follows the naming rule in "Follow TFS API structure": `$expand` is
+  `--expand`, and its value is passed to the server unchecked.
+
+Open questions:
+- How a relation is printed: the link type reference name, the target work item id
+  taken from its URL, and the link attributes such as the comment; how relations
+  that point to something other than a work item (hyperlinks, attachments, commits)
+  are printed.
+- The server is expected to refuse `$expand` combined with `fields` (unverified);
+  whether tfscli says anything beyond passing the server's error through.
+- What the other values of `$expand` (`fields`, `links`, `all`) change in the
+  output, if anything.
+- The server versions on which `$expand` is available, under "Server compatibility
+  is preserved".
+**Added:** 2026-10-06, in conversation on the MVP coverage
+
 ### `git-pull-requests`
 **Goal:** An agent can read pull requests, their comment threads, and the work items
 linked to them.
