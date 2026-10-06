@@ -118,7 +118,8 @@ This document records the technology stack, the architecture, and the project st
 - The dependencies differ by platform (`inconshreveable/mousetrap` is linked on Windows only), so the set is generated per target, by a build pre-hook in `.goreleaser.yaml` with the target's `GOOS` and `GOARCH`, and each binary embeds the set of its own platform. The hook runs without a shell. go-licenses is installed by a `before` hook for the platform goreleaser runs on; `go run` in the build hook would build it for the target platform instead.
 - go-licenses skips the standard library, so its license is a committed copy, `internal/licenses/go.LICENSE`, which a test keeps equal to the toolchain's.
 - tfscli's own license is embedded too, as `internal/licenses/tfscli.LICENSE`, which a test keeps equal to `LICENSE`. The project owes no notice to itself, but whoever passes the binary on owes one, and finds it in the binary. It is a committed copy rather than part of the generated set, so that every build carries it and it is not listed among the third-party modules; the generated set excludes tfscli with `--ignore`.
-- `make check` runs `go-licenses check` with the allowed licenses, so a dependency under another license fails the pull request that brings it.
+- `make check` runs `go-licenses check` with the allowed licenses for each release platform, through `tools/check-licenses.go`, so a dependency under another license fails the pull request that brings it, whichever platform links it. The program installs go-licenses for the platform it runs on before setting each target's `GOOS` and `GOARCH`, for the same reason as the `before` hook.
+- The release workflow builds a snapshot before it pushes anything and checks that every platform's set was generated and that the linux/amd64 binary prints it, so that a hook that left a binary without its licenses stops the release before the tag.
 
 **Considered alternatives:**
 
