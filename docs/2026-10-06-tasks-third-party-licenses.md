@@ -78,7 +78,7 @@ Ignore the generated `third-party/` directories in `.gitignore`, and make
 **Definition of done:** Tests cover the output with a set, without a set, and
 the comparison of `go.LICENSE` with the toolchain's `LICENSE`; `make check` is
 green with coverage of `internal/...` at 85% or above.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-02 `licenses-command`
 **Description:** Add `tfscli licenses` to `internal/cli`, printing the output
@@ -86,7 +86,7 @@ of `internal/licenses` to stdout.
 **Definition of done:** Tests show that the command prints the output, runs
 without a credential or a config file, and refuses arguments; `make check` is
 green.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-03 `release-generation`
 **Description:** Add the `before` hook installing go-licenses and the build

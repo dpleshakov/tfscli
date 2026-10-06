@@ -1,0 +1,3 @@
+The release build writes the third-party licenses of this platform into
+third-party/ next to this file. The file keeps the directory, and go:embed
+with it, working in every other build.

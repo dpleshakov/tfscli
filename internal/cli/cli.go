@@ -96,6 +96,7 @@ func newRoot(b build, stdin prompter, stdout, stderr io.Writer) *cobra.Command {
 
 	root.AddCommand(newAuthCmd(g))
 	root.AddCommand(newWitCmd(g))
+	root.AddCommand(newLicensesCmd(g))
 	return root
 }
 
