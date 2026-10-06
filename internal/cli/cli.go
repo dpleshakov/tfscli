@@ -92,7 +92,7 @@ func newRoot(b build, stdin prompter, stdout, stderr io.Writer) *cobra.Command {
 
 	f := root.PersistentFlags()
 	f.BoolVar(&g.verbose, "verbose", false, "log every request to stderr (also TFSCLI_VERBOSE=1)")
-	f.StringVar(&g.apiVersion, "api-version", "", "REST API version (TFSCLI_API_VERSION; by default none is sent and the server chooses)")
+	f.StringVar(&g.apiVersion, "api-version", "", "REST API version (TFSCLI_API_VERSION; by default it is negotiated with the server)")
 
 	root.AddCommand(newAuthCmd(g))
 	root.AddCommand(newWitCmd(g))

@@ -159,7 +159,7 @@ Every setting apart from the credential:
 | Setting | Config key | Environment variable | Flag | Default | Required |
 |---|---|---|---|---|---|
 | Team project | `project` | `TFSCLI_PROJECT` | `-p`, `--project` | — | per command |
-| REST API version | `apiVersion` | `TFSCLI_API_VERSION` | `--api-version` | none | no |
+| REST API version | `apiVersion` | `TFSCLI_API_VERSION` | `--api-version` | negotiated with the server | no |
 | Request logging | — | `TFSCLI_VERBOSE=1` | `--verbose` | off | no |
 | CA bundle | `caBundle` | — | — | none | no |
 | Skip certificate verification | `insecureSkipVerify` | — | — | `false` | no |
@@ -183,9 +183,11 @@ The config file is optional: every setting it holds, except the TLS ones, can be
 
 ### REST API version
 
-By default no `api-version` is sent, and the server answers at the version it chooses. The commands that send a GET request, `wit work-items get` and `wit work-items list`, need no setting to work with any server release.
+Without a configured version, tfscli asks the server for one. Each command first sends `OPTIONS` to `{url}/{collection}/_apis`, which lists every resource of the server with its versions, and the request then carries the released version of its resource. That is the version the server would choose for a request without one, so no setting is needed on any server release. The extra request shows under `--verbose`.
 
-`wit work-items get-batch` and `wit wiql query-by-wiql` send a POST request, which a server may refuse without a version: it then reports a `config` error saying that no `api-version` was supplied, and a version has to be set with any of the three settings above. Otherwise set a version only to pin the shape of the response. `auth login` does not use this setting.
+If the server does not answer `OPTIONS` with that list, the request is sent without a version, and `--verbose` says why. A server may refuse a POST request without a version — `wit work-items get-batch` and `wit wiql query-by-wiql` send one — and the `config` error then names the settings above. A token the server does not accept, or a server that cannot be reached, is reported at once.
+
+A configured version is sent unchanged, without `OPTIONS`. Set one only for a server that refuses requests without a version, or to pin the shape of the response. `auth login` does not use this setting.
 
 The version must not exceed the highest one the server supports:
 
@@ -317,11 +319,18 @@ An empty result reads `Work items: none` or `Relations: none`. The time of the r
 
 ### Request logging
 
-`--verbose` writes one line per request to stderr — method, URL, status, duration — leaving stdout clean for the markdown. Headers and bodies are never logged, so the PAT cannot leak through it. A failed round trip is logged with status `0`.
+`--verbose` writes one line per request to stderr — method, URL, status, duration — leaving stdout clean for the markdown. Headers and bodies are never logged, so the PAT cannot leak through it. A failed round trip is logged with status `0`. The `OPTIONS` request that negotiates the API version is logged like any other:
 
 ```
 $ tfscli wit work-items get -p MyProject 12345 --verbose
-GET https://tfs.company.com:8080/tfs/DefaultCollection/MyProject/_apis/wit/workitems/12345 200 86.4512ms
+OPTIONS https://tfs.company.com:8080/tfs/DefaultCollection/_apis 200 41.2087ms
+GET https://tfs.company.com:8080/tfs/DefaultCollection/MyProject/_apis/wit/workitems/12345?api-version=7.1 200 86.4512ms
+```
+
+Lines starting with `[warn]` report a condition worth knowing, such as disabled certificate verification; lines starting with `[info]` report what tfscli did on its own, such as sending a request without a version:
+
+```
+[info] api-version not negotiated (OPTIONS returned HTTP 405); sending the request without it
 ```
 
 ## Errors
@@ -340,7 +349,7 @@ The `(HTTP status)` part is omitted for errors that did not come from an HTTP re
 | `forbidden` | Authenticated, but access was denied (HTTP 403). |
 | `not_found` | The work item, project, or team does not exist (HTTP 404). During `auth login`, the server URL or the collection leads nowhere. |
 | `server` | TFS failed or returned an unparseable response (HTTP 5xx). |
-| `config` | Missing or invalid configuration, a bad argument, or a request TFS rejected. When TFS refuses a configured API version, the message names the setting it came from. |
+| `config` | Missing or invalid configuration, a bad argument, or a request TFS rejected. When TFS refuses a configured API version, the message names the setting it came from; when it refuses a request for carrying no version, after the version could not be negotiated, the message names the settings that supply one. |
 | `network` | The server could not be reached, or the request timed out or was canceled. |
 
 Examples:

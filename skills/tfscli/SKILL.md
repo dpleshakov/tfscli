@@ -7,7 +7,7 @@ description: Read work items from an on-premises TFS / Azure DevOps Server with 
 
 `tfscli` is a single-binary, read-only client for the TFS / Azure DevOps Server
 REST API. It is stateless: there is no daemon and no cache, and every
-invocation performs one HTTP request against the server.
+invocation performs its requests against the server anew.
 
 The requests it issues are:
 
@@ -18,8 +18,9 @@ POST <url>/<collection>/<project>/_apis/wit/workitemsbatch         wit work-item
 POST <url>/<collection>[/<project>[/<team>]]/_apis/wit/wiql         wit wiql query-by-wiql
 ```
 
-with `api-version=<version>` added to the query only when a version is
-configured.
+with `api-version=<version>` added to the query. Unless a version is
+configured, each of them is preceded by `OPTIONS <url>/<collection>/_apis`,
+which tells tfscli the version the server supports for the resource.
 
 Authentication is a personal access token sent as HTTP Basic with an empty user
 name. Output is markdown on stdout; errors are one line on stderr.
@@ -101,7 +102,7 @@ OS), environment variables, command-line flags.
 | Setting | Config key | Environment variable | Flag | Default | Required |
 |---|---|---|---|---|---|
 | Team project | `project` | `TFSCLI_PROJECT` | `-p`, `--project` | — | per command |
-| REST API version | `apiVersion` | `TFSCLI_API_VERSION` | `--api-version` | none | no |
+| REST API version | `apiVersion` | `TFSCLI_API_VERSION` | `--api-version` | negotiated with the server | no |
 | Request logging | — | `TFSCLI_VERBOSE=1` | `--verbose` | off | no |
 
 Two further keys are accepted in the config file only, with no environment
@@ -109,17 +110,19 @@ variable and no flag: `caBundle` (path to a PEM bundle appended to the system
 root pool, for an internal CA) and `insecureSkipVerify` (disables certificate
 verification entirely).
 
-Without a configured API version no `api-version` is sent, and the server
-answers at the version it chooses. A configured version is sent unchanged. Do
-not set one unless the user asks for it.
+Without a configured API version, tfscli negotiates one with the server for
+each request; nothing has to be set. A configured version is sent unchanged.
+Do not set one unless the user asks for it.
 
-`wit work-items get-batch` and `wit wiql query-by-wiql` send a POST request,
-and a server may refuse a POST without a version: the `config` error then says
-that no `api-version` was supplied. Do not pick a version yourself, and do not
-take the `1.0` from the server's example. Report the error and let the user set
-the version their server supports, with `--api-version`, `TFSCLI_API_VERSION`,
-or `apiVersion` in the config file. For `get-batch`, `wit work-items list`
-reads the same work items with a GET and needs no version.
+When the server does not answer the negotiation, the request is sent without
+a version. `wit work-items get-batch` and `wit wiql query-by-wiql` send a POST
+request, which a server may then refuse: the `config` error says that no
+`api-version` was supplied and that the version could not be negotiated. Do not
+pick a version yourself, and do not take the `1.0` from the server's example.
+Report the error and let the user set the version their server supports, with
+`--api-version`, `TFSCLI_API_VERSION`, or `apiVersion` in the config file. For
+`get-batch`, `wit work-items list` reads the same work items with a GET, which
+servers accept without a version.
 
 The config file is optional. Environment variables and flags alone are enough,
 so `-p` can carry everything a call needs beyond the credential.
@@ -139,7 +142,7 @@ request.
 |---|---|
 | `-p`, `--project` | Team project. Required unless `project` is in the config file or `TFSCLI_PROJECT` is set. |
 | `--fields` | Comma-separated TFS reference names. Without it, every field is printed. |
-| `--verbose` | One line per request to stderr: method, URL, status, duration. Never headers or bodies. |
+| `--verbose` | One line per request to stderr, the `OPTIONS` request that negotiates the API version included: method, URL, status, duration. Never headers or bodies. A line starting with `[info]` says what tfscli did on its own, such as sending a request without a version. |
 
 Narrow the request whenever the needed fields are known — a full work item can
 be large, and its tokens are paid for on every call:
@@ -328,7 +331,7 @@ removed or renamed, though new ones may appear.
 | `forbidden` | HTTP 403 — authenticated, but access denied. | Do not retry. The PAT lacks the scope, or the project is closed to this user. Report it. |
 | `not_found` | HTTP 404 — no such work item, project, or team. For `wit work-items list` and `wit work-items get-batch`, one missing id is enough. | Check the id, the project, and the team spelling against what the user gave. Do not scan ids looking for a match. For several ids, retry once with `--error-policy omit` to learn which are missing. |
 | `server` | HTTP 5xx, or a response that could not be parsed. | One retry is reasonable. If it repeats, report the server as unavailable. |
-| `config` | A missing or invalid setting, a missing or malformed credential, a bad argument, or a request TFS rejected — a 4xx other than 401, 403, and 404, such as an unknown field name or an unsupported API version. A refused API version names the setting it came from — `--api-version`, `TFSCLI_API_VERSION`, or `apiVersion` in the config file — and the next step. | Fix the invocation if the fault is in it. If the API version was refused and it came from `--api-version` you passed, drop the flag and retry; if it came from the environment or the config file, report the message to the user rather than changing the setting. If a setting is missing, report what is missing; do not write the config file. If the user is not logged in, tell them to run `tfscli auth login`. |
+| `config` | A missing or invalid setting, a missing or malformed credential, a bad argument, or a request TFS rejected — a 4xx other than 401, 403, and 404, such as an unknown field name or an unsupported API version. A refused API version names the setting it came from — `--api-version`, `TFSCLI_API_VERSION`, or `apiVersion` in the config file — and the next step. A request refused for carrying no version, sent so because the version could not be negotiated, names those three settings. | Fix the invocation if the fault is in it. If no version could be negotiated, report the message to the user; do not set a version yourself. If the API version was refused and it came from `--api-version` you passed, drop the flag and retry; if it came from the environment or the config file, report the message to the user rather than changing the setting. If a setting is missing, report what is missing; do not write the config file. If the user is not logged in, tell them to run `tfscli auth login`. |
 | `network` | The server could not be reached, or the request timed out or was canceled. | Do not repeat the call in a loop. Report the server as unreachable and let the user check the URL and their connection. |
 
 Representative messages:

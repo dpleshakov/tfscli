@@ -1,6 +1,6 @@
 # 2026-10-06-tasks-api-version-negotiation.md
 
-**Status:** Active
+**Status:** Archived
 
 ## Context
 
@@ -169,4 +169,4 @@ skill.
 `api-version` only when one is configured; the README describes the
 `OPTIONS` request and the fallback; the changelog entry is in place. `make
 check` passes.
-**Status:** Pending
+**Status:** Done
