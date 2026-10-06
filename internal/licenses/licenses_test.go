@@ -10,6 +10,12 @@ import (
 	"testing/fstest"
 )
 
+// fixed stands in for the licenses every build carries.
+var fixed = []license{
+	{name: "tfscli", text: "OWN LICENSE\n"},
+	{name: "Go standard library and runtime", text: "GO LICENSE\n"},
+}
+
 func TestTextWithSet(t *testing.T) {
 	set := fstest.MapFS{
 		"github.com/spf13/cobra/LICENSE.txt":           {Data: []byte("Apache License\n")},
@@ -21,9 +27,10 @@ func TestTextWithSet(t *testing.T) {
 		"github.com/JohannesKaufmann/dom/LICENSE.more": {Data: []byte("More\n")},
 	}
 
-	got := text("GO LICENSE\n", set)
+	got := text(fixed, set)
 
-	wantList := "tfscli includes the following components:\n\n" +
+	wantList := "The tfscli binary contains the following components:\n\n" +
+		"  tfscli\n" +
 		"  Go standard library and runtime\n" +
 		"  github.com/JohannesKaufmann/dom\n" +
 		"  github.com/JohannesKaufmann/dom/sub\n" +
@@ -41,6 +48,7 @@ func TestTextWithSet(t *testing.T) {
 		return "\n" + separator + "\n" + name + "\n" + separator + "\n\n" + body
 	}
 	for _, want := range []string{
+		framed("tfscli", "OWN LICENSE\n"),
 		framed("Go standard library and runtime", "GO LICENSE\n"),
 		framed("github.com/spf13/cobra", "Apache License\n"),
 		framed("github.com/example/notice", "MIT License\n\nNotice text\n"),
@@ -50,9 +58,11 @@ func TestTextWithSet(t *testing.T) {
 			t.Errorf("text() lacks %q:\n%s", want, got)
 		}
 	}
-	if strings.Index(got, framed("Go standard library and runtime", "")) >
-		strings.Index(got, framed("github.com/JohannesKaufmann/dom", "")) {
-		t.Errorf("text() does not put the Go license first:\n%s", got)
+	own := strings.Index(got, framed("tfscli", ""))
+	goLic := strings.Index(got, framed("Go standard library and runtime", ""))
+	dom := strings.Index(got, framed("github.com/JohannesKaufmann/dom", ""))
+	if own > goLic || goLic > dom {
+		t.Errorf("text() does not put tfscli, then Go, before the third-party licenses:\n%s", got)
 	}
 }
 
@@ -63,12 +73,15 @@ func TestTextWithoutSet(t *testing.T) {
 		"missing": sub(t, fstest.MapFS{"PLACEHOLDER": {}}, "third-party"),
 	} {
 		t.Run(name, func(t *testing.T) {
-			got := text("GO LICENSE\n", set)
-			want := "tfscli includes the following components:\n\n" +
+			got := text(fixed, set)
+			want := "The tfscli binary contains the following components:\n\n" +
+				"  tfscli\n" +
 				"  Go standard library and runtime\n\n" +
 				"This build does not carry the licenses of the third-party modules it\n" +
 				"includes: they are embedded only in the release builds, available at\n" +
 				"https://github.com/dpleshakov/tfscli/releases.\n" +
+				"\n" + separator + "\ntfscli\n" + separator + "\n\n" +
+				"OWN LICENSE\n" +
 				"\n" + separator + "\nGo standard library and runtime\n" + separator + "\n\n" +
 				"GO LICENSE\n"
 			if got != want {
@@ -94,11 +107,13 @@ func sub(t *testing.T, fsys fs.FS, dir string) fs.FS {
 // leaves one behind until make clean, so the test holds either way.
 func TestTextOfThisBuild(t *testing.T) {
 	got := Text()
-	if want := text(goLicense, sub(t, platformFS, platformDir+"/third-party")); got != want {
+	if want := text(embedded(), sub(t, platformFS, platformDir+"/third-party")); got != want {
 		t.Errorf("Text() =\n%s\nwant\n%s", got, want)
 	}
-	if !strings.Contains(got, goLicense) {
-		t.Errorf("Text() lacks the Go license:\n%s", got)
+	for name, lic := range map[string]string{"tfscli": ownLicense, "Go": goLicense} {
+		if !strings.Contains(got, lic) {
+			t.Errorf("Text() lacks the %s license:\n%s", name, got)
+		}
 	}
 }
 
@@ -116,5 +131,17 @@ func TestGoLicenseMatchesToolchain(t *testing.T) {
 	if goLicense != string(want) {
 		t.Errorf("internal/licenses/go.LICENSE differs from LICENSE of the Go toolchain; " +
 			"copy $(go env GOROOT)/LICENSE over it")
+	}
+}
+
+// TestOwnLicenseMatchesTheRepository keeps the embedded copy of the tfscli
+// license equal to LICENSE at the root of the repository.
+func TestOwnLicenseMatchesTheRepository(t *testing.T) {
+	want, err := os.ReadFile(filepath.Join("..", "..", "LICENSE"))
+	if err != nil {
+		t.Fatalf("reading LICENSE: %v", err)
+	}
+	if ownLicense != string(want) {
+		t.Errorf("internal/licenses/tfscli.LICENSE differs from LICENSE; copy LICENSE over it")
 	}
 }

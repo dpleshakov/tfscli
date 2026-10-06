@@ -70,7 +70,7 @@ Cross-compilation follows the usual Go pattern:
 GOOS=windows GOARCH=amd64 go build -o tfscli.exe ./cmd/tfscli
 ```
 
-A binary built this way reports its version as `dev (unknown)`: the real values are stamped in by the release build. Its `tfscli licenses` prints the Go license alone: the third-party license texts are generated and embedded by the release build as well.
+A binary built this way reports its version as `dev (unknown)`: the real values are stamped in by the release build. Its `tfscli licenses` prints the licenses of tfscli and Go alone: the third-party license texts are generated and embedded by the release build as well.
 
 ## Authentication
 
@@ -213,7 +213,7 @@ tfscli <area> <resource> <action> [flags] [arguments]
 
 Commands are named after the REST API reference: the area and the resource are the segments of the operation's page path, so Get Work Item, documented under `.../wit/work-items/get-work-item`, is `wit work-items get`. `auth login` and `licenses` are local to tfscli and have no counterpart in the API.
 
-`tfscli --version` prints the version and the commit it was built from; `tfscli --help`, and `--help` on any command, lists the flags. `tfscli licenses` prints the components built into the binary — the Go standard library and the third-party modules — followed by the license text of each.
+`tfscli --version` prints the version and the commit it was built from; `tfscli --help`, and `--help` on any command, lists the flags. `tfscli licenses` prints the components built into the binary — tfscli itself, the Go standard library, and the third-party modules — followed by the license text of each.
 
 ### `wit work-items get`
 

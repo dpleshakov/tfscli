@@ -1,21 +1,24 @@
 package licenses
 
 import (
-	_ "embed" // for go:embed of the Go license
+	_ "embed" // for go:embed of the tfscli and Go licenses
 	"io/fs"
 	"path"
 	"sort"
 	"strings"
 )
 
+// ownLicense is the license of tfscli itself, a copy of LICENSE at the root of
+// the repository.
+//
+//go:embed tfscli.LICENSE
+var ownLicense string
+
 // goLicense is the license of the Go standard library and runtime, a copy of
 // LICENSE from the Go distribution.
 //
 //go:embed go.LICENSE
 var goLicense string
-
-// goComponent names the Go standard library and runtime in the output.
-const goComponent = "Go standard library and runtime"
 
 // separator frames the name of each component above its license texts.
 var separator = strings.Repeat("=", 80)
@@ -27,7 +30,22 @@ func Text() string {
 	if err != nil {
 		set = nil
 	}
-	return text(goLicense, set)
+	return text(embedded(), set)
+}
+
+// embedded lists the components whose licenses every build carries, in the
+// order they are printed.
+func embedded() []license {
+	return []license{
+		{name: "tfscli", text: ownLicense},
+		{name: "Go standard library and runtime", text: goLicense},
+	}
+}
+
+// license is a component whose license text is embedded in every build.
+type license struct {
+	name string
+	text string
 }
 
 // component is one entry of the output: a name and its license files.
@@ -36,16 +54,18 @@ type component struct {
 	files []string
 }
 
-// text assembles the output from the Go license and set, the third-party
-// licenses saved by go-licenses: one directory per package path, holding the
-// license files of its module. A nil or empty set means a build the release
-// did not make.
-func text(goLicense string, set fs.FS) string {
+// text assembles the output from fixed, the components every build carries,
+// and set, the third-party licenses saved by go-licenses: one directory per
+// package path, holding the license files of its module. A nil or empty set
+// means a build the release did not make.
+func text(fixed []license, set fs.FS) string {
 	third := thirdParty(set)
 
 	var b strings.Builder
-	b.WriteString("tfscli includes the following components:\n\n")
-	b.WriteString("  " + goComponent + "\n")
+	b.WriteString("The tfscli binary contains the following components:\n\n")
+	for _, l := range fixed {
+		b.WriteString("  " + l.name + "\n")
+	}
 	for _, c := range third {
 		b.WriteString("  " + c.name + "\n")
 	}
@@ -55,7 +75,9 @@ func text(goLicense string, set fs.FS) string {
 			"https://github.com/dpleshakov/tfscli/releases.\n")
 	}
 
-	writeComponent(&b, goComponent, goLicense)
+	for _, l := range fixed {
+		writeComponent(&b, l.name, l.text)
+	}
 	for _, c := range third {
 		var texts []string
 		for _, f := range c.files {
