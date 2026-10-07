@@ -338,20 +338,20 @@ func TestAuthLoginFailuresWriteNothing(t *testing.T) {
 		},
 		{
 			name: "url without a scheme",
-			in:   func(string) prompter { return typed("tfs.company.com/tfs", "DefaultCollection", "secret-token") },
-			want: "Error [config]: url \"tfs.company.com/tfs\" must start with http:// or https://\n",
+			in:   func(string) prompter { return typed("tfs.example.com/tfs", "DefaultCollection", "secret-token") },
+			want: "Error [config]: url \"tfs.example.com/tfs\" must start with http:// or https://\n",
 		},
 		{
 			name: "url with a user name and password",
 			in: func(string) prompter {
-				return typed("https://user:hunter2@tfs.company.com/tfs", "DefaultCollection", "secret-token")
+				return typed("https://user:hunter2@tfs.example.com/tfs", "DefaultCollection", "secret-token")
 			},
-			want: "Error [config]: the server URL contains a user name or password; tfscli authenticates only with the personal access token it asks for next. Run tfscli auth login again and enter the URL without them, e.g. https://tfs.company.com/tfs\n",
+			want: "Error [config]: the server URL contains a user name or password; tfscli authenticates only with the personal access token it asks for next. Run tfscli auth login again and enter the URL without them, e.g. https://tfs.example.com/tfs\n",
 		},
 		{
 			name: "url with a user name only",
 			in: func(string) prompter {
-				return typed("https://user@tfs.company.com/tfs", "DefaultCollection", "secret-token")
+				return typed("https://user@tfs.example.com/tfs", "DefaultCollection", "secret-token")
 			},
 			want: "Error [config]: the server URL contains a user name or password;",
 		},

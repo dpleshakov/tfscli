@@ -16,13 +16,13 @@ const wiqlResponse = `{
   "queryResultType": "workItemLink",
   "asOf": "2026-10-04T10:15:00.483Z",
   "columns": [
-    {"referenceName": "System.Id", "name": "ID", "url": "https://tfs.company.com/DefaultCollection/_apis/wit/fields/System.Id"},
-    {"referenceName": "System.Title", "name": "Title", "url": "https://tfs.company.com/DefaultCollection/_apis/wit/fields/System.Title"}
+    {"referenceName": "System.Id", "name": "ID", "url": "https://tfs.example.com/DefaultCollection/_apis/wit/fields/System.Id"},
+    {"referenceName": "System.Title", "name": "Title", "url": "https://tfs.example.com/DefaultCollection/_apis/wit/fields/System.Title"}
   ],
   "workItemRelations": [
-    {"rel": null, "source": null, "target": {"id": 297, "url": "https://tfs.company.com/DefaultCollection/_apis/wit/workItems/297"}},
-    {"rel": "System.LinkTypes.Hierarchy-Forward", "source": {"id": 297, "url": "https://tfs.company.com/DefaultCollection/_apis/wit/workItems/297"}, "target": {"id": 299, "url": "https://tfs.company.com/DefaultCollection/_apis/wit/workItems/299"}},
-    {"rel": "System.LinkTypes.Hierarchy-Forward", "source": {"id": 297, "url": "https://tfs.company.com/DefaultCollection/_apis/wit/workItems/297"}, "target": {"id": 300, "url": "https://tfs.company.com/DefaultCollection/_apis/wit/workItems/300"}}
+    {"rel": null, "source": null, "target": {"id": 297, "url": "https://tfs.example.com/DefaultCollection/_apis/wit/workItems/297"}},
+    {"rel": "System.LinkTypes.Hierarchy-Forward", "source": {"id": 297, "url": "https://tfs.example.com/DefaultCollection/_apis/wit/workItems/297"}, "target": {"id": 299, "url": "https://tfs.example.com/DefaultCollection/_apis/wit/workItems/299"}},
+    {"rel": "System.LinkTypes.Hierarchy-Forward", "source": {"id": 297, "url": "https://tfs.example.com/DefaultCollection/_apis/wit/workItems/297"}, "target": {"id": 300, "url": "https://tfs.example.com/DefaultCollection/_apis/wit/workItems/300"}}
   ]
 }`
 

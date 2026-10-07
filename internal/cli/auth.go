@@ -148,7 +148,7 @@ func (g *globals) login(ctx context.Context) error {
 // promptAuth asks for the URL, the collection, and the token. Prompts go to
 // stderr so that stdout carries only the result.
 func (g *globals) promptAuth() (*config.Auth, error) {
-	_, _ = fmt.Fprint(g.stderr, "Server URL (e.g. https://tfs.company.com:8080/tfs): ")
+	_, _ = fmt.Fprint(g.stderr, "Server URL (e.g. https://tfs.example.com:8080/tfs): ")
 	raw, err := g.stdin.ReadLine()
 	if err != nil {
 		return nil, inputError("the server URL", err)
@@ -211,7 +211,7 @@ func refuseUserinfo(raw string) error {
 		Category: tfserr.Config,
 		Message: "the server URL contains a user name or password; tfscli authenticates only with " +
 			"the personal access token it asks for next. Run tfscli auth login again and enter the URL " +
-			"without them, e.g. https://tfs.company.com/tfs",
+			"without them, e.g. https://tfs.example.com/tfs",
 	}
 }
 

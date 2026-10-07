@@ -66,7 +66,7 @@ An AI agent can call `tfscli`, read work item content, and use it meaningfully i
 
 ```json
 {
-  "url": "https://tfs.company.com:8080/tfs",
+  "url": "https://tfs.example.com:8080/tfs",
   "collection": "DefaultCollection",
   "pat": "..."
 }
@@ -119,7 +119,7 @@ Error [not_found]: work item 99999 not found in project MyProject (HTTP 404)
 Error [forbidden]: no access to project MyProject (HTTP 403)
 Error [server]: TFS returned HTTP 500
 Error [config]: not logged in: no credential at ~/.local/share/tfscli/auth.json (run "tfscli auth login", or set TFSCLI_AUTH)
-Error [network]: cannot reach https://tfs.company.com:8080
+Error [network]: cannot reach https://tfs.example.com:8080
 ```
 
 ## Key Dependencies
