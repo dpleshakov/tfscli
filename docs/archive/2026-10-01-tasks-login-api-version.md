@@ -350,7 +350,7 @@ supports. Also establish:
   older servers, since `verify` in `internal/cli/auth.go` relies on it (see
   TD-01 in `docs/tech-debt.md` for the anonymous case);
 - whether `connectionData` also answers when the URL entered at login already
-  contains a collection, such as `https://tfs.company.com:8080/tfs/DefaultCollection`.
+  contains a collection, such as `https://tfs.example.com:8080/tfs/DefaultCollection`.
   If it does, login accepts and stores that URL, every later command appends
   the collection a second time, and the user receives a bare `not_found` with
   no hint at the cause.
