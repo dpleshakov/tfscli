@@ -29,8 +29,8 @@ func TestConvert(t *testing.T) {
 		},
 		{
 			name: "link",
-			html: `<p>See <a href="https://tfs.company.com/wi/12345">work item 12345</a>.</p>`,
-			want: "See [work item 12345](https://tfs.company.com/wi/12345).",
+			html: `<p>See <a href="https://tfs.example.com/wi/12345">work item 12345</a>.</p>`,
+			want: "See [work item 12345](https://tfs.example.com/wi/12345).",
 		},
 		{
 			name: "paragraphs are separated by a blank line",

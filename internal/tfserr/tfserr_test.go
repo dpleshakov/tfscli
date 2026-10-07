@@ -43,7 +43,7 @@ func TestPrintWithoutHTTPStatus(t *testing.T) {
 		{Forbidden, "no access to project MyProject", "Error [forbidden]: no access to project MyProject\n"},
 		{Server, "TFS returned an invalid response", "Error [server]: TFS returned an invalid response\n"},
 		{Config, "not logged in: no credential at ~/.local/share/tfscli/auth.json", "Error [config]: not logged in: no credential at ~/.local/share/tfscli/auth.json\n"},
-		{Network, "cannot reach https://tfs.company.com:8080", "Error [network]: cannot reach https://tfs.company.com:8080\n"},
+		{Network, "cannot reach https://tfs.example.com:8080", "Error [network]: cannot reach https://tfs.example.com:8080\n"},
 	}
 	for _, tt := range tests {
 		t.Run(string(tt.category), func(t *testing.T) {

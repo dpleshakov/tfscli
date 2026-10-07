@@ -27,7 +27,7 @@ const workItemResponse = `{
     "System.AssignedTo": {
       "displayName": "Jane Doe",
       "uniqueName": "COMPANY\\j.doe",
-      "imageUrl": "https://tfs.company.com:8080/DefaultCollection/_api/_common/identityImage?id=2f1a8c3e"
+      "imageUrl": "https://tfs.example.com:8080/DefaultCollection/_api/_common/identityImage?id=2f1a8c3e"
     },
     "System.CreatedDate": "2026-06-14T09:12:33.117Z",
     "System.Description": "<div>Customers who receive a <b>partial</b> refund never get the confirmation email.</div>"

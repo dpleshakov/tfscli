@@ -346,7 +346,7 @@ Error [config]: list takes no arguments; pass the work item ids with --ids, e.g.
 Error [config]: --team needs a project, and project is not set (pass -p, set TFSCLI_PROJECT, or add "project" to the config file)
 Error [config]: The requested REST API version of 7.2 is out of range for this server. The latest REST API version this server supports is 7.1. (api-version "7.2" is set by TFSCLI_API_VERSION; remove it to let the server choose the version, or set one the server supports) (HTTP 400)
 Error [auth]: the server did not accept the PAT (it may be invalid, expired, or revoked; if it is valid, IIS Basic Authentication may be enabled on the server, which only an administrator can turn off) (HTTP 401)
-Error [network]: cannot reach https://tfs.company.com:8080
+Error [network]: cannot reach https://tfs.example.com:8080
 ```
 
 When the project is missing, ask the user for it. Do not guess a project name

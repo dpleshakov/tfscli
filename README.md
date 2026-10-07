@@ -86,10 +86,10 @@ Store them once per machine:
 
 ```
 $ tfscli auth login
-Server URL (e.g. https://tfs.company.com:8080/tfs): https://tfs.company.com:8080/tfs
+Server URL (e.g. https://tfs.example.com:8080/tfs): https://tfs.example.com:8080/tfs
 Collection (e.g. DefaultCollection): DefaultCollection
 Personal access token:
-Logged in to https://tfs.company.com:8080/tfs, collection DefaultCollection, as Jane Doe
+Logged in to https://tfs.example.com:8080/tfs, collection DefaultCollection, as Jane Doe
 ```
 
 The token is typed with echo turned off. The three values are checked against the server before anything is written: a rejected token, or a URL and collection that lead nowhere, is reported as an error and leaves nothing behind. The command takes no flags, refuses `--api-version`, and sends its check without `api-version` whatever the config file or `TFSCLI_API_VERSION` say.
@@ -106,7 +106,7 @@ The credential is written to `$XDG_DATA_HOME/tfscli/auth.json`, or `~/.local/sha
 Where an interactive login is impossible, put the same JSON into `TFSCLI_AUTH`. When the variable is set, `auth.json` is not read:
 
 ```
-TFSCLI_AUTH='{"url": "https://tfs.company.com:8080/tfs", "collection": "DefaultCollection", "pat": "…"}'
+TFSCLI_AUTH='{"url": "https://tfs.example.com:8080/tfs", "collection": "DefaultCollection", "pat": "…"}'
 ```
 
 All three fields are required. The URL, the collection, and the token always come from the same source, and no flag, separate environment variable, or config key can supply any of them, so a mistyped or injected server address cannot make tfscli send the token to another host.
@@ -323,8 +323,8 @@ An empty result reads `Work items: none` or `Relations: none`. The time of the r
 
 ```
 $ tfscli wit work-items get -p MyProject 12345 --verbose
-OPTIONS https://tfs.company.com:8080/tfs/DefaultCollection/_apis 200 41.2087ms
-GET https://tfs.company.com:8080/tfs/DefaultCollection/MyProject/_apis/wit/workitems/12345?api-version=7.1 200 86.4512ms
+OPTIONS https://tfs.example.com:8080/tfs/DefaultCollection/_apis 200 41.2087ms
+GET https://tfs.example.com:8080/tfs/DefaultCollection/MyProject/_apis/wit/workitems/12345?api-version=7.1 200 86.4512ms
 ```
 
 Lines starting with `[warn]` report a condition worth knowing, such as disabled certificate verification; lines starting with `[info]` report what tfscli did on its own, such as sending a request without a version:
@@ -374,7 +374,7 @@ $ tfscli wit work-items get -p MyProject 12345
 Error [config]: The requested REST API version of 7.2 is out of range for this server. The latest REST API version this server supports is 7.1. (api-version "7.2" is set by TFSCLI_API_VERSION; remove it to let the server choose the version, or set one the server supports) (HTTP 400)
 
 $ tfscli wit work-items get -p MyProject 12345
-Error [network]: cannot reach https://tfs.company.com:8080
+Error [network]: cannot reach https://tfs.example.com:8080
 ```
 
 ## Known limitations

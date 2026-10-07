@@ -458,9 +458,9 @@ func TestNewRejectsBadURL(t *testing.T) {
 		name string
 		url  string
 	}{
-		{"unparseable", "http://tfs.company.com:pot/tfs"},
-		{"missing scheme", "tfs.company.com:8080/tfs"},
-		{"unsupported scheme", "ftp://tfs.company.com/tfs"},
+		{"unparseable", "http://tfs.example.com:pot/tfs"},
+		{"missing scheme", "tfs.example.com:8080/tfs"},
+		{"unsupported scheme", "ftp://tfs.example.com/tfs"},
 	}
 
 	for _, tt := range tests {
@@ -479,7 +479,7 @@ func TestNewRejectsBadURL(t *testing.T) {
 func TestNewWarnsWhenVerificationDisabled(t *testing.T) {
 	logger := &recordingLogger{}
 	if _, err := New(&config.Config{
-		URL:                "https://tfs.company.com:8080/tfs",
+		URL:                "https://tfs.example.com:8080/tfs",
 		Collection:         "DefaultCollection",
 		PAT:                testPAT,
 		APIVersion:         "7.2",
@@ -496,7 +496,7 @@ func TestNewWarnsWhenVerificationDisabled(t *testing.T) {
 func TestNewStaysSilentWhenVerificationIsOn(t *testing.T) {
 	logger := &recordingLogger{}
 	if _, err := New(&config.Config{
-		URL:        "https://tfs.company.com:8080/tfs",
+		URL:        "https://tfs.example.com:8080/tfs",
 		Collection: "DefaultCollection",
 		PAT:        testPAT,
 		APIVersion: "7.2",
@@ -526,7 +526,7 @@ func TestNewRejectsBadCABundle(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := New(&config.Config{
-				URL:        "https://tfs.company.com:8080/tfs",
+				URL:        "https://tfs.example.com:8080/tfs",
 				Collection: "DefaultCollection",
 				PAT:        testPAT,
 				APIVersion: "7.2",
