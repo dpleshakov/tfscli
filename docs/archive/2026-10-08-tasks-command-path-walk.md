@@ -1,6 +1,6 @@
 # 2026-10-08-tasks-command-path-walk.md
 
-**Status:** Active
+**Status:** Archived
 
 ## Context
 
@@ -74,4 +74,4 @@ match.
 **Definition of done:** No document states that `--help` may precede the end
 of the path, or that `help` and `completion` are exceptions; the architecture
 describes the walk instead of `Find`. `make check` passes.
-**Status:** Pending
+**Status:** Done

@@ -8,7 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
-- A flag placed before the end of the command path, such as `--verbose` in `tfscli --verbose wit work-items get 12345`, is now refused with a `config` error that shows the command with the flag moved after it, where it used to be accepted; flags now always follow the command, so that agent permission rules can match the command by its name.
+- A flag placed before the end of the command path, such as `--verbose` in `tfscli --verbose wit work-items get 12345` or `--help` in `tfscli --help wit work-items get`, is now refused with a `config` error that shows the command with the flag moved after it, where it used to be accepted or to fail with a misleading "unknown command"; flags now always follow the command, so that agent permission rules can match the command by its name.
+
+### Fixed
+- A flag of an action placed before the action, as in `tfscli wit wiql --time-precision query-by-wiql`, no longer makes tfscli print the help of the group and exit successfully without running the query.
 
 ## [0.1.1] - 2026-10-06
 
