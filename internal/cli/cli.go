@@ -43,6 +43,10 @@ func run(b build, args []string, stdin prompter, stdout, stderr io.Writer) int {
 	root := newRoot(b, stdin, stdout, stderr)
 	root.SetArgs(args)
 
+	if err := checkFlagOrder(root, args); err != nil {
+		tfserr.Print(err, stderr)
+		return tfserr.ExitCode(err)
+	}
 	if err := root.ExecuteContext(ctx); err != nil {
 		tfserr.Print(categorized(err), stderr)
 		return tfserr.ExitCode(err)
