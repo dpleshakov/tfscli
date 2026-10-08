@@ -131,6 +131,13 @@ so `-p` can carry everything a call needs beyond the credential.
 
 ## The commands
 
+Write the full command name first and every flag after it:
+`tfscli wit work-items get --verbose -p <project> <id>`. A flag before the last
+word of the command, as in `tfscli --verbose wit work-items get ...`, is refused
+with a `config` error that shows the corrected command; the user's permission
+rules match the command by its name, so keep that order rather than relying on
+the error.
+
 ### One work item
 
 ```

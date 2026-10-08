@@ -152,6 +152,54 @@ those settings first.
 An agent without skill support can be pointed at the same file directly: it is
 plain markdown under a short YAML header.
 
+### Permission rules
+
+Both agents decide whether a shell command may run by matching its text against
+rules. Every tfscli command starts with its full name, `tfscli <area> <resource>
+<action>`, followed by flags and arguments, and each command has exactly one
+name, so a rule written as a prefix covers the command whatever its flags. The
+current commands only read; `auth login` is interactive and is not for an
+agent to run.
+
+Claude Code, in `.claude/settings.json` or `~/.claude/settings.json`; the
+`PowerShell` rules apply where the agent runs commands through PowerShell:
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "Bash(tfscli wit *)",
+      "Bash(tfscli licenses)",
+      "PowerShell(tfscli wit *)",
+      "PowerShell(tfscli licenses)"
+    ],
+    "deny": [
+      "Bash(tfscli auth *)",
+      "PowerShell(tfscli auth *)"
+    ]
+  }
+}
+```
+
+opencode, in `opencode.json`. The last matching rule wins, so place these after
+any catch-all `"*"` rule:
+
+```json
+{
+  "permission": {
+    "bash": {
+      "tfscli wit *": "allow",
+      "tfscli licenses": "allow",
+      "tfscli auth *": "deny"
+    }
+  }
+}
+```
+
+A rule matches the program name as the agent types it: a call through
+`tfscli.exe` or a full path does not match `tfscli wit *` and is asked about
+instead.
+
 ## Configuration
 
 Every setting apart from the credential:
@@ -212,6 +260,8 @@ tfscli <area> <resource> <action> [flags] [arguments]
 ```
 
 Commands are named after the REST API reference: the area and the resource are the segments of the operation's page path, so Get Work Item, documented under `.../wit/work-items/get-work-item`, is `wit work-items get`. `auth login` and `licenses` are local to tfscli and have no counterpart in the API.
+
+Flags follow the command: `tfscli wit work-items get --verbose -p MyProject 12345`, never `tfscli --verbose wit work-items get ...`. A flag placed before the last word of the command is refused with a `config` error that shows the command with the flag moved, and nothing is sent to the server. `--help` and `--version` are the exceptions. The rule keeps the command at the start of the command line, where agent permission rules look for it (see "Permission rules").
 
 `tfscli --version` prints the version and the commit it was built from; `tfscli --help`, and `--help` on any command, lists the flags. `tfscli licenses` prints the components built into the binary — tfscli itself, the Go standard library, and the third-party modules — followed by the license text of each.
 

@@ -1,6 +1,6 @@
 # 2026-10-08-tasks-command-shape-permissions.md
 
-**Status:** Active
+**Status:** Archived
 
 ## Context
 
@@ -127,4 +127,4 @@ command path, marked as a breaking change.
 **Definition of done:** The README, the agent skill, and the changelog describe
 the new rule; the README claims nothing about opencode beyond its documented
 matching. `make check` passes.
-**Status:** Pending
+**Status:** Done
