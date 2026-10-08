@@ -388,3 +388,9 @@ Error [network]: cannot reach https://tfs.example.com:8080
 Everything the project verifies runs through the `Makefile`, and CI runs `make check` verbatim, so a green `make check` locally is the whole gate. External dependencies are deliberately limited to `cobra`, `html-to-markdown/v2`, and `golang.org/x/term`; HTTP, JSON, and config parsing use the standard library.
 
 [CONTRIBUTING.md](CONTRIBUTING.md) is the developer handbook: required tooling, the make targets, the lint and coverage rules, the process the repository follows, and the release procedure.
+
+## License and trademarks
+
+tfscli is released under the MIT License; see [LICENSE](LICENSE). `tfscli licenses` prints the licenses of the components included in the binary.
+
+tfscli is an independent project and is not affiliated with, endorsed by, or sponsored by Microsoft. Team Foundation Server, Azure DevOps, and Azure DevOps Server are trademarks of the Microsoft group of companies.
