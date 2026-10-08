@@ -101,6 +101,10 @@ func newRoot(b build, stdin prompter, stdout, stderr io.Writer) *cobra.Command {
 	root.AddCommand(newAuthCmd(g))
 	root.AddCommand(newWitCmd(g))
 	root.AddCommand(newLicensesCmd(g))
+	// Cobra adds help and completion only when it executes the tree; adding
+	// them here lets checkFlagOrder walk them like any other command.
+	root.InitDefaultHelpCmd()
+	root.InitDefaultCompletionCmd()
 	return root
 }
 
