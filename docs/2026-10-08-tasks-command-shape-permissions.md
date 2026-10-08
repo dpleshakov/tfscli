@@ -86,7 +86,7 @@ future evolution", how writing commands will be marked so that the guard test
 can require the gate flags of them.
 **Definition of done:** The cli module description and the notes for future
 evolution cover the three points.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-03 `claude-md`
 **Description:** In `CLAUDE.md`: add short items to "Non-negotiable product
