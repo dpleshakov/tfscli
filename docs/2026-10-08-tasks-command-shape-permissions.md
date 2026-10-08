@@ -114,7 +114,7 @@ and `completion ...`. `make check` passes.
 any command declares `Aliases` or when `cobra.EnablePrefixMatching` is on.
 **Definition of done:** The test fails when an alias is added to any command
 and passes on the current tree. `make check` passes.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-06 `user-docs`
 **Description:** In `README.md`, state under Usage that flags follow the
