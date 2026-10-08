@@ -261,7 +261,7 @@ tfscli <area> <resource> <action> [flags] [arguments]
 
 Commands are named after the REST API reference: the area and the resource are the segments of the operation's page path, so Get Work Item, documented under `.../wit/work-items/get-work-item`, is `wit work-items get`. `auth login` and `licenses` are local to tfscli and have no counterpart in the API.
 
-Flags follow the command: `tfscli wit work-items get --verbose -p MyProject 12345`, never `tfscli --verbose wit work-items get ...`. A flag placed before the last word of the command is refused with a `config` error that shows the command with the flag moved, and nothing is sent to the server. `--help` and `--version` are the exceptions. The rule keeps the command at the start of the command line, where agent permission rules look for it (see "Permission rules").
+Flags follow the command: `tfscli wit work-items get --verbose -p MyProject 12345`, never `tfscli --verbose wit work-items get ...`. A flag placed before the last word of the command is refused with a `config` error that shows the command with the flag moved, and nothing is sent to the server. `--help` is no exception: `tfscli wit work-items get --help`, not `tfscli --help wit work-items get`. The rule keeps the command at the start of the command line, where agent permission rules look for it (see "Permission rules").
 
 `tfscli --version` prints the version and the commit it was built from; `tfscli --help`, and `--help` on any command, lists the flags. `tfscli licenses` prints the components built into the binary — tfscli itself, the Go standard library, and the third-party modules — followed by the license text of each.
 
