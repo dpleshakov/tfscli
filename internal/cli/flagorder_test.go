@@ -39,6 +39,51 @@ func TestFlagBeforeTheCommandPathIsRefused(t *testing.T) {
 			args: []string{"wit", "work-items", "-pMyProject", "get", "12345"},
 			want: `Error [config]: flags must follow the command "tfscli wit work-items get", and -pMyProject comes before its end (run it as: tfscli wit work-items get -pMyProject 12345)` + "\n",
 		},
+		{
+			name: "long help flag before the path",
+			args: []string{"--help", "wit", "work-items", "get"},
+			want: `Error [config]: flags must follow the command "tfscli wit work-items get", and --help comes before its end (run it as: tfscli wit work-items get --help)` + "\n",
+		},
+		{
+			name: "short help flag before the path",
+			args: []string{"-h", "wit", "work-items", "get"},
+			want: `Error [config]: flags must follow the command "tfscli wit work-items get", and -h comes before its end (run it as: tfscli wit work-items get -h)` + "\n",
+		},
+		{
+			name: "help flag between path words",
+			args: []string{"wit", "--help", "work-items", "get"},
+			want: `Error [config]: flags must follow the command "tfscli wit work-items get", and --help comes before its end (run it as: tfscli wit work-items get --help)` + "\n",
+		},
+		{
+			name: "boolean flag of the action at the level of its group",
+			args: []string{"wit", "wiql", "--time-precision", "query-by-wiql", "--query", "x"},
+			want: `Error [config]: flags must follow the command "tfscli wit wiql query-by-wiql", and --time-precision comes before its end (run it as: tfscli wit wiql query-by-wiql --time-precision --query x)` + "\n",
+		},
+		{
+			name: "value that names a subcommand",
+			args: []string{"wit", "work-items", "-p", "get", "get", "12345"},
+			want: `Error [config]: flags must follow the command "tfscli wit work-items get", and -p comes before its end (run it as: tfscli wit work-items get -p get 12345)` + "\n",
+		},
+		{
+			name: "unknown flag",
+			args: []string{"--nope", "wit", "work-items", "get", "-p", "MyProject", "12345"},
+			want: `Error [config]: flags must follow the command "tfscli wit work-items get", and --nope comes before its end (run it as: tfscli wit work-items get --nope -p MyProject 12345)` + "\n",
+		},
+		{
+			name: "flag before help",
+			args: []string{"--verbose", "help", "wit"},
+			want: `Error [config]: flags must follow the command "tfscli help", and --verbose comes before its end (run it as: tfscli help --verbose wit)` + "\n",
+		},
+		{
+			name: "flag before completion",
+			args: []string{"--verbose", "completion", "powershell"},
+			want: `Error [config]: flags must follow the command "tfscli completion powershell", and --verbose comes before its end (run it as: tfscli completion powershell --verbose)` + "\n",
+		},
+		{
+			name: "version flag before a path",
+			args: []string{"--version", "wit"},
+			want: `Error [config]: --version belongs to tfscli itself, not to "tfscli wit" (run it as: tfscli --version)` + "\n",
+		},
 	}
 
 	for _, tt := range tests {
@@ -63,22 +108,21 @@ func TestFlagBeforeTheCommandPathIsRefused(t *testing.T) {
 	}
 }
 
-// The flags cobra handles itself and its built-in commands keep working
-// wherever they are placed, since they send no request.
-func TestHelpAndVersionAreNotRefusedBeforeThePath(t *testing.T) {
+// Help, the version, and cobra's own commands work where the rule puts their
+// flags: after the command path, or with no path at all.
+func TestHelpAndVersionAfterThePath(t *testing.T) {
 	tests := []struct {
 		args []string
 		want string
 	}{
 		{args: []string{"--version"}, want: "tfscli dev (unknown)"},
 		{args: []string{"--help"}, want: "Available Commands:"},
-		{args: []string{"-h", "wit"}, want: "Available Commands:"},
+		{args: []string{"-h"}, want: "Available Commands:"},
 		{args: []string{"wit", "--help"}, want: "Available Commands:"},
 		{args: []string{"wit", "work-items", "--help"}, want: "Available Commands:"},
 		{args: []string{"wit", "work-items", "get", "--help"}, want: "--fields"},
-		{args: []string{"wit", "--help", "work-items", "get"}, want: "Available Commands:"},
+		{args: []string{"wit", "wiql", "query-by-wiql", "-h"}, want: "--time-precision"},
 		{args: []string{"help", "wit", "work-items", "get"}, want: "--fields"},
-		{args: []string{"--verbose", "help", "wit"}, want: "Available Commands:"},
 		{args: []string{"completion", "powershell"}, want: "Register-ArgumentCompleter"},
 	}
 
@@ -93,18 +137,5 @@ func TestHelpAndVersionAreNotRefusedBeforeThePath(t *testing.T) {
 				t.Errorf("stdout does not contain %q:\n%s", tt.want, stdout)
 			}
 		})
-	}
-}
-
-// A flag the target command does not define is reported by cobra as unknown,
-// not as misplaced: moving it would not make the command valid.
-func TestUnknownFlagBeforeThePathIsLeftToCobra(t *testing.T) {
-	_, stderr, code := execute(t, nil, "--nope=1", "wit", "work-items", "get", "-p", "MyProject", "12345")
-
-	if code != 1 {
-		t.Errorf("exit code = %d, want 1", code)
-	}
-	if want := "Error [config]: unknown flag: --nope"; !strings.HasPrefix(stderr, want) {
-		t.Errorf("stderr = %q, want it to start with %q", stderr, want)
 	}
 }
