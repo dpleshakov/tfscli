@@ -107,7 +107,7 @@ section.
 `--api-version` placed before the path, at the root and between path words, and
 the unchanged behaviour of `--version`, `--help` at every level, `help ...`,
 and `completion ...`. `make check` passes.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-05 `command-tree-guard`
 **Description:** Add a test that walks the whole command tree and fails when
