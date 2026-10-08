@@ -40,7 +40,13 @@ An AI agent can call `tfscli`, read work item content, and use it meaningfully i
 
 ## Non-Goals
 
-- **Write operations.** v1 is strictly read-only. Write operations are a future consideration, gated by PAT scopes. JSON output (`--json`) is a prerequisite for write support, since markdown conversion is lossy and not round-trippable to HTML.
+- **Write operations.** v1 is strictly read-only. Write operations are a future consideration, gated by PAT scopes. JSON output (`--json`) is a prerequisite for write support, since markdown conversion is lossy and not round-trippable to HTML. When write operations are added, they are gated on the command line as follows, so that an AI agent host can require confirmation for every change with one permission rule:
+  - Every operation that changes server state requires the flag `--allow-changes`. An irreversible operation requires both `--allow-changes` and `--allow-irreversible`: a rule on `--allow-changes` then covers every change, and a rule on `--allow-irreversible` additionally excludes the irreversible ones. Without a required flag the command fails with a `config` error that names the flag.
+  - The classification follows the meaning of the operation, not its HTTP method: Get Work Items Batch and Query By Wiql are POST requests and read only, while queueing a build changes server state. An operation is irreversible when its effect cannot be undone by another operation of the REST API: deleting a work item to the recycle bin is reversible, since it can be restored, and destroying it is not.
+  - The gate flags are flags only, with no short form. No environment variable or config key supplies them, because a setting outside the command line is invisible to permission rules that match the command text; they are outside the precedence chain in "Configuration".
+  - The gate is checked before any request is sent, the `OPTIONS` request that negotiates the API version included.
+  - The gate covers server state only. Local commands that change local state, such as `auth login`, live under `auth` and are interactive.
+  - The gate flags are not parameters of the REST API and so deviate from "Follow TFS API structure". The deviation is justified by safety: whether a command changes server state cannot be told from its name, since action names come from the API and form an open set, while some POST operations only read.
 - **MCP server mode.** tfscli is a CLI utility, not an MCP server. If MCP integration is needed, it can be wrapped externally.
 - **Cloud Azure DevOps Services support.** Target is on-premises TFS / Azure DevOps Server. Cloud may work incidentally but is not tested or guaranteed.
 - **Custom query syntax.** No invented query language. WIQL queries are passed directly to the API.
@@ -54,6 +60,11 @@ An AI agent can call `tfscli`, read work item content, and use it meaningfully i
   - The action is the name of the operation in the REST API reference with the resource name removed, in kebab-case: "Get Work Item" is `wit work-items get`, "List" is `wit work-items list`, "Get Work Items Batch" is `wit work-items get-batch`. The resource name is removed only where it names what the operation acts on; where it names something else, it stays: in "Query By Wiql" of the resource Wiql it names the input of the query, as "Id" does in "Query By Id", so the actions are `query-by-wiql` and `query-by-id`.
   - A path parameter that identifies the resource is a positional argument: `wit work-items get 12345` for `_apis/wit/workitems/{id}`. The project, the team, and the collection, which scope the request rather than identify the resource, are not: the collection comes from the credential, the project from `-p` or its defaults, and the team from `--team`.
   - A query or body parameter is a flag with the API name in kebab-case and without a leading `$`: `ids` is `--ids`, `errorPolicy` is `--error-policy`, `$expand` is `--expand`. A flag that is not given is not sent, so the server's default applies.
+- **The command line can be governed by permission rules.** AI agent hosts, such as Claude Code and opencode, decide whether an agent may run a command by matching its text against allow, ask, and deny rules. tfscli keeps that text predictable:
+  - The command path opens the command line, and flags follow its last word: `tfscli wit work-items get --verbose 12345`, not `tfscli --verbose wit work-items get 12345`. A flag placed earlier is refused with a `config` error that shows the corrected command. The exceptions are `--help` and `--version`, which may follow any word of the path, and the built-in `help` and `completion` commands.
+  - Each command has exactly one form: no command aliases, no abbreviated command or flag names, no prefix matching of command names.
+  - The names of local commands (`auth`, `licenses`, `help`, `completion`) never coincide with an area of the REST API reference.
+  - Whether a command changes server state is a property of the command, never of its flags: a reading command does not gain a side effect through a flag. There is no generic pass-through command that sends an arbitrary request; should one be added, it falls under the gate flags described in "Non-Goals".
 - **Predictable error output.** Errors go to stderr with a machine-readable category and human-readable message. Exit code is non-zero. Format: `Error [category]: message (HTTP status)`. Error categories are a stable contract: existing categories are never removed or renamed; new categories may be added in future versions.
 - **Minimal configuration.** `auth login` stores the server URL, the collection, and the PAT. An optional config file stores an optional default project, the API version, and TLS settings. Environment variables and flags override config values. No other configuration needed.
 - **Clean output for AI consumption.** HTML in work item fields is converted to markdown. Metadata noise (URLs, internal IDs, revision details) is minimized in default output.
@@ -88,13 +99,15 @@ All values overridable via environment variables (`TFSCLI_PROJECT`, `TFSCLI_API_
 
 Priority: CLI flag > environment variable > config file > built-in default.
 
+Two kinds of input are outside this chain: the credential (see "Authentication") and the gate flags of write operations (see "Non-Goals"), which are given on the command line only.
+
 ## Command Format
 
 ```
 tfscli <area> <resource> <action> [flags] [arguments]
 ```
 
-The area, the resource, and the action are named by the rule in "Follow TFS API structure". `tfscli auth login` is a local command of tfscli and lies outside this format.
+The area, the resource, and the action are named by the rule in "Follow TFS API structure". Flags follow the action, as "The command line can be governed by permission rules" requires. `tfscli auth login` is a local command of tfscli and lies outside this format.
 
 Commands:
 
