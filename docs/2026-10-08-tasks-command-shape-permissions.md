@@ -96,7 +96,7 @@ rules.
 **Definition of done:** A reader of `CLAUDE.md` alone learns that flags follow
 the command path, that aliases are excluded, and that write operations require
 the gate flags.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-04 `flags-after-command`
 **Description:** In `internal/cli`, refuse a token starting with `-` before the
