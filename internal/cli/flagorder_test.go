@@ -188,3 +188,29 @@ func TestHelpAndVersionAfterThePath(t *testing.T) {
 		})
 	}
 }
+
+// The completion scripts ask for completions with cobra's hidden __complete
+// command followed by the words typed so far; such a request runs no command,
+// so the words after it need not start with a command path.
+func TestShellCompletionRequest(t *testing.T) {
+	tests := []struct {
+		args []string
+		want string
+	}{
+		{args: []string{"__complete", "wit", ""}, want: "work-items\t"},
+		{args: []string{"__completeNoDesc", "wit", "wiql", ""}, want: "query-by-wiql\n"},
+	}
+
+	for _, tt := range tests {
+		t.Run(strings.Join(tt.args, " "), func(t *testing.T) {
+			stdout, stderr, code := execute(t, nil, tt.args...)
+
+			if code != 0 {
+				t.Fatalf("exit code = %d, want 0 (stderr: %s)", code, stderr)
+			}
+			if !strings.Contains(stdout, tt.want) {
+				t.Errorf("stdout does not contain %q:\n%s", tt.want, stdout)
+			}
+		})
+	}
+}
