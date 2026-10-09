@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - A flag of an action placed before the action, as in `tfscli wit wiql --time-precision query-by-wiql`, no longer makes tfscli print the help of the group and exit successfully without running the query.
+- An unknown command under `tfscli auth`, such as `tfscli auth logn`, is now reported as an unknown command, where tfscli used to print the help of `auth` and exit successfully.
 
 ## [0.1.1] - 2026-10-06
 

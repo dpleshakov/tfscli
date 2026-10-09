@@ -1,6 +1,6 @@
 # 2026-10-09-tasks-simple-path-rule.md
 
-**Status:** Active
+**Status:** Archived
 
 ## Context
 
@@ -62,4 +62,4 @@ dependence on the shape of the tree in `docs/architecture.md`. Record in
 **Definition of done:** The documents state that a command with subcommands
 only groups them, and the architecture no longer describes the walk or the
 cross-check with `Find`. `make check` passes.
-**Status:** Pending
+**Status:** Done
