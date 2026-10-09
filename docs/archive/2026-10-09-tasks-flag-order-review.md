@@ -1,6 +1,6 @@
 # 2026-10-09-tasks-flag-order-review.md
 
-**Status:** Active
+**Status:** Archived
 
 ## Context
 
@@ -74,4 +74,4 @@ the same for the precedence item in `CLAUDE.md`. In `docs/architecture.md`,
 describe the cross-check with `Find`, unknown flags, and quoting.
 **Definition of done:** The documents agree with the code and with each other
 on the points above. `make check` passes.
-**Status:** Pending
+**Status:** Done
