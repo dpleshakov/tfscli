@@ -1,6 +1,6 @@
 # 2026-10-09-tasks-flag-order-second-review.md
 
-**Status:** Active
+**Status:** Archived
 
 ## Context
 
@@ -88,4 +88,4 @@ group flags and on quoting; in `CHANGELOG.md`, shorten the `Changed` entry and
 record the silent no-op and `completion` in `Fixed`.
 **Definition of done:** The documents agree with the code and with each other
 on these points; `make check` passes.
-**Status:** Pending
+**Status:** Done

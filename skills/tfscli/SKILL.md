@@ -134,8 +134,9 @@ so `-p` can carry everything a call needs beyond the credential.
 Write the full command name first and every flag after it:
 `tfscli wit work-items get --verbose -p <project> <id>`. A flag before the last
 word of the command, as in `tfscli --verbose wit work-items get ...`, is refused
-with a `config` error that shows the corrected command, and so is `--help` in
-that place: ask for help as `tfscli wit work-items get --help`. The user's
+with a `config` error that shows the corrected command (or, for a word no
+quoting reads alike in bash and PowerShell, says to move the command to the
+start), and so is `--help` in that place: ask for help as `tfscli wit work-items get --help`. The user's
 permission rules match the command by its name, so keep that order rather than
 relying on the error.
 

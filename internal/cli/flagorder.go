@@ -20,12 +20,14 @@ import (
 // The command is the one reached from the root by taking, in order, every word
 // that names a subcommand of the command reached so far. The walk does not
 // stop at "--", since pflag takes it for the value of a flag placed before it.
-// No knowledge of flag values is needed: a group takes no arguments and
-// defines no flags of its own (TestEveryGroupOnlyGroups), and the flags cobra
-// adds itself, --help and the root's --version, take no value, so in a valid
-// command line no word naming a subcommand can follow the path. This reaches
-// at least as deep as cobra's Find, which descends only through such words,
-// so cobra never runs a command whose path is not at the start.
+// No knowledge of flag values is needed: a group takes no arguments, a group
+// below the root defines no flags, the root defines only persistent ones
+// (TestEveryGroupOnlyGroups), and the flags cobra adds itself, --help and the
+// root's --version, take no value. So a word naming a subcommand can follow
+// the path only as the value of a persistent flag given to a group, which
+// does nothing but print its help. The walk reaches at least as deep as
+// cobra's Find, which descends only through such words, so cobra never runs a
+// command whose path is not at the start.
 //
 // Cobra's hidden command for shell completion requests, which it adds to the
 // root only when it executes the tree, is taken as a subcommand of the root

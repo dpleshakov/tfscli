@@ -8,10 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
-- A flag placed before the end of the command path, such as `--verbose` in `tfscli --verbose wit work-items get 12345` or `--help` in `tfscli --help wit work-items get`, is now refused with a `config` error that shows the command with the flag moved after it, where it used to be accepted, to fail with a misleading "unknown command", or, for a flag of an action placed before the action, as in `tfscli wit wiql --time-precision query-by-wiql`, to print the help of the group and exit successfully without running the query; flags now always follow the command, so that agent permission rules can match the command by its name.
+- A flag placed before the end of the command path, such as `--verbose` in `tfscli --verbose wit work-items get 12345` or `--help` in `tfscli --help wit work-items get`, is now refused with a `config` error that shows how to run the command with its flags after it, so that agent permission rules can match the command by its name.
 
 ### Fixed
-- An unknown command under `tfscli auth`, such as `tfscli auth logn`, is now reported as an unknown command, where tfscli used to print the help of `auth` and exit successfully.
+- An unknown command under `tfscli auth` or `tfscli completion`, such as `tfscli auth logn`, is now reported as an unknown command, where tfscli used to print the help of the group and exit successfully.
+- A flag of an action placed before the action, as in `tfscli wit wiql --time-precision query-by-wiql --query "..."`, no longer makes tfscli print the help of the group and exit successfully without running the query; the command line is refused with the corrected command instead.
 
 ## [0.1.1] - 2026-10-06
 
