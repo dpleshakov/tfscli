@@ -76,7 +76,7 @@ make `TestEveryGroupOnlyGroups` reject any flag defined on a group other than
 the root.
 **Definition of done:** `shorthands` is fully covered; the tests pass; `make
 check` passes.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-05 `docs`
 **Description:** Bring the documents in line with TASK-01 to TASK-04: in

@@ -111,7 +111,7 @@ func findPath(root *cobra.Command, line []string) (cmd *cobra.Command, name stri
 	cmd = root
 	words := []string{root.Name()}
 	for i, arg := range line {
-		if cmd == root && (arg == cobra.ShellCompRequestCmd || arg == cobra.ShellCompNoDescRequestCmd) {
+		if cmd == root && isCompletionRequest(arg) {
 			words = append(words, arg)
 			path = append(path, i)
 			break
@@ -123,6 +123,12 @@ func findPath(root *cobra.Command, line []string) (cmd *cobra.Command, name stri
 		}
 	}
 	return cmd, strings.Join(words, " "), path
+}
+
+// isCompletionRequest reports whether word names cobra's hidden command for
+// shell completion requests.
+func isCompletionRequest(word string) bool {
+	return word == cobra.ShellCompRequestCmd || word == cobra.ShellCompNoDescRequestCmd
 }
 
 // subcommand returns the child of cmd named name, or nil.
