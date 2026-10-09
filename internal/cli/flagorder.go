@@ -23,7 +23,14 @@ import (
 // a valid command line no word naming a subcommand can follow the path. This
 // reaches at least as deep as cobra's Find, which descends only through such
 // words, so cobra never runs a command whose path is not at the start.
+//
+// A shell completion request, which cobra serves with a hidden command it adds
+// only when it executes the tree, is let through: it lists completions for the
+// words after it and runs no command.
 func checkFlagOrder(root *cobra.Command, args []string) error {
+	if len(args) > 0 && (args[0] == cobra.ShellCompRequestCmd || args[0] == cobra.ShellCompNoDescRequestCmd) {
+		return nil
+	}
 	cmd := root
 	var path []int
 	for i, arg := range args {
