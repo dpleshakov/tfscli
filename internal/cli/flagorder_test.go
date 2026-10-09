@@ -24,6 +24,13 @@ func refused(command, corrected string) string {
 	return `Error [config]: the command "` + command + `" must come first, before its flags and arguments (run it as: ` + corrected + ")\n"
 }
 
+// unordered is the error for a command line whose command path does not come
+// first and that has a word no shell quoting reads alike in bash and
+// PowerShell.
+func unordered(command string) string {
+	return `Error [config]: the command "` + command + `" must come first, before its flags and arguments (move it to the start and keep every other word in its order)` + "\n"
+}
+
 // A command path that does not open the command line would slip past an agent
 // permission rule written as a prefix, so it is refused before any request.
 func TestFlagBeforeTheCommandPathIsRefused(t *testing.T) {
@@ -111,6 +118,36 @@ func TestFlagBeforeTheCommandPathIsRefused(t *testing.T) {
 			name: "word with a single quote",
 			args: []string{"--verbose", "wit", "wiql", "query-by-wiql", "--query", "it's"},
 			want: refused("tfscli wit wiql query-by-wiql", `tfscli wit wiql query-by-wiql --verbose --query "it's"`),
+		},
+		{
+			name: "word with a single quote and a backslash",
+			args: []string{"--verbose", "wit", "wiql", "query-by-wiql", "--query", `UNDER 'Proj\Team'`},
+			want: unordered("tfscli wit wiql query-by-wiql"),
+		},
+		{
+			name: "word with a single and a double quote",
+			args: []string{"--verbose", "wit", "wiql", "query-by-wiql", "--query", `'a' "b"`},
+			want: unordered("tfscli wit wiql query-by-wiql"),
+		},
+		{
+			name: "word with a single quote and a dollar sign",
+			args: []string{"--verbose", "wit", "wiql", "query-by-wiql", "--query", "'$x'"},
+			want: unordered("tfscli wit wiql query-by-wiql"),
+		},
+		{
+			name: "word with a typographic single quote",
+			args: []string{"--verbose", "wit", "wiql", "query-by-wiql", "--query", "it’s"},
+			want: refused("tfscli wit wiql query-by-wiql", `tfscli wit wiql query-by-wiql --verbose --query "it’s"`),
+		},
+		{
+			name: "word with a line break",
+			args: []string{"--verbose", "wit", "wiql", "query-by-wiql", "--query", "SELECT [System.Id]\nFROM WorkItems"},
+			want: unordered("tfscli wit wiql query-by-wiql"),
+		},
+		{
+			name: "word that PowerShell would splat",
+			args: []string{"--verbose", "wit", "wiql", "query-by-wiql", "--query", "@x"},
+			want: refused("tfscli wit wiql query-by-wiql", "tfscli wit wiql query-by-wiql --verbose --query '@x'"),
 		},
 		{
 			name: "flag before help",
@@ -346,7 +383,7 @@ func TestFlagOrderAgreesWithCobra(t *testing.T) {
 // checkAgainstCobra checks one command line against the properties of
 // TestFlagOrderAgreesWithCobra and describes the first one it breaks.
 func checkAgainstCobra(root *cobra.Command, line []string) string {
-	shown := shellJoin(append([]string{"tfscli"}, line...))
+	shown := fmt.Sprintf("tfscli %q", line)
 	cmd, name, corrected, before := reorder(root, line)
 	err := checkFlagOrder(root, line)
 	switch {
@@ -371,7 +408,7 @@ func checkAgainstCobra(root *cobra.Command, line []string) string {
 	if !errors.As(err, &te) {
 		return fmt.Sprintf("%s: refused with an error of no category: %v", shown, err)
 	}
-	fixed := shellJoin(append([]string{"tfscli"}, corrected...))
+	fixed := fmt.Sprintf("tfscli %q", corrected)
 	moved := append(slices.Clip(corrected[:len(strings.Fields(name))-1]), before...)
 	// A group ignores unknown flags, and the flags before a completion
 	// request belong to the root, which is a group too.

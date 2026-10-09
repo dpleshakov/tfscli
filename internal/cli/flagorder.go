@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/spf13/cobra"
 
@@ -42,10 +42,13 @@ func checkFlagOrder(root *cobra.Command, args []string) error {
 	if err := unknownFlag(cmd, name, before); err != nil && (!cmd.HasSubCommands() || errors.Is(err, errVersionFlag)) {
 		return err
 	}
+	next := "move it to the start and keep every other word in its order"
+	if line, ok := shellJoin(append([]string{root.Name()}, corrected...)); ok {
+		next = "run it as: " + line
+	}
 	return &tfserr.Error{
 		Category: tfserr.Config,
-		Message: fmt.Sprintf("the command %q must come first, before its flags and arguments (run it as: %s)",
-			name, shellJoin(append([]string{root.Name()}, corrected...))),
+		Message:  fmt.Sprintf("the command %q must come first, before its flags and arguments (%s)", name, next),
 	}
 }
 
@@ -229,24 +232,40 @@ func lookupFlag(cmd *cobra.Command, name string, short bool) (found, takesValue 
 	return true, f.NoOptDefVal == ""
 }
 
-// shellJoin joins the arguments into a command line. A word with a character
-// outside a safe set is put in single quotes, which bash and PowerShell read
-// alike; a word that itself contains a single quote is put in double quotes
-// instead.
-func shellJoin(args []string) string {
+// shellJoin joins the arguments into a command line that bash and PowerShell
+// read alike, and reports false when a word has no such form. A word with a
+// character outside a safe set is put in single quotes, or, when it contains
+// a single quote, in double quotes, which the two shells read alike only for a
+// word free of the characters either of them interprets there. A control
+// character, such as the line break of a multi-line query, is read alike in
+// neither.
+func shellJoin(args []string) (string, bool) {
 	quoted := make([]string, len(args))
 	for i, a := range args {
 		switch {
+		case strings.ContainsFunc(a, unicode.IsControl):
+			return "", false
 		case a != "" && strings.Trim(a, shellSafe) == "":
-		case !strings.Contains(a, "'"):
+		case !strings.ContainsAny(a, singleQuotes):
 			a = "'" + a + "'"
+		case !strings.ContainsAny(a, doubleQuoted):
+			a = `"` + a + `"`
 		default:
-			a = strconv.Quote(a)
+			return "", false
 		}
 		quoted[i] = a
 	}
-	return strings.Join(quoted, " ")
+	return strings.Join(quoted, " "), true
 }
 
-// shellSafe holds the characters that need no quoting in a shell word.
-const shellSafe = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_@%+=:,./-"
+// The character sets of shellJoin. shellSafe holds the characters that need
+// no quoting in a word, without "@" and "%", with which PowerShell splats a
+// variable or stops parsing; singleQuotes the characters that end a single-quoted
+// string in bash or PowerShell, which takes typographic quotes for ASCII ones,
+// and doubleQuoted the characters that either shell interprets inside double
+// quotes.
+const (
+	shellSafe    = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_+=:,./-"
+	singleQuotes = "'‘’‚‛"
+	doubleQuoted = "\"“”„$`\\!"
+)

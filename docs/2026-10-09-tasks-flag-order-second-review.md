@@ -57,7 +57,7 @@ portable form. Add test cases for a word with `'` and `"`, `'` and `$`, `'` and
 `\`, a typographic single quote, and a newline.
 **Definition of done:** The corrected command is shown exactly when every word
 has a portable form; the new tests pass; `make check` passes.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-03 `completion-group`
 **Description:** In `internal/cli/cli.go`, share the leftover-argument check of
