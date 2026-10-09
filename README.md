@@ -163,8 +163,8 @@ covers the command whatever its flags. The current commands only read;
 
 Commands that change data are not part of tfscli yet. When they are added,
 each will require the flag `--allow-changes` and will fall under `tfscli wit *`
-like the reading commands, so the examples below already ask before any
-command carrying that flag.
+like the reading commands, so the examples below already ask before a command
+that carries that flag as it is usually written.
 
 Claude Code, in `.claude/settings.json` or `~/.claude/settings.json`; the
 `PowerShell` rules apply where the agent runs commands through PowerShell. An
@@ -200,8 +200,8 @@ any catch-all `"*"` rule, in this order:
     "bash": {
       "tfscli wit *": "allow",
       "tfscli licenses": "allow",
-      "tfscli auth *": "deny",
-      "*--allow-changes*": "ask"
+      "*--allow-changes*": "ask",
+      "tfscli auth *": "deny"
     }
   }
 }
@@ -210,8 +210,11 @@ any catch-all `"*"` rule, in this order:
 A rule matches the command as the agent types it. A call through `tfscli.exe`
 or a full path matches none of the `tfscli` rules and gets the agent's default
 for unmatched commands: Claude Code asks in its default mode, while opencode
-allows it unless a catch-all `"*": "ask"` is set. The deny rule therefore keeps
-an agent from the usual form of the call; it is not a security boundary.
+allows it unless a catch-all `"*": "ask"` is set. Likewise, a flag written
+with quotes in the middle, such as `--allow-chan''ges`, reaches tfscli as
+`--allow-changes` but may not match the rule. The rules therefore govern the
+usual form of a call and guard against an agent's mistake; they are not a
+security boundary against an agent that sets out to get around them.
 
 ## Configuration
 

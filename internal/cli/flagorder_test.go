@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"math/rand/v2"
@@ -13,6 +14,8 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
+
+	"github.com/dpleshakov/tfscli/internal/tfserr"
 )
 
 // refused is the error for a command line whose command path does not come
@@ -135,6 +138,31 @@ func TestFlagBeforeTheCommandPathIsRefused(t *testing.T) {
 			want: refused("tfscli auth login", "tfscli auth login -"),
 		},
 		{
+			name: "double dash before the path",
+			args: []string{"--", "wit", "work-items", "get", "5"},
+			want: refused("tfscli wit work-items get", "tfscli wit work-items get -- 5"),
+		},
+		{
+			name: "unknown flag before a path found in a second pass",
+			args: []string{"work-items", "wit", "--nope", "get", "5"},
+			want: "Error [config]: unknown flag: --nope\n",
+		},
+		{
+			name: "version flag before a path found in a second pass",
+			args: []string{"work-items", "wit", "--version", "get", "5"},
+			want: `Error [config]: --version belongs to tfscli itself, not to "tfscli wit work-items get" (run it as: tfscli --version)` + "\n",
+		},
+		{
+			name: "long flag without a name",
+			args: []string{"--=x", "wit", "work-items", "get", "5"},
+			want: "Error [config]: bad flag syntax: --=x\n",
+		},
+		{
+			name: "long flag with three dashes",
+			args: []string{"---x", "wit", "work-items", "get", "5"},
+			want: "Error [config]: bad flag syntax: ---x\n",
+		},
+		{
 			name: "version flag before a path",
 			args: []string{"--version", "wit"},
 			want: `Error [config]: --version belongs to tfscli itself, not to "tfscli wit" (run it as: tfscli --version)` + "\n",
@@ -239,25 +267,20 @@ func TestShellCompletionRequest(t *testing.T) {
 	}
 }
 
-// The two tests above compare the check with expectations written by hand,
-// which miss the lines where cobra resolves a command differently from what
-// the expectations assume. Here cobra itself is the oracle, over every line
-// up to three words long built from the words that matter to it and a
-// fixed-seed sample of longer lines:
+// The tests above compare the check with expectations written by hand, which
+// miss the lines where cobra resolves a command differently from what the
+// expectations assume. Here cobra itself is the oracle, over every line up to
+// three words long built from the words that matter to it and a fixed-seed
+// sample of longer lines:
 //
 //   - a line the check accepts makes cobra select a command whose path
 //     occupies the first words of the line;
 //   - the corrected line proposed for a misplaced path is accepted by the
-//     check, and cobra selects for it the command the message names.
+//     check, cobra selects for it the command the message names, and cobra
+//     rejects none of the flags that preceded the path;
+//   - a line refused for a flag before the path is rejected by cobra too, with
+//     the same message, once the path is moved to the front.
 func TestFlagOrderAgreesWithCobra(t *testing.T) {
-	// On Windows, cobra asks before every execution whether the process was
-	// started from Explorer, by listing every process of the system; at
-	// several milliseconds a call, that alone would make the test take
-	// minutes. An empty help text turns the question off.
-	mousetrap := cobra.MousetrapHelpText
-	cobra.MousetrapHelpText = ""
-	t.Cleanup(func() { cobra.MousetrapHelpText = mousetrap })
-
 	words := oracleWords()
 	var lines [][]string
 	var build func(line []string)
@@ -285,8 +308,10 @@ func TestFlagOrderAgreesWithCobra(t *testing.T) {
 	var wg sync.WaitGroup
 	for range runtime.GOMAXPROCS(0) {
 		wg.Go(func() {
+			// The check only reads the tree, so one tree serves a worker.
+			root := newRoot(testBuild, noTerminal{}, io.Discard, io.Discard)
 			for line := range next {
-				if msg := checkAgainstCobra(line); msg != "" {
+				if msg := checkAgainstCobra(root, line); msg != "" {
 					failures <- msg
 				}
 			}
@@ -299,49 +324,112 @@ func TestFlagOrderAgreesWithCobra(t *testing.T) {
 	wg.Wait()
 	close(failures)
 
-	reported := 0
+	var msgs []string
 	for msg := range failures {
-		if reported++; reported > 20 {
-			t.Error("further failures omitted")
+		msgs = append(msgs, msg)
+	}
+	slices.Sort(msgs)
+	for i, msg := range msgs {
+		if i == 20 {
+			t.Errorf("%d further failures omitted", len(msgs)-i)
 			break
 		}
 		t.Error(msg)
 	}
 }
 
-// checkAgainstCobra checks one command line against the two properties of
+// checkAgainstCobra checks one command line against the properties of
 // TestFlagOrderAgreesWithCobra and describes the first one it breaks.
-func checkAgainstCobra(line []string) string {
+func checkAgainstCobra(root *cobra.Command, line []string) string {
 	shown := shellJoin(append([]string{"tfscli"}, line...))
-	err := checkFlagOrder(stubbedRoot(), line)
-	if err == nil {
-		cmd := selected(line)
-		if path := strings.Fields(cmd.CommandPath())[1:]; len(path) > len(line) || !slices.Equal(path, line[:len(path)]) {
-			return fmt.Sprintf("%s: accepted, but cobra selects %q", shown, cmd.CommandPath())
+	cmd, name, corrected, before := reorder(root, line)
+	err := checkFlagOrder(root, line)
+	switch {
+	case corrected == nil && err != nil:
+		return fmt.Sprintf("%s: refused although its path comes first: %v", shown, err)
+	case corrected == nil:
+		// Cobra serves a completion request by construction; executing it
+		// would only print cobra's completion diagnostics to the real stderr.
+		if len(line) > 0 && (line[0] == cobra.ShellCompRequestCmd || line[0] == cobra.ShellCompNoDescRequestCmd) {
+			return ""
+		}
+		got := selected(line)
+		if path := strings.Fields(got)[1:]; len(path) > len(line) || !slices.Equal(path, line[:len(path)]) {
+			return fmt.Sprintf("%s: accepted, but cobra selects %q", shown, got)
+		}
+		return ""
+	case err == nil:
+		return fmt.Sprintf("%s: accepted, but its path does not come first", shown)
+	}
+
+	var te *tfserr.Error
+	if !errors.As(err, &te) {
+		return fmt.Sprintf("%s: refused with an error of no category: %v", shown, err)
+	}
+	fixed := shellJoin(append([]string{"tfscli"}, corrected...))
+	moved := append(slices.Clip(corrected[:len(strings.Fields(name))-1]), before...)
+	// A group ignores unknown flags, and the flags before a completion
+	// request belong to the root, which is a group too.
+	leaf := !cmd.HasSubCommands()
+
+	if !strings.Contains(te.Message, "must come first") {
+		if !leaf {
+			return ""
+		}
+		switch got := flagError(moved); {
+		case got == "":
+			return fmt.Sprintf("%s: refused with %q, but cobra accepts the flags before the path", shown, te.Message)
+		case got != te.Message && !strings.HasPrefix(te.Message, "--version"):
+			return fmt.Sprintf("%s: refused with %q, but cobra rejects it with %q", shown, te.Message, got)
 		}
 		return ""
 	}
-	if !strings.Contains(err.Error(), "must come first") {
-		return ""
-	}
-	_, name, corrected, _ := reorder(stubbedRoot(), line)
-	fixed := shellJoin(append([]string{"tfscli"}, corrected...))
-	if err := checkFlagOrder(stubbedRoot(), corrected); err != nil {
+
+	if err := checkFlagOrder(root, corrected); err != nil {
 		return fmt.Sprintf("%s: corrected to %s, which is refused: %v", shown, fixed, err)
 	}
-	if got := selected(corrected); got.CommandPath() != name {
-		return fmt.Sprintf("%s: corrected to %s, for which cobra selects %q instead of %q", shown, fixed, got.CommandPath(), name)
+	if cmd != root {
+		if got := selected(corrected); got != name {
+			return fmt.Sprintf("%s: corrected to %s, for which cobra selects %q instead of %q", shown, fixed, got, name)
+		}
+	}
+	if !leaf {
+		return ""
+	}
+	if got := flagError(moved); got != "" {
+		return fmt.Sprintf("%s: corrected to %s, though cobra rejects a flag before the path: %s", shown, fixed, got)
 	}
 	return ""
 }
 
-// selected returns the command cobra selects for args, whether it then runs
-// the command, prints its help, or rejects its flags or arguments.
-func selected(args []string) *cobra.Command {
+// selected returns the path, as typed, of the command cobra selects for args,
+// whether it then runs the command, prints its help, or rejects its flags or
+// arguments.
+func selected(args []string) string {
 	root := stubbedRoot()
 	root.SetArgs(args)
 	cmd, _ := root.ExecuteC()
-	return cmd
+	if cmd.HasParent() && cmd.CalledAs() != "" {
+		return cmd.Parent().CommandPath() + " " + cmd.CalledAs()
+	}
+	return cmd.CommandPath()
+}
+
+// flagError returns the message with which cobra rejects a flag of args as
+// unknown or malformed, or "" if it rejects none.
+func flagError(args []string) string {
+	root := stubbedRoot()
+	root.SetArgs(args)
+	_, err := root.ExecuteC()
+	if err == nil {
+		return ""
+	}
+	for _, kind := range []string{"unknown flag: ", "unknown shorthand flag: ", "bad flag syntax: "} {
+		if strings.HasPrefix(err.Error(), kind) {
+			return err.Error()
+		}
+	}
+	return ""
 }
 
 // stubbedRoot is the command tree with every action replaced by one that does
@@ -365,8 +453,8 @@ func stubbedRoot() *cobra.Command {
 // and the words that pflag and cobra treat specially.
 func oracleWords() []string {
 	words := []string{
-		"--", "-", "", "--help", "-h", "--version", "--bogus", "-z", "X", "5",
-		cobra.ShellCompRequestCmd,
+		"--", "-", "", "--=X", "--help", "-h", "--version", "--bogus", "-z", "X", "5",
+		cobra.ShellCompRequestCmd, cobra.ShellCompNoDescRequestCmd,
 	}
 	var walk func(cmd *cobra.Command)
 	walk = func(cmd *cobra.Command) {
@@ -398,5 +486,7 @@ func oracleWords() []string {
 
 // flagUsage matches the start of a line of cobra's flag usage text, such as
 // "  -p, --project string" or "      --verbose", capturing the shorthand and
-// the name.
+// the name. The flags are read from the usage text because visiting the flag
+// set would name pflag's Flag type and so make pflag a direct dependency;
+// a hidden flag is not listed there and therefore not exercised.
 var flagUsage = regexp.MustCompile(`(?m)^\s+(?:-(\w), )?--([\w-]+)`)
