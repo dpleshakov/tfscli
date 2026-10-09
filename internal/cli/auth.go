@@ -64,10 +64,7 @@ func stdinFd() int {
 }
 
 func newAuthCmd(g *globals) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "auth",
-		Short: "Credential commands",
-	}
+	cmd := newGroupCmd("auth", "Credential commands")
 	cmd.AddCommand(newAuthLoginCmd(g))
 	return cmd
 }

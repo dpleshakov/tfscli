@@ -16,35 +16,38 @@ import (
 // permission rules match the command text by its prefix, so the command path
 // has to open the command line; cobra itself accepts flags at any position.
 //
-// The command is located twice, and the deeper result is taken. Cobra's Find
-// decides whether a flag takes a value only from the flags of the command it
-// stands on, so a flag unknown there — a flag of an action placed at the level
-// of its group — swallows the next word and Find stops at the group. The walk
-// in walkPath looks flags up in the whole subtree instead, but it can stop
-// where Find goes on: at a word Find skips, such as "" or "-", or at a word
-// Find takes as the value of a flag it does not know, such as X in
-// "--help X". Whichever command is deeper is the one cobra may run, and it is
-// what the check holds to.
+// The command is the one reached from the root by taking, in order, every word
+// that names a subcommand of the command reached so far, up to "--". No
+// knowledge of flag values is needed: a command with subcommands takes no
+// arguments and defines no flags of its own (TestEveryGroupOnlyGroups), so in
+// a valid command line no word naming a subcommand can follow the path. This
+// reaches at least as deep as cobra's Find, which descends only through such
+// words, so cobra never runs a command whose path is not at the start.
 func checkFlagOrder(root *cobra.Command, args []string) error {
-	target := walkPath(root, args)
-	if found, _, err := root.Find(args); err == nil && depth(found) > depth(target) {
-		target = found
+	cmd := root
+	var path []int
+	for i, arg := range args {
+		if arg == "--" {
+			break
+		}
+		if next := subcommand(cmd, arg); next != nil {
+			cmd = next
+			path = append(path, i)
+		}
 	}
-	path := strings.Fields(target.CommandPath())[1:]
-	if len(path) == 0 || slices.Equal(args[:min(len(path), len(args))], path) {
+	if len(path) == 0 || path[len(path)-1] == len(path)-1 {
 		return nil
 	}
 
 	// The corrected command is the path followed by every other word in its
-	// original order; before is the part of it that preceded the path.
+	// original order; before holds the words that preceded the last path word.
+	last := path[len(path)-1]
 	var before, rest []string
-	next := 0
-	for _, arg := range args {
-		if next < len(path) && arg == path[next] {
-			next++
+	for i, arg := range args {
+		if slices.Contains(path, i) {
 			continue
 		}
-		if next < len(path) {
+		if i < last {
 			before = append(before, arg)
 		}
 		rest = append(rest, arg)
@@ -53,52 +56,28 @@ func checkFlagOrder(root *cobra.Command, args []string) error {
 	if slices.Contains(before, "--version") {
 		return &tfserr.Error{
 			Category: tfserr.Config,
-			Message:  fmt.Sprintf("--version belongs to tfscli itself, not to %q (run it as: tfscli --version)", target.CommandPath()),
+			Message:  fmt.Sprintf("--version belongs to tfscli itself, not to %q (run it as: tfscli --version)", cmd.CommandPath()),
 		}
 	}
-	if err := unknownFlag(target, before); err != nil {
+	if err := unknownFlag(cmd, before); err != nil {
 		return err
 	}
+	words := append(strings.Fields(cmd.CommandPath()), rest...)
 	return &tfserr.Error{
 		Category: tfserr.Config,
 		Message: fmt.Sprintf("the command %q must come first, before its flags and arguments (run it as: %s)",
-			target.CommandPath(), shellJoin(append(append([]string{root.Name()}, path...), rest...))),
+			cmd.CommandPath(), shellJoin(words)),
 	}
 }
 
-// walkPath follows the command path through the arguments from the root and
-// returns the deepest command it reaches. A word that follows a flag taking a
-// value is that value, whatever it starts with or names, as pflag reads it.
-func walkPath(root *cobra.Command, args []string) *cobra.Command {
-	cmd := root
-	pendingValue := false
-	for _, arg := range args {
-		switch {
-		case arg == "--":
-			return cmd
-		case pendingValue:
-			pendingValue = false
-		case strings.HasPrefix(arg, "-") && arg != "-":
-			name, short, inline := splitFlag(arg)
-			pendingValue = !inline && takesValue(cmd, name, short)
-		default:
-			next := subcommand(cmd, arg)
-			if next == nil {
-				return cmd
-			}
-			cmd = next
+// subcommand returns the child of cmd named name, or nil.
+func subcommand(cmd *cobra.Command, name string) *cobra.Command {
+	for _, c := range cmd.Commands() {
+		if c.Name() == name {
+			return c
 		}
 	}
-	return cmd
-}
-
-// depth is the number of words in the command path of cmd below the root.
-func depth(cmd *cobra.Command) int {
-	n := 0
-	for ; cmd.HasParent(); cmd = cmd.Parent() {
-		n++
-	}
-	return n
+	return nil
 }
 
 // unknownFlag reports the first flag among words, read as pflag reads them,
@@ -128,16 +107,6 @@ func unknownFlag(cmd *cobra.Command, words []string) error {
 	return nil
 }
 
-// subcommand returns the child of cmd named name, or nil.
-func subcommand(cmd *cobra.Command, name string) *cobra.Command {
-	for _, c := range cmd.Commands() {
-		if c.Name() == name {
-			return c
-		}
-	}
-	return nil
-}
-
 // splitFlag takes a flag token apart: "--name", "--name=value", "-n", or
 // "-nvalue". inline reports whether the token carries its value.
 func splitFlag(arg string) (name string, short, inline bool) {
@@ -150,28 +119,6 @@ func splitFlag(arg string) (name string, short, inline bool) {
 		return body[:1], true, true
 	}
 	return body, true, false
-}
-
-// takesValue reports whether the flag named consumes the next argument as its
-// value: a flag without a value for its bare form, such as --project, does,
-// while a boolean such as --verbose does not. The flag is looked up on cmd,
-// among the flags it inherits, and on every command below it, since a flag of
-// an action may be placed while the walk still stands on its group. --help,
-// -h, and --version, which cobra registers only when it executes a command,
-// take no value, and neither does a flag found nowhere.
-func takesValue(cmd *cobra.Command, name string, short bool) bool {
-	if name == "help" || name == "version" || (short && name == "h") {
-		return false
-	}
-	queue := []*cobra.Command{cmd}
-	for len(queue) > 0 {
-		c := queue[0]
-		queue = append(queue[1:], c.Commands()...)
-		if found, value := lookupFlag(c, name, short); found {
-			return value
-		}
-	}
-	return false
 }
 
 // lookupFlag finds a flag of cmd, its own or inherited, by name or by
