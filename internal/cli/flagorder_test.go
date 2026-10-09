@@ -65,6 +65,11 @@ func TestFlagBeforeTheCommandPathIsRefused(t *testing.T) {
 			want: refused("tfscli wit work-items get", "tfscli wit work-items get -pMyProject 12345"),
 		},
 		{
+			name: "shorthand with a value after an equals sign",
+			args: []string{"wit", "work-items", "-p=MyProject", "get", "12345"},
+			want: refused("tfscli wit work-items get", "tfscli wit work-items get -p=MyProject 12345"),
+		},
+		{
 			name: "long help flag before the path",
 			args: []string{"--help", "wit", "work-items", "get"},
 			want: refused("tfscli wit work-items get", "tfscli wit work-items get --help"),
@@ -350,7 +355,8 @@ func TestFlagOrderAgreesWithCobra(t *testing.T) {
 	var wg sync.WaitGroup
 	for range runtime.GOMAXPROCS(0) {
 		wg.Go(func() {
-			// The check only reads the tree, so one tree serves a worker.
+			// The check merges persistent flags into the tree it walks, so
+			// each worker builds its own.
 			root := newRoot(testBuild, noTerminal{}, io.Discard, io.Discard)
 			for line := range next {
 				if msg := checkAgainstCobra(root, line); msg != "" {
@@ -392,7 +398,7 @@ func checkAgainstCobra(root *cobra.Command, line []string) string {
 	case corrected == nil:
 		// Cobra serves a completion request by construction; executing it
 		// would only print cobra's completion diagnostics to the real stderr.
-		if len(line) > 0 && (line[0] == cobra.ShellCompRequestCmd || line[0] == cobra.ShellCompNoDescRequestCmd) {
+		if len(line) > 0 && isCompletionRequest(line[0]) {
 			return ""
 		}
 		got := selected(line)
@@ -418,7 +424,10 @@ func checkAgainstCobra(root *cobra.Command, line []string) string {
 		if !leaf {
 			return ""
 		}
+		// Cobra stops at the first flag value it cannot parse, which the
+		// check does not read, so a later flag goes unreported.
 		switch got := flagError(moved); {
+		case strings.HasPrefix(got, invalidValue):
 		case got == "":
 			return fmt.Sprintf("%s: refused with %q, but cobra accepts the flags before the path", shown, te.Message)
 		case got != te.Message && !strings.HasPrefix(te.Message, "--version"):
@@ -438,11 +447,14 @@ func checkAgainstCobra(root *cobra.Command, line []string) string {
 	if !leaf {
 		return ""
 	}
-	if got := flagError(moved); got != "" {
+	if got := flagError(moved); got != "" && !strings.HasPrefix(got, invalidValue) {
 		return fmt.Sprintf("%s: corrected to %s, though cobra rejects a flag before the path: %s", shown, fixed, got)
 	}
 	return ""
 }
+
+// invalidValue opens cobra's message for a flag value it cannot parse.
+const invalidValue = "invalid argument "
 
 // selected returns the path, as typed, of the command cobra selects for args,
 // whether it then runs the command, prints its help, or rejects its flags or
@@ -458,7 +470,7 @@ func selected(args []string) string {
 }
 
 // flagError returns the message with which cobra rejects a flag of args as
-// unknown or malformed, or "" if it rejects none.
+// unknown or malformed or its value as invalid, or "" if it rejects none.
 func flagError(args []string) string {
 	root := stubbedRoot()
 	root.SetArgs(args)
@@ -466,7 +478,7 @@ func flagError(args []string) string {
 	if err == nil {
 		return ""
 	}
-	for _, kind := range []string{"unknown flag: ", "unknown shorthand flag: ", "bad flag syntax: "} {
+	for _, kind := range []string{"unknown flag: ", "unknown shorthand flag: ", "bad flag syntax: ", invalidValue} {
 		if strings.HasPrefix(err.Error(), kind) {
 			return err.Error()
 		}
@@ -513,7 +525,7 @@ func oracleWords() []string {
 			if short != "" {
 				words = append(words, "-"+short)
 				if value {
-					words = append(words, "-"+short+"X")
+					words = append(words, "-"+short+"X", "-"+short+"=X")
 				}
 			}
 		}
