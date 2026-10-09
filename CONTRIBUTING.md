@@ -75,13 +75,21 @@ if a change would break one, raise it before implementing.
 - PAT authentication only; no SSPI or NTLM. The PAT is entered interactively by
   `tfscli auth login` and never accepted as a command argument.
 - Read-only in v1; write operations additionally depend on JSON output landing first.
+- When write operations are added, every operation that changes server state requires
+  `--allow-changes`, and an irreversible one `--allow-irreversible` as well. Changing
+  server state is a property of the command, never of a flag of a reading command. The
+  gate flags have no short form, environment variable, or config key.
 - Markdown is the default output format.
 - The command hierarchy and parameter names mirror the TFS REST API; a deviation needs an
   explicit usability justification, and no query syntax or batch endpoint is invented.
+- The command line stays matchable by agent permission rules: flags follow the command
+  path, each command has one form (no aliases, abbreviations, or prefix matching), local
+  command names never coincide with REST API areas, and there is no generic pass-through
+  command.
 - Stateless: no daemon, no background process, no on-disk state beyond the config file and the credential written by `auth login`.
 - The error categories `auth`, `not_found`, `forbidden`, `server`, `config`, and `network`
   are a contract. New ones may be added; existing ones are never renamed or removed.
-- Configuration precedence is flag, environment variable, config file, built-in default. The server URL, the collection, and the PAT stay outside it: they come only from `auth.json` or `TFSCLI_AUTH`, together.
+- Configuration precedence is flag, environment variable, config file, built-in default. The server URL, the collection, and the PAT stay outside it: they come only from `auth.json` or `TFSCLI_AUTH`, together. The gate flags of write operations stay outside it too: they are given on the command line only.
 
 **Dependencies.** Three direct dependencies — `cobra`, `html-to-markdown/v2`, and
 `golang.org/x/term` — are the intended total. HTTP is `net/http`; JSON and configuration

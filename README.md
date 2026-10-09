@@ -155,14 +155,20 @@ plain markdown under a short YAML header.
 ### Permission rules
 
 Both agents decide whether a shell command may run by matching its text against
-rules. Every tfscli command starts with its full name, `tfscli <area> <resource>
-<action>`, followed by flags and arguments, and each command has exactly one
-name, so a rule written as a prefix covers the command whatever its flags. The
-current commands only read; `auth login` is interactive and is not for an
-agent to run.
+rules. Every tfscli command starts with its full name, such as
+`tfscli wit work-items get` or `tfscli licenses`, followed by flags and
+arguments, and each command has exactly one name, so a rule written as a prefix
+covers the command whatever its flags. The current commands only read;
+`auth login` is interactive and is not for an agent to run.
+
+Commands that change data are not part of tfscli yet. When they are added,
+each will require the flag `--allow-changes` and will fall under `tfscli wit *`
+like the reading commands, so the examples below already ask before any
+command carrying that flag.
 
 Claude Code, in `.claude/settings.json` or `~/.claude/settings.json`; the
-`PowerShell` rules apply where the agent runs commands through PowerShell:
+`PowerShell` rules apply where the agent runs commands through PowerShell. An
+`ask` rule takes precedence over an `allow` rule:
 
 ```json
 {
@@ -173,6 +179,10 @@ Claude Code, in `.claude/settings.json` or `~/.claude/settings.json`; the
       "PowerShell(tfscli wit *)",
       "PowerShell(tfscli licenses)"
     ],
+    "ask": [
+      "Bash(*--allow-changes*)",
+      "PowerShell(*--allow-changes*)"
+    ],
     "deny": [
       "Bash(tfscli auth *)",
       "PowerShell(tfscli auth *)"
@@ -182,7 +192,7 @@ Claude Code, in `.claude/settings.json` or `~/.claude/settings.json`; the
 ```
 
 opencode, in `opencode.json`. The last matching rule wins, so place these after
-any catch-all `"*"` rule:
+any catch-all `"*"` rule, in this order:
 
 ```json
 {
@@ -190,15 +200,18 @@ any catch-all `"*"` rule:
     "bash": {
       "tfscli wit *": "allow",
       "tfscli licenses": "allow",
-      "tfscli auth *": "deny"
+      "tfscli auth *": "deny",
+      "*--allow-changes*": "ask"
     }
   }
 }
 ```
 
-A rule matches the program name as the agent types it: a call through
-`tfscli.exe` or a full path does not match `tfscli wit *` and is asked about
-instead.
+A rule matches the command as the agent types it. A call through `tfscli.exe`
+or a full path matches none of the `tfscli` rules and gets the agent's default
+for unmatched commands: Claude Code asks in its default mode, while opencode
+allows it unless a catch-all `"*": "ask"` is set. The deny rule therefore keeps
+an agent from the usual form of the call; it is not a security boundary.
 
 ## Configuration
 
@@ -261,7 +274,7 @@ tfscli <area> <resource> <action> [flags] [arguments]
 
 Commands are named after the REST API reference: the area and the resource are the segments of the operation's page path, so Get Work Item, documented under `.../wit/work-items/get-work-item`, is `wit work-items get`. `auth login` and `licenses` are local to tfscli and have no counterpart in the API.
 
-Flags follow the command: `tfscli wit work-items get --verbose -p MyProject 12345`, never `tfscli --verbose wit work-items get ...`. A flag placed before the last word of the command is refused with a `config` error that shows the command with the flag moved, and nothing is sent to the server. `--help` is no exception: `tfscli wit work-items get --help`, not `tfscli --help wit work-items get`. The rule keeps the command at the start of the command line, where agent permission rules look for it (see "Permission rules").
+Flags follow the command: `tfscli wit work-items get --verbose -p MyProject 12345`, never `tfscli --verbose wit work-items get ...`. A flag placed before the last word of the command is refused with a `config` error that shows the command with the flag moved, and nothing is sent to the server; a flag that the command does not define is reported as unknown instead. `--help` is no exception: `tfscli wit work-items get --help`, not `tfscli --help wit work-items get`. `--version` belongs to `tfscli` alone, and placed before a command it is refused with a message that names `tfscli --version`. The rule keeps the command at the start of the command line, where agent permission rules look for it (see "Permission rules").
 
 `tfscli --version` prints the version and the commit it was built from; `tfscli --help`, and `--help` on any command, lists the flags. `tfscli licenses` prints the components built into the binary — tfscli itself, the Go standard library, and the third-party modules — followed by the license text of each.
 
