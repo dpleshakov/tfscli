@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strconv"
@@ -35,7 +36,10 @@ func checkFlagOrder(root *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := unknownFlag(cmd, name, before); err != nil {
+	// A group ignores the flags it does not know, which before a group are
+	// usually those of the intended command placed before a mistyped name;
+	// the corrected command lets cobra report that name instead.
+	if err := unknownFlag(cmd, name, before); err != nil && (!cmd.HasSubCommands() || errors.Is(err, errVersionFlag)) {
 		return err
 	}
 	return &tfserr.Error{
@@ -157,6 +161,7 @@ func unknownFlag(cmd *cobra.Command, name string, words []string) error {
 				return &tfserr.Error{
 					Category: tfserr.Config,
 					Message:  fmt.Sprintf("--version belongs to tfscli itself, not to %q (run it as: tfscli --version)", name),
+					Cause:    errVersionFlag,
 				}
 			case !found:
 				return &tfserr.Error{Category: tfserr.Config, Message: "unknown flag: --" + flag}
@@ -176,6 +181,10 @@ func unknownFlag(cmd *cobra.Command, name string, words []string) error {
 	}
 	return nil
 }
+
+// errVersionFlag is the cause of the error for --version placed before a
+// command path.
+var errVersionFlag = errors.New("--version before a command path")
 
 // shorthands reads a group of shorthand flags, such as "v" in "-v" or "vpX"
 // in "-vpX", as pflag reads it, and reports whether the last flag of the group

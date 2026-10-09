@@ -594,6 +594,11 @@ func TestUnknownCommandBelowTheRootIsAnError(t *testing.T) {
 			want: "Error [config]: unknown command \"frobnicate\" for \"tfscli wit\" (run \"tfscli wit --help\" for the available commands)\n",
 		},
 		{
+			name: "mistyped action after the corrected flag order",
+			args: []string{"wit", "work-items", "-p", "MyProject", "gte", "1"},
+			want: "Error [config]: unknown command \"gte\" for \"tfscli wit work-items\" (did you mean \"get\"?)\n",
+		},
+		{
 			name: "local group",
 			args: []string{"auth", "frobnicate"},
 			want: "Error [config]: unknown command \"frobnicate\" for \"tfscli auth\" (run \"tfscli auth --help\" for the available commands)\n",
