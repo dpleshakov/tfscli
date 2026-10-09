@@ -168,6 +168,11 @@ func TestFlagBeforeTheCommandPathIsRefused(t *testing.T) {
 			want: `Error [config]: --version belongs to tfscli itself, not to "tfscli wit" (run it as: tfscli --version)` + "\n",
 		},
 		{
+			name: "flag of the action before a mistyped action",
+			args: []string{"-p", "MyProject", "wit", "work-items", "gte", "1"},
+			want: refused("tfscli wit work-items", "tfscli wit work-items -p MyProject gte 1"),
+		},
+		{
 			name: "unknown flag before the path",
 			args: []string{"--nope", "wit", "work-items", "get", "-p", "MyProject", "12345"},
 			want: "Error [config]: unknown flag: --nope\n",
