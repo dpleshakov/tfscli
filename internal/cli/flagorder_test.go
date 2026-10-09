@@ -1,9 +1,18 @@
 package cli
 
 import (
+	"fmt"
+	"io"
+	"math/rand/v2"
 	"net/http"
+	"regexp"
+	"runtime"
+	"slices"
 	"strings"
+	"sync"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
 
 // refused is the error for a command line whose command path does not come
@@ -111,6 +120,21 @@ func TestFlagBeforeTheCommandPathIsRefused(t *testing.T) {
 			want: refused("tfscli completion powershell", "tfscli completion powershell --verbose"),
 		},
 		{
+			name: "flag before a shell completion request",
+			args: []string{"--verbose", "__complete", "wit", ""},
+			want: refused("tfscli __complete", "tfscli __complete --verbose wit ''"),
+		},
+		{
+			name: "double dash taken for the value of a flag",
+			args: []string{"--api-version", "--", "completion", "bash"},
+			want: refused("tfscli completion bash", "tfscli completion bash --api-version --"),
+		},
+		{
+			name: "path words in reverse order",
+			args: []string{"-", "login", "auth"},
+			want: refused("tfscli auth login", "tfscli auth login -"),
+		},
+		{
 			name: "version flag before a path",
 			args: []string{"--version", "wit"},
 			want: `Error [config]: --version belongs to tfscli itself, not to "tfscli wit" (run it as: tfscli --version)` + "\n",
@@ -214,3 +238,165 @@ func TestShellCompletionRequest(t *testing.T) {
 		})
 	}
 }
+
+// The two tests above compare the check with expectations written by hand,
+// which miss the lines where cobra resolves a command differently from what
+// the expectations assume. Here cobra itself is the oracle, over every line
+// up to three words long built from the words that matter to it and a
+// fixed-seed sample of longer lines:
+//
+//   - a line the check accepts makes cobra select a command whose path
+//     occupies the first words of the line;
+//   - the corrected line proposed for a misplaced path is accepted by the
+//     check, and cobra selects for it the command the message names.
+func TestFlagOrderAgreesWithCobra(t *testing.T) {
+	// On Windows, cobra asks before every execution whether the process was
+	// started from Explorer, by listing every process of the system; at
+	// several milliseconds a call, that alone would make the test take
+	// minutes. An empty help text turns the question off.
+	mousetrap := cobra.MousetrapHelpText
+	cobra.MousetrapHelpText = ""
+	t.Cleanup(func() { cobra.MousetrapHelpText = mousetrap })
+
+	words := oracleWords()
+	var lines [][]string
+	var build func(line []string)
+	build = func(line []string) {
+		lines = append(lines, line)
+		if len(line) == 3 {
+			return
+		}
+		for _, w := range words {
+			build(append(slices.Clip(line), w))
+		}
+	}
+	build(nil)
+	rng := rand.New(rand.NewPCG(1, 2))
+	for range 20000 {
+		line := make([]string, 4+rng.IntN(4))
+		for i := range line {
+			line[i] = words[rng.IntN(len(words))]
+		}
+		lines = append(lines, line)
+	}
+
+	failures := make(chan string, len(lines))
+	next := make(chan []string)
+	var wg sync.WaitGroup
+	for range runtime.GOMAXPROCS(0) {
+		wg.Go(func() {
+			for line := range next {
+				if msg := checkAgainstCobra(line); msg != "" {
+					failures <- msg
+				}
+			}
+		})
+	}
+	for _, line := range lines {
+		next <- line
+	}
+	close(next)
+	wg.Wait()
+	close(failures)
+
+	reported := 0
+	for msg := range failures {
+		if reported++; reported > 20 {
+			t.Error("further failures omitted")
+			break
+		}
+		t.Error(msg)
+	}
+}
+
+// checkAgainstCobra checks one command line against the two properties of
+// TestFlagOrderAgreesWithCobra and describes the first one it breaks.
+func checkAgainstCobra(line []string) string {
+	shown := shellJoin(append([]string{"tfscli"}, line...))
+	err := checkFlagOrder(stubbedRoot(), line)
+	if err == nil {
+		cmd := selected(line)
+		if path := strings.Fields(cmd.CommandPath())[1:]; len(path) > len(line) || !slices.Equal(path, line[:len(path)]) {
+			return fmt.Sprintf("%s: accepted, but cobra selects %q", shown, cmd.CommandPath())
+		}
+		return ""
+	}
+	if !strings.Contains(err.Error(), "must come first") {
+		return ""
+	}
+	_, name, corrected, _ := reorder(stubbedRoot(), line)
+	fixed := shellJoin(append([]string{"tfscli"}, corrected...))
+	if err := checkFlagOrder(stubbedRoot(), corrected); err != nil {
+		return fmt.Sprintf("%s: corrected to %s, which is refused: %v", shown, fixed, err)
+	}
+	if got := selected(corrected); got.CommandPath() != name {
+		return fmt.Sprintf("%s: corrected to %s, for which cobra selects %q instead of %q", shown, fixed, got.CommandPath(), name)
+	}
+	return ""
+}
+
+// selected returns the command cobra selects for args, whether it then runs
+// the command, prints its help, or rejects its flags or arguments.
+func selected(args []string) *cobra.Command {
+	root := stubbedRoot()
+	root.SetArgs(args)
+	cmd, _ := root.ExecuteC()
+	return cmd
+}
+
+// stubbedRoot is the command tree with every action replaced by one that does
+// nothing, so that cobra can execute any command line without a server.
+func stubbedRoot() *cobra.Command {
+	root := newRoot(testBuild, noTerminal{}, io.Discard, io.Discard)
+	var stub func(cmd *cobra.Command)
+	stub = func(cmd *cobra.Command) {
+		cmd.Run = nil
+		cmd.RunE = func(*cobra.Command, []string) error { return nil }
+		for _, child := range cmd.Commands() {
+			stub(child)
+		}
+	}
+	stub(root)
+	return root
+}
+
+// oracleWords is the alphabet of the generated command lines: every command
+// name and every flag of the tree, a value flag also with its value attached,
+// and the words that pflag and cobra treat specially.
+func oracleWords() []string {
+	words := []string{
+		"--", "-", "", "--help", "-h", "--version", "--bogus", "-z", "X", "5",
+		cobra.ShellCompRequestCmd,
+	}
+	var walk func(cmd *cobra.Command)
+	walk = func(cmd *cobra.Command) {
+		if cmd.HasParent() {
+			words = append(words, cmd.Name())
+		}
+		for _, m := range flagUsage.FindAllStringSubmatch(cmd.LocalFlags().FlagUsages(), -1) {
+			short, name := m[1], m[2]
+			_, value := lookupFlag(cmd, name, false)
+			words = append(words, "--"+name)
+			if value {
+				words = append(words, "--"+name+"=X")
+			}
+			if short != "" {
+				words = append(words, "-"+short)
+				if value {
+					words = append(words, "-"+short+"X")
+				}
+			}
+		}
+		for _, child := range cmd.Commands() {
+			walk(child)
+		}
+	}
+	walk(newRoot(testBuild, noTerminal{}, io.Discard, io.Discard))
+	slices.Sort(words)
+	return slices.Compact(words)
+}
+
+// flagUsage matches the start of a line of cobra's flag usage text, such as
+// "  -p, --project string" or "      --verbose", capturing the shorthand and
+// the name.
+var flagUsage = regexp.MustCompile(`(?m)^\s+(?:-(\w), )?--([\w-]+)`)

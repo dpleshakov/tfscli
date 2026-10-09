@@ -17,41 +17,90 @@ import (
 // has to open the command line; cobra itself accepts flags at any position.
 //
 // The command is the one reached from the root by taking, in order, every word
-// that names a subcommand of the command reached so far, up to "--". No
+// that names a subcommand of the command reached so far, "--" not excepted,
+// since pflag takes it for the value of a flag before it. No
 // knowledge of flag values is needed: a command with subcommands takes no
 // arguments and defines no flags of its own (TestEveryGroupOnlyGroups), so in
 // a valid command line no word naming a subcommand can follow the path. This
 // reaches at least as deep as cobra's Find, which descends only through such
 // words, so cobra never runs a command whose path is not at the start.
 //
-// A shell completion request, which cobra serves with a hidden command it adds
-// only when it executes the tree, is let through: it lists completions for the
-// words after it and runs no command.
+// Cobra's hidden command for shell completion requests, which it adds to the
+// root only when it executes the tree, is taken as a subcommand of the root
+// that ends the path: the words after it are the command line to complete.
 func checkFlagOrder(root *cobra.Command, args []string) error {
-	if len(args) > 0 && (args[0] == cobra.ShellCompRequestCmd || args[0] == cobra.ShellCompNoDescRequestCmd) {
+	cmd, name, corrected, before := reorder(root, args)
+	if corrected == nil {
 		return nil
 	}
-	cmd := root
+
+	if slices.Contains(before, "--version") {
+		return &tfserr.Error{
+			Category: tfserr.Config,
+			Message:  fmt.Sprintf("--version belongs to tfscli itself, not to %q (run it as: tfscli --version)", name),
+		}
+	}
+	if err := unknownFlag(cmd, before); err != nil {
+		return err
+	}
+	return &tfserr.Error{
+		Category: tfserr.Config,
+		Message: fmt.Sprintf("the command %q must come first, before its flags and arguments (run it as: %s)",
+			name, shellJoin(append([]string{root.Name()}, corrected...))),
+	}
+}
+
+// reorder finds the command that args name, as checkFlagOrder describes, and
+// returns it with its name as typed; for a shell completion request, cmd is
+// the root, whose flags are the ones that can precede it. When the path does
+// not occupy the first words, corrected is args with the path moved to the
+// front and every other word kept in its original order, and before holds
+// the words that preceded the last word of the path; otherwise both are nil.
+//
+// Moving the path to the front can turn a word that preceded one of its steps
+// into a further step, as "login" in "tfscli - login auth", so the move is
+// repeated until the path stays where it is; it lengthens the path each time.
+func reorder(root *cobra.Command, args []string) (cmd *cobra.Command, name string, corrected, before []string) {
+	cmd, name, corrected, before = moveFirst(root, args)
+	for corrected != nil {
+		next, nextName, again, _ := moveFirst(root, corrected)
+		if again == nil {
+			return next, nextName, corrected, before
+		}
+		corrected = again
+	}
+	return cmd, name, nil, nil
+}
+
+// moveFirst makes one pass of reorder. before holds the words that preceded
+// the last word of the path in args.
+func moveFirst(root *cobra.Command, args []string) (cmd *cobra.Command, name string, corrected, before []string) {
+	cmd = root
+	words := []string{root.Name()}
 	var path []int
 	for i, arg := range args {
-		if arg == "--" {
+		if cmd == root && (arg == cobra.ShellCompRequestCmd || arg == cobra.ShellCompNoDescRequestCmd) {
+			words = append(words, arg)
+			path = append(path, i)
 			break
 		}
 		if next := subcommand(cmd, arg); next != nil {
 			cmd = next
+			words = append(words, arg)
 			path = append(path, i)
 		}
 	}
+	name = strings.Join(words, " ")
 	if len(path) == 0 || path[len(path)-1] == len(path)-1 {
-		return nil
+		return cmd, name, nil, nil
 	}
 
-	// The corrected command is the path followed by every other word in its
-	// original order; before holds the words that preceded the last path word.
 	last := path[len(path)-1]
-	var before, rest []string
+	corrected = make([]string, 0, len(args))
+	var rest []string
 	for i, arg := range args {
 		if slices.Contains(path, i) {
+			corrected = append(corrected, arg)
 			continue
 		}
 		if i < last {
@@ -59,22 +108,7 @@ func checkFlagOrder(root *cobra.Command, args []string) error {
 		}
 		rest = append(rest, arg)
 	}
-
-	if slices.Contains(before, "--version") {
-		return &tfserr.Error{
-			Category: tfserr.Config,
-			Message:  fmt.Sprintf("--version belongs to tfscli itself, not to %q (run it as: tfscli --version)", cmd.CommandPath()),
-		}
-	}
-	if err := unknownFlag(cmd, before); err != nil {
-		return err
-	}
-	words := append(strings.Fields(cmd.CommandPath()), rest...)
-	return &tfserr.Error{
-		Category: tfserr.Config,
-		Message: fmt.Sprintf("the command %q must come first, before its flags and arguments (run it as: %s)",
-			cmd.CommandPath(), shellJoin(words)),
-	}
+	return cmd, name, append(corrected, rest...), before
 }
 
 // subcommand returns the child of cmd named name, or nil.

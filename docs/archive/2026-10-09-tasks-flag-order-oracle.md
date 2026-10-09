@@ -1,6 +1,6 @@
 # 2026-10-09-tasks-flag-order-oracle.md
 
-**Status:** Active
+**Status:** Archived
 
 ## Context
 
@@ -58,4 +58,4 @@ message. Mention the test in the cli module paragraph of
 the check is weakened, for example when it stops at the first word that is
 not a subcommand. `make check` passes, and the test adds no more than a few
 seconds to it.
-**Status:** Pending
+**Status:** Done
