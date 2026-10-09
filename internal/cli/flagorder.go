@@ -17,13 +17,14 @@ import (
 // has to open the command line; cobra itself accepts flags at any position.
 //
 // The command is the one reached from the root by taking, in order, every word
-// that names a subcommand of the command reached so far, "--" not excepted,
-// since pflag takes it for the value of a flag before it. No
-// knowledge of flag values is needed: a command with subcommands takes no
-// arguments and defines no flags of its own (TestEveryGroupOnlyGroups), so in
-// a valid command line no word naming a subcommand can follow the path. This
-// reaches at least as deep as cobra's Find, which descends only through such
-// words, so cobra never runs a command whose path is not at the start.
+// that names a subcommand of the command reached so far. The walk does not
+// stop at "--", since pflag takes it for the value of a flag placed before it.
+// No knowledge of flag values is needed: a group takes no arguments and
+// defines no flags of its own (TestEveryGroupOnlyGroups), and the flags cobra
+// adds itself, --help and the root's --version, take no value, so in a valid
+// command line no word naming a subcommand can follow the path. This reaches
+// at least as deep as cobra's Find, which descends only through such words,
+// so cobra never runs a command whose path is not at the start.
 //
 // Cobra's hidden command for shell completion requests, which it adds to the
 // root only when it executes the tree, is taken as a subcommand of the root
@@ -34,13 +35,7 @@ func checkFlagOrder(root *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if slices.Contains(before, "--version") {
-		return &tfserr.Error{
-			Category: tfserr.Config,
-			Message:  fmt.Sprintf("--version belongs to tfscli itself, not to %q (run it as: tfscli --version)", name),
-		}
-	}
-	if err := unknownFlag(cmd, before); err != nil {
+	if err := unknownFlag(cmd, name, before); err != nil {
 		return err
 	}
 	return &tfserr.Error{
@@ -55,30 +50,60 @@ func checkFlagOrder(root *cobra.Command, args []string) error {
 // the root, whose flags are the ones that can precede it. When the path does
 // not occupy the first words, corrected is args with the path moved to the
 // front and every other word kept in its original order, and before holds
-// the words that preceded the last word of the path; otherwise both are nil.
+// the words of args that preceded the last word of the path; otherwise both
+// are nil.
 //
 // Moving the path to the front can turn a word that preceded one of its steps
 // into a further step, as "login" in "tfscli - login auth", so the move is
 // repeated until the path stays where it is; it lengthens the path each time.
 func reorder(root *cobra.Command, args []string) (cmd *cobra.Command, name string, corrected, before []string) {
-	cmd, name, corrected, before = moveFirst(root, args)
-	for corrected != nil {
-		next, nextName, again, _ := moveFirst(root, corrected)
-		if again == nil {
-			return next, nextName, corrected, before
-		}
-		corrected = again
+	// order holds the indices in args of the words of the line being read.
+	order := make([]int, len(args))
+	for i := range order {
+		order[i] = i
 	}
-	return cmd, name, nil, nil
+	var path []int
+	for {
+		line := make([]string, len(order))
+		for i, o := range order {
+			line[i] = args[o]
+		}
+		cmd, name, path = findPath(root, line)
+		if len(path) == 0 || path[len(path)-1] == len(path)-1 {
+			if slices.IsSorted(order) {
+				return cmd, name, nil, nil
+			}
+			corrected = line
+			break
+		}
+		next := make([]int, 0, len(order))
+		for _, p := range path {
+			next = append(next, order[p])
+		}
+		for i, o := range order {
+			if !slices.Contains(path, i) {
+				next = append(next, o)
+			}
+		}
+		order = next
+	}
+
+	last := slices.Max(order[:len(path)])
+	for _, o := range order[len(path):] {
+		if o < last {
+			before = append(before, args[o])
+		}
+	}
+	return cmd, name, corrected, before
 }
 
-// moveFirst makes one pass of reorder. before holds the words that preceded
-// the last word of the path in args.
-func moveFirst(root *cobra.Command, args []string) (cmd *cobra.Command, name string, corrected, before []string) {
+// findPath walks line from the root as checkFlagOrder describes and returns
+// the command reached, its name as typed, and the indices in line of the
+// words of its path.
+func findPath(root *cobra.Command, line []string) (cmd *cobra.Command, name string, path []int) {
 	cmd = root
 	words := []string{root.Name()}
-	var path []int
-	for i, arg := range args {
+	for i, arg := range line {
 		if cmd == root && (arg == cobra.ShellCompRequestCmd || arg == cobra.ShellCompNoDescRequestCmd) {
 			words = append(words, arg)
 			path = append(path, i)
@@ -90,25 +115,7 @@ func moveFirst(root *cobra.Command, args []string) (cmd *cobra.Command, name str
 			path = append(path, i)
 		}
 	}
-	name = strings.Join(words, " ")
-	if len(path) == 0 || path[len(path)-1] == len(path)-1 {
-		return cmd, name, nil, nil
-	}
-
-	last := path[len(path)-1]
-	corrected = make([]string, 0, len(args))
-	var rest []string
-	for i, arg := range args {
-		if slices.Contains(path, i) {
-			corrected = append(corrected, arg)
-			continue
-		}
-		if i < last {
-			before = append(before, arg)
-		}
-		rest = append(rest, arg)
-	}
-	return cmd, name, append(corrected, rest...), before
+	return cmd, strings.Join(words, " "), path
 }
 
 // subcommand returns the child of cmd named name, or nil.
@@ -122,44 +129,77 @@ func subcommand(cmd *cobra.Command, name string) *cobra.Command {
 }
 
 // unknownFlag reports the first flag among words, read as pflag reads them,
-// that cmd does not define, in pflag's own wording. Moving such a flag after
-// the path would not make the command valid, so it is reported as unknown
-// rather than as misplaced.
-func unknownFlag(cmd *cobra.Command, words []string) error {
+// that cmd, named name, does not define or that is malformed, in pflag's own
+// wording. Moving such a flag after the path would not make the command
+// valid, so it is reported as it is rather than as misplaced. --version,
+// which cobra defines on the root alone, is reported with the way to run it.
+// Words after "--" are arguments, as they are to pflag.
+func unknownFlag(cmd *cobra.Command, name string, words []string) error {
 	for i := 0; i < len(words); i++ {
 		word := words[i]
-		if word == "-" || !strings.HasPrefix(word, "-") {
-			continue
-		}
-		name, short, inline := splitFlag(word)
-		if name == "help" && !short || name == "h" && short {
-			continue
-		}
-		found, value := lookupFlag(cmd, name, short)
 		switch {
-		case !found && short:
-			return &tfserr.Error{Category: tfserr.Config, Message: fmt.Sprintf("unknown shorthand flag: '%s' in %s", name, word)}
-		case !found:
-			return &tfserr.Error{Category: tfserr.Config, Message: "unknown flag: --" + name}
-		case value && !inline:
-			i++
+		case word == "--":
+			return nil
+		case word == "-" || !strings.HasPrefix(word, "-"):
+			continue
+		case strings.HasPrefix(word, "--"):
+			body := word[2:]
+			if body[0] == '-' || body[0] == '=' {
+				return &tfserr.Error{Category: tfserr.Config, Message: "bad flag syntax: " + word}
+			}
+			flag, _, inline := strings.Cut(body, "=")
+			if flag == "help" {
+				continue
+			}
+			found, value := lookupFlag(cmd, flag, false)
+			switch {
+			case !found && flag == "version":
+				return &tfserr.Error{
+					Category: tfserr.Config,
+					Message:  fmt.Sprintf("--version belongs to tfscli itself, not to %q (run it as: tfscli --version)", name),
+				}
+			case !found:
+				return &tfserr.Error{Category: tfserr.Config, Message: "unknown flag: --" + flag}
+			}
+			if value && !inline {
+				i++
+			}
+		default:
+			takesNext, err := shorthands(cmd, word[1:])
+			if err != nil {
+				return err
+			}
+			if takesNext {
+				i++
+			}
 		}
 	}
 	return nil
 }
 
-// splitFlag takes a flag token apart: "--name", "--name=value", "-n", or
-// "-nvalue". inline reports whether the token carries its value.
-func splitFlag(arg string) (name string, short, inline bool) {
-	if body, ok := strings.CutPrefix(arg, "--"); ok {
-		name, _, inline = strings.Cut(body, "=")
-		return name, false, inline
+// shorthands reads a group of shorthand flags, such as "v" in "-v" or "vpX"
+// in "-vpX", as pflag reads it, and reports whether the last flag of the group
+// takes its value from the next word. The help flag, which cobra adds only
+// when it executes the tree, takes no value.
+func shorthands(cmd *cobra.Command, group string) (takesNext bool, err error) {
+	for ; group != ""; group = group[1:] {
+		if group[0] == 'h' {
+			continue
+		}
+		found, value := lookupFlag(cmd, group[:1], true)
+		switch {
+		case !found:
+			return false, &tfserr.Error{
+				Category: tfserr.Config,
+				Message:  fmt.Sprintf("unknown shorthand flag: %q in -%s", group[0], group),
+			}
+		case len(group) > 1 && group[1] == '=':
+			return false, nil
+		case value:
+			return len(group) == 1, nil
+		}
 	}
-	body := strings.TrimPrefix(arg, "-")
-	if len(body) > 1 {
-		return body[:1], true, true
-	}
-	return body, true, false
+	return false, nil
 }
 
 // lookupFlag finds a flag of cmd, its own or inherited, by name or by

@@ -12,7 +12,19 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
+
+// TestMain turns off a question cobra asks on Windows before every execution:
+// whether the process was started from Explorer, answered by listing every
+// process of the system. At several milliseconds a call, it would make the
+// tests that execute the command tree many thousands of times, such as
+// TestFlagOrderAgreesWithCobra, take minutes.
+func TestMain(m *testing.M) {
+	cobra.MousetrapHelpText = ""
+	m.Run()
+}
 
 // workItemResponse is a Get Work Item response trimmed to the fields the
 // printer has to distinguish. The full-response case lives in the workitem
