@@ -105,37 +105,43 @@ func newRoot(b build, stdin prompter, stdout, stderr io.Writer) *cobra.Command {
 	// them here lets checkFlagOrder walk them like any other command.
 	root.InitDefaultHelpCmd()
 	root.InitDefaultCompletionCmd()
+	completion, _, _ := root.Find([]string{"completion"})
+	makeGroup(completion)
 	return root
 }
 
 // newGroupCmd builds a command that only holds subcommands, such as an API
-// area or a resource. Cobra rejects an unknown subcommand only on the root;
-// below it, a group without RunE prints its help and exits 0, so a mistyped
-// resource would pass for success. Here any argument left over after the
-// subcommand lookup is reported as an unknown command instead. Unknown flags
-// are ignored at this level so that the flags meant for the action do not
-// hide the mistyped name.
+// area or a resource.
 func newGroupCmd(use, short string) *cobra.Command {
-	return &cobra.Command{
-		Use:                use,
-		Short:              short,
-		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
-		// Cobra applies its default distance only when it looks up a
-		// suggestion itself, which it does on the root alone.
-		SuggestionsMinimumDistance: 2,
-		Args: func(cmd *cobra.Command, args []string) error {
-			if len(args) == 0 {
-				return nil
-			}
-			next := fmt.Sprintf("run %q for the available commands", cmd.CommandPath()+" --help")
-			if suggestions := cmd.SuggestionsFor(args[0]); len(suggestions) > 0 {
-				next = fmt.Sprintf("did you mean %q?", suggestions[0])
-			}
-			return fmt.Errorf("unknown command %q for %q (%s)", args[0], cmd.CommandPath(), next)
-		},
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return cmd.Help()
-		},
+	cmd := &cobra.Command{Use: use, Short: short}
+	makeGroup(cmd)
+	return cmd
+}
+
+// makeGroup makes cmd, a command that only holds subcommands, reject an
+// unknown subcommand. Cobra does so only on the root; below it, a group
+// without RunE prints its help and exits 0, so a mistyped resource would pass
+// for success. Here any argument left over after the subcommand lookup is
+// reported as an unknown command instead. Unknown flags are ignored at this
+// level so that the flags meant for the action do not hide the mistyped name.
+// It also serves cobra's own completion group.
+func makeGroup(cmd *cobra.Command) {
+	cmd.FParseErrWhitelist = cobra.FParseErrWhitelist{UnknownFlags: true}
+	// Cobra applies its default distance only when it looks up a suggestion
+	// itself, which it does on the root alone.
+	cmd.SuggestionsMinimumDistance = 2
+	cmd.Args = func(cmd *cobra.Command, args []string) error {
+		if len(args) == 0 {
+			return nil
+		}
+		next := fmt.Sprintf("run %q for the available commands", cmd.CommandPath()+" --help")
+		if suggestions := cmd.SuggestionsFor(args[0]); len(suggestions) > 0 {
+			next = fmt.Sprintf("did you mean %q?", suggestions[0])
+		}
+		return fmt.Errorf("unknown command %q for %q (%s)", args[0], cmd.CommandPath(), next)
+	}
+	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
+		return cmd.Help()
 	}
 }
 

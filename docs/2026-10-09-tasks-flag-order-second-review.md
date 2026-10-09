@@ -66,7 +66,7 @@ has a portable form; the new tests pass; `make check` passes.
 **Definition of done:** `tfscli completion bsh` is an unknown command error
 that suggests `bash`; `tfscli completion powershell` still prints the script;
 `make check` passes.
-**Status:** Pending
+**Status:** Done
 
 ### TASK-04 `tests`
 **Description:** Add `-p=X` forms to `oracleWords` and a hand case with
