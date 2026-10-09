@@ -83,7 +83,8 @@ if a change would break one, raise it before implementing.
 - The command hierarchy and parameter names mirror the TFS REST API; a deviation needs an
   explicit usability justification, and no query syntax or batch endpoint is invented.
 - The command line stays matchable by agent permission rules: flags follow the command
-  path, each command has one form (no aliases, abbreviations, or prefix matching), local
+  path, each command has one form (no aliases, abbreviations, or prefix matching), a
+  command with subcommands only groups them (no arguments, no flags of its own), local
   command names never coincide with REST API areas, and there is no generic pass-through
   command.
 - Stateless: no daemon, no background process, no on-disk state beyond the config file and the credential written by `auth login`.
