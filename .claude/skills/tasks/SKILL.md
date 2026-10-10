@@ -1,6 +1,6 @@
 ---
 name: tasks
-description: Universal task-file workflow — create a structured tasks file for work that starts now and execute it step by step, tracking what is done vs. pending in any project. No project-specific assumptions.
+description: Universal task-file workflow — create a structured tasks file for work that starts now and needs a plan agreed with the user, and execute it step by step, tracking what is done vs. pending in any project. Not for fixing review findings, a single fix, or another change done directly. No project-specific assumptions.
 argument-hint: "[feature description to break down | path to a tasks file]"
 ---
 
@@ -17,6 +17,21 @@ not the one you are reading, read it and follow it instead of this file.
 Where the project's own documentation (for example `CONTRIBUTING.md` or `CLAUDE.md`)
 sets a different convention, the project's convention wins over this skill.
 
+## When a tasks file is warranted
+
+A tasks file holds a plan. Work gets one when it needs a plan: it breaks down into
+several tasks, the breakdown is agreed with the user before the work starts, or the
+work may outlast one session.
+
+Work that needs no plan is done directly, and its commit messages explain it. This
+includes fixing the findings of a review of the current branch, a single fix, and a
+small change the user asked for. Such work gets no tasks file even when the user
+leaves the details to you, and even when it touches several files.
+
+When such work turns out to change the approach — the user has to approve a decision
+before the work goes on — it has become work that needs a plan: agree the decision
+with the user, then create a tasks file for the work that follows from it.
+
 ## Mode detection
 
 Decide what to do from the user's request and the current context:
@@ -25,8 +40,9 @@ Decide what to do from the user's request and the current context:
   and exactly one `Active` file exists in the tasks directory (see "The tasks file") →
   **Execute** mode.
 - A feature or request description is given and no matching file exists → **Create**
-  mode (breakdown), then offer to start executing. Work that is not to start now does
-  not get a tasks file (see "Create mode").
+  mode (breakdown), then offer to start executing. Work that needs no plan (see "When
+  a tasks file is warranted") or is not to start now (see "Create mode") does not get
+  a tasks file.
 - The request names no new work and no `Active` file exists → propose starting the next
   item from where the project keeps accepted work that has not started, if it has such
   a place, as **Create** mode; otherwise ask the user what to work on.
@@ -97,18 +113,20 @@ self-evident and needs no marker.
 A tasks file is created when the work starts, not in advance: most of the effort before
 that is discussion and decisions, and a breakdown made ahead of time goes stale.
 
-1. Confirm that the work starts now. If it does not — the user wants it recorded,
+1. Confirm that the work needs a plan (see "When a tasks file is warranted"). If it
+   does not, do it directly, without a tasks file.
+2. Confirm that the work starts now. If it does not — the user wants it recorded,
    noted, or kept for later — do not create a tasks file. Record it where the project
    keeps accepted work that has not started, if it has such a place; otherwise ask the
    user where it should go. If the work was recorded there earlier, use that record as
    the input to the breakdown and take it out as that place's rules require.
-2. Turn the feature/request into a complete, ordered list of **atomic** tasks — each
+3. Turn the feature/request into a complete, ordered list of **atomic** tasks — each
    one achievable in a single focused session, with a definition of done that can be
    checked.
-3. Propose the task structure to the user and let them adjust before writing anything.
-4. Write the file to the tasks directory with header `Active` and every task `Pending`,
+4. Propose the task structure to the user and let them adjust before writing anything.
+5. Write the file to the tasks directory with header `Active` and every task `Pending`,
    numbered `TASK-01`, `TASK-02`, … in order.
-5. Offer to start executing the first task.
+6. Offer to start executing the first task.
 
 ## Execute mode (tracking discipline)
 
@@ -161,6 +179,7 @@ same commit:
 
 ## Invariants
 
+- A tasks file holds a plan; work that needs no plan gets no tasks file.
 - Tasks are atomic; work on one at a time.
 - Never leave a finished task unmarked — the file is the source of truth for progress.
 - `Done` tasks are never rewritten; `Pending` tasks change when the plan proves wrong.
