@@ -28,7 +28,7 @@ Not present in v1: write operations (out of scope) and JSON output (`--json`, pl
 
 5. Copy the `skills/tfscli` directory from the archive into the skills directory of your AI agent.
 
-Details for each step: [Installation](#installation) covers the archive names, checksums, and building from source; [Authentication](#authentication) covers the token scope, Git Bash on Windows, and CI; [Use with an AI agent](#use-with-an-ai-agent) lists the skills directories of the supported agents, gives the copy commands, and describes an agent without skill support. Further settings, such as a default project, are described under [Configuration](#configuration).
+Details for each step: [Installation](#installation) covers the archive names, checksums, and building from source; [Authentication](#authentication) covers the token scope, Git Bash on Windows, and CI; [Use with an AI agent](#use-with-an-ai-agent) lists the skills directories of Claude Code and opencode, gives the copy commands, and describes an agent without skill support. Further settings, such as a default project, are described under [Configuration](#configuration).
 
 ## Installation
 
@@ -115,15 +115,9 @@ PAT is the only authentication method; SSPI and NTLM are out of scope. The token
 
 ## Use with an AI agent
 
-tfscli is built for AI coding agents first, and every archive carries an agent
-skill beside the binary: `skills/tfscli/SKILL.md`, in the Agent Skills format.
-It tells an agent when the tool applies, how the output is shaped, what each
-error category calls for, and where the boundaries are — none of which `--help`
-conveys.
+tfscli is built for AI coding agents first, and every archive carries an agent skill beside the binary: `skills/tfscli/SKILL.md`, in the Agent Skills format. It tells an agent when the tool applies, how the output is shaped, what each error category calls for, and where the boundaries are — none of which `--help` conveys.
 
-Install it by copying the directory. Create the destination first: copying
-into a path that does not exist yet leaves `SKILL.md` one level too high,
-where no agent looks for it.
+Install it by copying the directory. Create the destination first: copying into a path that does not exist yet leaves `SKILL.md` one level too high, where no agent looks for it.
 
 ```sh
 mkdir -p ~/.claude/skills && cp -r skills/tfscli ~/.claude/skills/
@@ -134,41 +128,39 @@ New-Item -ItemType Directory -Force $HOME\.claude\skills | Out-Null
 Copy-Item -Recurse skills\tfscli $HOME\.claude\skills\
 ```
 
-That one location serves both agents: opencode has first-party skill support and
-searches `~/.claude/skills/` among its own paths. Other locations work as well,
-if the skill should be scoped to a single project or kept out of the Claude
-directory:
+That one location serves Claude Code and opencode: opencode has first-party skill support and searches `~/.claude/skills/` among its own paths. Other locations work as well, if the skill should be scoped to a single project or kept out of the Claude directory:
 
 | Agent | Project | Global |
 |---|---|---|
 | Claude Code | `.claude/skills/tfscli/` | `~/.claude/skills/tfscli/` |
 | opencode | `.opencode/skills/tfscli/`, `.claude/skills/tfscli/`, `.agents/skills/tfscli/` | `~/.config/opencode/skills/tfscli/`, `~/.claude/skills/tfscli/`, `~/.agents/skills/tfscli/` |
 
-In opencode, loading a skill is subject to `permission.skill` in
-`opencode.json` — `allow`, `ask`, or `deny` — and the mechanism can be switched
-off altogether with `tools.skill: false`. If the skill is never offered, check
-those settings first.
+In opencode, loading a skill is subject to `permission.skill` in `opencode.json` — `allow`, `ask`, or `deny` — and the mechanism can be switched off altogether with `tools.skill: false`. If the skill is never offered, check those settings first.
 
-An agent without skill support can be pointed at the same file directly: it is
-plain markdown under a short YAML header.
+An agent without skill support can be pointed at the same file directly: it is plain markdown under a short YAML header.
 
 ### Permission rules
 
-Both agents decide whether a shell command may run by matching its text against
-rules. Every tfscli command starts with its full name, such as
-`tfscli wit work-items get` or `tfscli licenses`, followed by flags and
-arguments, and each command has exactly one name, so a rule written as a prefix
-covers the command whatever its flags. The current commands only read;
-`auth login` is interactive and is not for an agent to run.
+An agent usually decides whether a shell command may run by matching its text against allow, ask, and deny rules. Every tfscli command starts with its full name, such as `tfscli wit work-items get` or `tfscli licenses`, followed by flags and arguments, and each command has exactly one name, so a rule written as a prefix covers the command whatever its flags. The current commands only read; `auth login` is interactive and is not for an agent to run.
 
-Commands that change data are not part of tfscli yet. When they are added,
-each will require the flag `--allow-changes` and will fall under `tfscli wit *`
-like the reading commands, so the examples below already ask before a command
-that carries that flag as it is usually written.
+Commands that change data are not part of tfscli yet. When they are added, each will require the flag `--allow-changes` and will fall under `tfscli wit *` like the reading commands.
 
-Claude Code, in `.claude/settings.json` or `~/.claude/settings.json`; the
-`PowerShell` rules apply where the agent runs commands through PowerShell. An
-`ask` rule takes precedence over an `allow` rule:
+The following rules let an agent read freely, ask before a command that changes data, and keep the agent away from the credential. `*` stands for any text, spaces included:
+
+| Command | Decision |
+|---|---|
+| `tfscli wit *` | allow |
+| `tfscli licenses` | allow |
+| `tfscli *--allow-changes*` | ask |
+| `tfscli auth *` | deny |
+
+A command that changes data matches both `tfscli wit *` and `tfscli *--allow-changes*`, so the rules work only if the ask rule takes precedence over the allow rule. Agents resolve such a conflict differently: some rank the decisions, others apply the last matching rule.
+
+A rule matches the command as the agent types it. A call through `tfscli.exe` or a full path matches none of these rules and gets the agent's default for unmatched commands, which may be to allow it. Likewise, a flag written with quotes in the middle, such as `--allow-chan''ges`, reaches tfscli as `--allow-changes` but may not match the rule. The rules therefore govern the usual form of a call and guard against an agent's mistake; they are not a security boundary against an agent that sets out to get around them.
+
+The examples below write the same rules for two agents. Each agent owns its settings format, which may change; its own documentation takes precedence over these examples.
+
+Claude Code, in `.claude/settings.json` or `~/.claude/settings.json`. Claude Code matches commands of its Bash and PowerShell tools by separate rules, so each rule appears in both forms. A `deny` rule takes precedence over an `ask` rule, and an `ask` rule over an `allow` rule, whatever their order. A command that matches no rule is asked about in the default mode:
 
 ```json
 {
@@ -180,8 +172,8 @@ Claude Code, in `.claude/settings.json` or `~/.claude/settings.json`; the
       "PowerShell(tfscli licenses)"
     ],
     "ask": [
-      "Bash(*--allow-changes*)",
-      "PowerShell(*--allow-changes*)"
+      "Bash(tfscli *--allow-changes*)",
+      "PowerShell(tfscli *--allow-changes*)"
     ],
     "deny": [
       "Bash(tfscli auth *)",
@@ -191,8 +183,7 @@ Claude Code, in `.claude/settings.json` or `~/.claude/settings.json`; the
 }
 ```
 
-opencode, in `opencode.json`. The last matching rule wins, so place these after
-any catch-all `"*"` rule, in this order:
+opencode, in `opencode.json`. The last matching rule wins, so place these after any catch-all `"*"` rule, in this order. A command that matches no rule is allowed unless a catch-all `"*": "ask"` is set:
 
 ```json
 {
@@ -200,21 +191,12 @@ any catch-all `"*"` rule, in this order:
     "bash": {
       "tfscli wit *": "allow",
       "tfscli licenses": "allow",
-      "*--allow-changes*": "ask",
+      "tfscli *--allow-changes*": "ask",
       "tfscli auth *": "deny"
     }
   }
 }
 ```
-
-A rule matches the command as the agent types it. A call through `tfscli.exe`
-or a full path matches none of the `tfscli` rules and gets the agent's default
-for unmatched commands: Claude Code asks in its default mode, while opencode
-allows it unless a catch-all `"*": "ask"` is set. Likewise, a flag written
-with quotes in the middle, such as `--allow-chan''ges`, reaches tfscli as
-`--allow-changes` but may not match the rule. The rules therefore govern the
-usual form of a call and guard against an agent's mistake; they are not a
-security boundary against an agent that sets out to get around them.
 
 ## Configuration
 
@@ -277,7 +259,7 @@ tfscli <area> <resource> <action> [flags] [arguments]
 
 Commands are named after the REST API reference: the area and the resource are the segments of the operation's page path, so Get Work Item, documented under `.../wit/work-items/get-work-item`, is `wit work-items get`. `auth login` and `licenses` are local to tfscli and have no counterpart in the API.
 
-Flags follow the command: `tfscli wit work-items get --verbose -p MyProject 12345`, never `tfscli --verbose wit work-items get ...`. A flag placed before the last word of the command is refused with a `config` error that shows the command with the flag moved, and nothing is sent to the server; a flag that the command does not define is reported as unknown instead. `--help` is no exception: `tfscli wit work-items get --help`, not `tfscli --help wit work-items get`. `--version` belongs to `tfscli` alone, and placed before a command it is refused with a message that names `tfscli --version`. The rule keeps the command at the start of the command line, where agent permission rules look for it (see "Permission rules").
+Flags follow the command: `tfscli wit work-items get --verbose -p MyProject 12345`, never `tfscli --verbose wit work-items get ...`. A flag placed before the last word of the command is refused with a `config` error that shows the command with the flag moved, and nothing is sent to the server; a flag that the command does not define is reported as unknown instead. `--help` is no exception: `tfscli wit work-items get --help`, not `tfscli --help wit work-items get`. `--version` belongs to `tfscli` alone, and placed before a command it is refused with a message that names `tfscli --version`. The rule keeps the command at the start of the command line, where agent permission rules look for it (see [Permission rules](#permission-rules)).
 
 `tfscli --version` prints the version and the commit it was built from; `tfscli --help`, and `--help` on any command, lists the flags. `tfscli licenses` prints the components built into the binary — tfscli itself, the Go standard library, and the third-party modules — followed by the license text of each.
 
