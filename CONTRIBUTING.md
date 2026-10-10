@@ -82,7 +82,8 @@ if a change would break one, raise it before implementing.
   explicit usability justification, and no query syntax or batch endpoint is invented.
 - The command line stays matchable by agent permission rules: flags follow the command
   path, each command has one form, a group of commands only groups them, local command
-  names never coincide with REST API areas, and there is no generic pass-through command.
+  names never coincide with REST API areas, no flag gives a reading command a side
+  effect, and there is no generic pass-through command.
 - Stateless: no daemon, no background process, no on-disk state beyond the config file and the credential written by `auth login`.
 - The error categories `auth`, `not_found`, `forbidden`, `server`, `config`, and `network`
   are a contract. New ones may be added; existing ones are never renamed or removed.
